@@ -1,0 +1,125 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CityStatus {
+  CONSOLIDATED
+  EXPANSION
+  NOT_SERVED
+  PLANNING
+}
+
+enum Mesorregion {
+  NORTE_MATOGROSSENSE
+  NORDESTE_MATOGROSSENSE
+  CENTRO_SUL_MATOGROSSENSE
+  SUDESTE_MATOGROSSENSE
+  SUDOESTE_MATOGROSSENSE
+}
+
+model City {
+  id                      Int          @id
+  name                    String
+  population              Int
+  population15to44        Int
+  averageIncome           Float
+  urbanizationIndex       Float
+  status                  CityStatus
+  mesorregion             Mesorregion
+  gentilic                String
+  anniversary             String
+  mayor                   String
+  monthlyRevenue          Float?
+  implementationStartDate DateTime?
+  averageFormalSalary     Float
+  formalJobs              Int
+  urbanizedAreaKm2        Float
+  
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+  
+  plannings               Planning[]
+  comparisons             Comparison[]
+  
+  @@index([status])
+  @@index([mesorregion])
+  @@index([population])
+}
+
+model Planning {
+  id                  String   @id @default(uuid())
+  cityId              Int
+  title               String
+  description         String
+  startDate           DateTime
+  endDate             DateTime?
+  status              String   @default("active")
+  priority            String   @default("medium")
+  tags                String?  // JSON string for SQLite compatibility
+  estimatedBudget     Float?
+  actualBudget        Float?
+  progressPercentage  Int      @default(0)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  city                City     @relation(fields: [cityId], references: [id])
+  tasks               Task[]
+  
+  @@index([cityId])
+  @@index([status])
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  planningId  String
+  title       String
+  description String?
+  completed   Boolean  @default(false)
+  dueDate     DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  planning    Planning @relation(fields: [planningId], references: [id], onDelete: Cascade)
+  
+  @@index([planningId])
+}
+
+model Comparison {
+  id          String   @id @default(uuid())
+  cityId      Int
+  comparedAt  DateTime @default(now())
+  metrics     Json
+  
+  city        City     @relation(fields: [cityId], references: [id])
+  
+  @@index([cityId])
+}
+
+model AIQuery {
+  id          String   @id @default(uuid())
+  prompt      String
+  response    String
+  context     Json?
+  createdAt   DateTime @default(now())
+  
+  @@index([createdAt])
+}
+
+model IBGECache {
+  id          String   @id @default(uuid())
+  cityId      Int      @unique
+  data        Json
+  lastFetched DateTime @default(now())
+  
+  @@index([lastFetched])
+}
