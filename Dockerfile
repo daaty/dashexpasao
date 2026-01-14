@@ -12,14 +12,8 @@ RUN npm install
 # Copy backend source
 COPY backend/ ./
 
-# Generate Prisma Client
-RUN npx prisma generate
-
-# Build TypeScript
-RUN npm run build
-
 # Expose port
 EXPOSE 3001
 
-# Start server
-CMD ["npm", "start"]
+# Start server with tsx (no build needed)
+CMD ["npx", "tsx", "src/server.ts"]
