@@ -9,6 +9,9 @@ COPY backend/prisma ./prisma/
 # Install dependencies (including dev for build)
 RUN npm install
 
+# Generate Prisma Client
+RUN npx prisma generate
+
 # Copy backend source
 COPY backend/ ./
 
