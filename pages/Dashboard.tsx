@@ -9,21 +9,23 @@ import InfoTooltip from '../components/ui/InfoTooltip';
 import { DataContext } from '../context/DataContext';
 
 const KpiCard = ({ icon, title, value, subValue, trend, trendValue, tooltipText }: { icon: React.ReactElement, title: string, value: string, subValue: string, trend?: 'up' | 'down', trendValue?: string, tooltipText: string }) => (
-    <Card>
-        <div className="flex items-start justify-between">
-            <div className="flex items-start">
-                 <div className="p-3 rounded-full bg-primary/20 text-primary mr-4">{icon}</div>
+    <Card gradient>
+        <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center">
+                 <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/10 text-primary mr-4 shadow-sm">
+                    {React.cloneElement(icon, { className: 'w-6 h-6' })}
+                 </div>
                 <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
-                    <p className="text-2xl font-bold">{value}</p>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{title}</p>
+                    <p className="text-3xl font-black text-black dark:text-white mt-1">{value}</p>
                 </div>
             </div>
             <InfoTooltip text={tooltipText} />
         </div>
-        <div className="mt-4 flex justify-between items-center text-sm">
-            <span>{subValue}</span>
+        <div className="pt-4 border-t border-slate-200/60 dark:border-dark-100 flex justify-between items-center text-sm">
+            <span className="text-gray-600 dark:text-gray-400">{subValue}</span>
             {trend && trendValue && (
-                <span className={`flex items-center font-semibold ${trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
+                <span className={`flex items-center font-bold px-3 py-1 rounded-full text-xs ${trend === 'up' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
                     {trend === 'up' ? <FiArrowUp className="mr-1" /> : <FiArrowDown className="mr-1" />}
                     {trendValue}
                 </span>
@@ -36,16 +38,30 @@ const InteractiveMapPlaceholder = () => (
     <Card 
       title="Mapa Interativo do MT"
       tooltipText="Visualização geográfica dos municípios do Mato Grosso, coloridos conforme o status operacional: Consolidada (verde), Em Expansão (laranja) e Não Atendida (cinza)."
+      gradient
     >
-        <div className="h-full flex flex-col items-center justify-center min-h-[300px]">
-            <FiMapPin className="text-6xl text-primary mb-4" />
-            <div className="mt-4 flex flex-wrap justify-center space-x-4">
-                <div className="flex items-center"><span className="w-4 h-4 rounded-full bg-green-500 mr-2"></span>Consolidada</div>
-                <div className="flex items-center"><span className="w-4 h-4 rounded-full bg-orange-500 mr-2"></span>Em Expansão</div>
-                <div className="flex items-center"><span className="w-4 h-4 rounded-full bg-gray-400 mr-2"></span>Não Atendida</div>
+        <div className="h-full flex flex-col items-center justify-center min-h-[350px] bg-gradient-to-br from-slate-50 to-slate-100 dark:from-dark-300 dark:to-dark-200 rounded-xl">
+            <div className="relative">
+                <div className="absolute inset-0 blur-3xl bg-primary/20 animate-pulse"></div>
+                <FiMapPin className="relative text-7xl text-primary mb-6 animate-bounce" />
             </div>
-            <p className="text-xs text-center text-gray-400 dark:text-gray-500 mt-4">
-                (Componente de mapa interativo como MapboxGL seria implementado aqui)
+            <p className="text-lg font-semibold text-black dark:text-white mb-6">Mapa de Cobertura</p>
+            <div className="flex flex-wrap justify-center gap-4">
+                <div className="flex items-center px-4 py-2 rounded-full bg-green-100 dark:bg-green-900/30">
+                    <span className="w-3 h-3 rounded-full bg-green-500 mr-2 shadow-sm"></span>
+                    <span className="text-sm font-medium text-green-700 dark:text-green-400">Consolidada</span>
+                </div>
+                <div className="flex items-center px-4 py-2 rounded-full bg-orange-100 dark:bg-orange-900/30">
+                    <span className="w-3 h-3 rounded-full bg-orange-500 mr-2 shadow-sm"></span>
+                    <span className="text-sm font-medium text-orange-700 dark:text-orange-400">Em Expansão</span>
+                </div>
+                <div className="flex items-center px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800">
+                    <span className="w-3 h-3 rounded-full bg-gray-400 mr-2 shadow-sm"></span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-400">Não Atendida</span>
+                </div>
+            </div>
+            <p className="text-xs text-center text-gray-400 dark:text-gray-500 mt-6 px-4">
+                Mapa interativo com MapboxGL será implementado aqui
             </p>
         </div>
     </Card>
@@ -114,7 +130,13 @@ const Dashboard: React.FC = () => {
         .slice(0, 5); // Show top 5
         
     return (
-        <div className="space-y-6">
+        <div className="space-y-8 animate-in fade-in duration-500">
+            {/* Header Section */}
+            <div className="mb-8">
+                <h1 className="text-4xl font-black text-black dark:text-white mb-2">Dashboard</h1>
+                <p className="text-gray-600 dark:text-gray-400">Visão geral das operações em Mato Grosso</p>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <KpiCard icon={<FiUsers />} title="Cidades" value={totalCities.toString()} subValue={`Ativas: ${activeCities} | Expansão: ${expansionCities}`} tooltipText="Total de municípios em MT. 'Ativas' são as cidades consolidadas e 'Em Expansão' são as que iniciaram operações recentemente."/>
                 <KpiCard icon={<FiDollarSign />} title="Receita Mês (Est.)" value={totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} subValue="Baseado em cidades ativas" trend="up" trendValue="12.5%" tooltipText="Receita total mensal estimada somando todas as cidades com status Consolidada ou Em Expansão."/>
@@ -130,8 +152,9 @@ const Dashboard: React.FC = () => {
                     <Card 
                       title="Receita por Região"
                       tooltipText="Gráfico de barras exibindo a receita mensal estimada agregada por mesorregião do estado."
+                      gradient
                     >
-                        <div className="h-64">
+                        <div className="h-72 p-2">
                             <Bar options={chartOptions} data={chartData} />
                         </div>
                     </Card>
@@ -141,20 +164,23 @@ const Dashboard: React.FC = () => {
             <Card
                 title="Próximas Expansões / Recentes"
                 tooltipText="Lista das cidades em fase de expansão, ordenadas pela data de início de operação."
+                gradient
             >
                 <ul className="space-y-3">
                     {nextExpansions.map(city => (
-                        <li key={city.id} className="flex justify-between items-center p-2 rounded-lg hover:bg-base-200 dark:hover:bg-dark-100">
-                           <span className="font-medium flex items-center">
-                                <span className={`w-2 h-2 rounded-full mr-2 ${new Date(city.implementationStartDate!) > new Date() ? 'bg-blue-500' : 'bg-green-500'}`}></span>
+                        <li key={city.id} className="flex justify-between items-center p-4 rounded-xl hover:bg-slate-100 dark:hover:bg-dark-100 transition-all duration-200 border border-transparent hover:border-slate-200 dark:hover:border-dark-100 group">
+                           <span className="font-semibold flex items-center text-black dark:text-white">
+                                <span className={`w-2.5 h-2.5 rounded-full mr-3 ${new Date(city.implementationStartDate!) > new Date() ? 'bg-blue-500 animate-pulse' : 'bg-green-500'} shadow-sm`}></span>
                                 {city.name}
                            </span>
-                           <span className="text-sm text-gray-500">Início: {new Date(city.implementationStartDate!).toLocaleDateString('pt-BR')}</span>
+                           <span className="text-sm text-gray-500 dark:text-gray-400 font-medium px-3 py-1 rounded-full bg-slate-100 dark:bg-dark-100 group-hover:bg-white dark:group-hover:bg-dark-200 transition-colors">
+                                {new Date(city.implementationStartDate!).toLocaleDateString('pt-BR')}
+                           </span>
                         </li>
                     ))}
-                    {nextExpansions.length === 0 && <p className="text-gray-500 text-sm">Nenhuma expansão ativa no momento.</p>}
+                    {nextExpansions.length === 0 && <p className="text-gray-500 text-sm text-center py-4">Nenhuma expansão ativa no momento.</p>}
                 </ul>
-                <button onClick={() => navigate('/roadmap')} className="mt-4 w-full bg-primary text-white py-2 px-4 rounded-lg hover:bg-primary-600 transition">
+                <button onClick={() => navigate('/roadmap')} className="mt-6 w-full bg-gradient-to-r from-primary to-primary-600 text-white py-3 px-6 rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all duration-300 font-semibold">
                     Ver Roadmap Completo
                 </button>
             </Card>

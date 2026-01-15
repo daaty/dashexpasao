@@ -145,20 +145,17 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   
   return (
     <>
-        <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-white/90 dark:bg-dark-200/80 backdrop-blur-md border-b border-slate-200 dark:border-dark-100 transition-all duration-300">
+        <header className="sticky top-0 z-10 flex items-center justify-between px-6 lg:px-10 py-4 bg-white/95 dark:bg-dark-200/95 backdrop-blur-lg border-b border-slate-200/60 dark:border-dark-100 shadow-sm">
             <div className="flex items-center gap-4">
-                <button 
-                    onClick={toggleSidebar} 
-                    className="p-2 -ml-2 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-300 rounded-lg lg:hidden transition-colors"
-                >
-                    <FiMenu className="h-6 w-6" />
-                </button>
+                <h1 className="font-black text-2xl bg-gradient-to-r from-primary to-primary-600 bg-clip-text text-transparent">
+                    Urban<span className="font-light">Passageiro</span>
+                </h1>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
                  <button 
                     onClick={toggleDarkMode} 
-                    className="p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-300 rounded-full transition-colors"
+                    className="p-2.5 text-gray-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-dark-100 rounded-xl transition-all duration-200 hover:scale-105"
                     title={isDarkMode ? "Modo Claro" : "Modo Escuro"}
                 >
                     {isDarkMode ? <FiSun className="h-5 w-5"/> : <FiMoon className="h-5 w-5"/>}
@@ -168,13 +165,13 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
 
                 <button 
                     onClick={() => setIsSettingsOpen(true)}
-                    className="p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-300 rounded-full transition-colors"
+                    className="p-2.5 text-gray-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-dark-100 rounded-xl transition-all duration-200 hover:scale-105"
                     title="Configurações"
                 >
                     <FiSettings className="h-5 w-5" />
                 </button>
                 
-                <button className="relative p-2 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-300 rounded-full transition-colors group">
+                <button className="relative p-2.5 text-gray-700 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-dark-100 rounded-xl transition-all duration-200 hover:scale-105 group">
                     <FiBell className="h-5 w-5 group-hover:text-primary transition-colors" />
                     <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -184,7 +181,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                 
                 <div className="border-l border-gray-200 dark:border-dark-100 h-8 mx-2 hidden sm:block"></div>
 
-                <div className="flex items-center gap-3 pl-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-300 py-1 px-2 rounded-xl transition-colors">
+                <div className="flex items-center gap-3 pl-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-dark-100 py-1 px-3 rounded-xl transition-all duration-200">
                     <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-primary to-blue-400 p-[2px]">
                         <div className="h-full w-full rounded-full bg-white dark:bg-dark-200 flex items-center justify-center">
                              <FiUser className="h-5 w-5 text-gray-900 dark:text-white" />
