@@ -13,7 +13,7 @@ RUN npm ci
 COPY . .
 
 # Build argument for API URL
-ARG VITE_API_URL=http://api.expansao.urban.com.br/api
+ARG VITE_API_URL=http://backend.148.230.73.27.nip.io/api
 ENV VITE_API_URL=$VITE_API_URL
 
 # Build application
