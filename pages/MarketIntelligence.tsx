@@ -93,7 +93,7 @@ const CityCard: React.FC<{
                         <>
                             <div className="fixed inset-0 z-10" onClick={() => setIsMenuOpen(false)}></div>
                             <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-dark-300 border border-base-200 dark:border-dark-100 rounded-lg shadow-lg z-20 py-1 text-sm shadow-xl">
-                                <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase border-b border-base-200 dark:border-dark-100 mb-1">Mover para...</div>
+                                <div className="px-3 py-1 text-xs font-semibold text-gray-900 uppercase border-b border-base-200 dark:border-dark-100 mb-1">Mover para...</div>
                                 {currentBlockId !== null && (
                                      <button 
                                         onClick={() => { onMove(city.id, null); setIsMenuOpen(false); }}
@@ -301,7 +301,7 @@ const BlockSection: React.FC<{
                     ) : (
                         <h3 className="text-xl font-bold flex items-center gap-2">
                             {block.name}
-                            <span className="text-sm font-normal text-gray-400 bg-base-300 dark:bg-dark-100 px-2 py-0.5 rounded-full">{cities.length}</span>
+                            <span className="text-sm font-normal text-gray-900 bg-base-300 dark:bg-dark-100 px-2 py-0.5 rounded-full">{cities.length}</span>
                         </h3>
                     )}
                 </div>
@@ -322,15 +322,15 @@ const BlockSection: React.FC<{
                             >
                                 <FiDownload size={14}/> Exportar PDF
                             </button>
-                            <button onClick={() => setIsEditing(true)} className="p-2 text-gray-400 hover:text-primary transition" title="Renomear"><FiEdit2 size={16}/></button>
-                            <button onClick={() => onDelete(block.id)} className="p-2 text-gray-400 hover:text-red-500 transition" title="Excluir Bloco"><FiTrash2 size={16}/></button>
+                            <button onClick={() => setIsEditing(true)} className="p-2 text-gray-700 hover:text-primary transition" title="Renomear"><FiEdit2 size={16}/></button>
+                            <button onClick={() => onDelete(block.id)} className="p-2 text-gray-700 hover:text-red-500 transition" title="Excluir Bloco"><FiTrash2 size={16}/></button>
                         </>
                     )}
                 </div>
             </div>
 
             {cities.length === 0 ? (
-                <div className="border-2 border-dashed border-base-300 dark:border-dark-100 rounded-xl p-10 text-center text-gray-400 italic">
+                <div className="border-2 border-dashed border-base-300 dark:border-dark-100 rounded-xl p-10 text-center text-gray-700 font-medium italic">
                     Solte uma cidade aqui para agrupar.
                 </div>
             ) : (
@@ -456,7 +456,7 @@ const MarketIntelligence: React.FC = () => {
                     <h2 className="text-2xl font-bold flex items-center">
                         <FiBriefcase className="mr-3 text-primary"/> Inteligência de Mercado
                     </h2>
-                    <p className="text-gray-500 mt-1">
+                    <p className="text-gray-700 font-medium mt-1">
                         Organize as cidades estrategicamente arrastando-as entre os grupos.
                     </p>
                 </div>
@@ -512,12 +512,12 @@ const MarketIntelligence: React.FC = () => {
                     </div>
                     <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">
                         Cidades Não Agrupadas (Geral)
-                        <span className="text-sm font-normal ml-2 text-gray-400 bg-base-300 dark:bg-dark-100 px-2 py-0.5 rounded-full">{organizedData.unassigned.length}</span>
+                        <span className="text-sm font-normal ml-2 text-gray-900 bg-base-300 dark:bg-dark-100 px-2 py-0.5 rounded-full">{organizedData.unassigned.length}</span>
                     </h3>
                 </div>
 
                 {organizedData.unassigned.length === 0 ? (
-                    <div className="text-center text-gray-400 py-10 italic">
+                    <div className="text-center text-gray-700 font-medium py-10 italic">
                         Nenhuma cidade estratégica pendente de agrupamento.
                     </div>
                 ) : (
@@ -556,7 +556,7 @@ const MarketIntelligence: React.FC = () => {
                         />
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
-                        <button onClick={() => setIsCreateModalOpen(false)} className="px-4 py-2 text-gray-500 hover:bg-base-200 dark:hover:bg-dark-100 rounded-lg transition-colors">Cancelar</button>
+                        <button onClick={() => setIsCreateModalOpen(false)} className="px-4 py-2 text-gray-900 font-bold hover:bg-base-200 dark:hover:bg-dark-100 rounded-lg transition-colors">Cancelar</button>
                         <button onClick={handleCreateBlock} disabled={!newBlockName.trim()} className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors shadow-md">Criar Grupo</button>
                     </div>
                 </div>

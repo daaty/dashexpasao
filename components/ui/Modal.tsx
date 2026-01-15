@@ -19,21 +19,21 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }) => {
       aria-modal="true"
     >
       <div 
-        className="bg-base-100 dark:bg-dark-200 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-95 opacity-0 animate-scale-in"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-95 opacity-0 animate-scale-in"
         onClick={e => e.stopPropagation()}
         style={{ animation: 'scale-in 0.2s ease-out forwards' }}
       >
-        <div className="flex justify-between items-center p-4 border-b border-base-300 dark:border-dark-100">
-          <h2 className="text-xl font-bold">{title || 'Detalhes'}</h2>
+        <div className="flex justify-between items-center p-4 border-b border-gray-200">
+          <h2 className="text-xl font-bold text-gray-800">{title || 'Detalhes'}</h2>
           <button 
             onClick={onClose} 
-            className="p-2 rounded-full hover:bg-base-200 dark:hover:bg-dark-100"
+            className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
             aria-label="Fechar modal"
           >
             <FiX className="h-6 w-6" />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto">
+        <div className="p-6 overflow-y-auto text-gray-800">
           {children}
         </div>
       </div>

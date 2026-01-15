@@ -49,51 +49,94 @@ const ImplementationProgressBar: React.FC<{ plan: CityPlan, city: City }> = ({ p
     }
 
     const monthsSinceStart = city.implementationStartDate ? differenceInMonths(new Date(), new Date(city.implementationStartDate)) : 0;
-
-    const phases = [
-        { progress: driversProgress, color: 'bg-blue-500', title: `Aquisição de Motoristas: ${driversProgress.toFixed(0)}%` },
-        { progress: marketingProgress, color: 'bg-sky-500', title: `Marketing & Lançamento: ${marketingProgress.toFixed(0)}%` },
-        { progress: passengersProgress, color: 'bg-green-500', title: `Aquisição de Passageiros: ${passengersProgress.toFixed(0)}%` },
-        { progress: optimizationProgress, color: 'bg-teal-500', title: `Otimização: ${optimizationProgress.toFixed(0)}%` },
-    ];
+    
+    const totalProgress = (driversProgress + marketingProgress + passengersProgress + optimizationProgress) / 4;
 
     return (
         <>
-            <div className="text-right text-xs font-bold text-gray-500 dark:text-gray-400 mt-1">
-                Mês {Math.min(monthsSinceStart + 1, 6)} de 6
+            <div className="flex justify-between items-end mt-1">
+                 <div className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                    Progresso: {totalProgress.toFixed(0)}%
+                 </div>
+                 <div className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                    Mês {Math.min(monthsSinceStart + 1, 6)} de 6
+                </div>
             </div>
-            <div className="w-full bg-base-300 rounded-full h-4 dark:bg-dark-200 mt-1 flex overflow-hidden">
-                {phases.map((phase, index) => (
-                    <div key={index} className={`${phase.color} h-full`} style={{ width: `${phase.progress / 4}%` }} title={phase.title}></div>
-                ))}
+            <div className="w-full bg-base-300 rounded-full h-4 dark:bg-dark-200 mt-1 overflow-hidden">
+                <div 
+                    className="bg-yellow-500 h-full transition-all duration-500 rounded-full" 
+                    style={{ width: `${totalProgress}%` }} 
+                    title={`Progresso Total: ${totalProgress.toFixed(0)}%`}
+                ></div>
             </div>
         </>
     );
 };
 
 const Planning: React.FC = () => {
-  const { cities, plans } = useContext(DataContext);
+  const { cities, plans, marketBlocks } = useContext(DataContext);
   const navigate = useNavigate();
+
+  const isPlanningComplete = (cityId: string) => {
+    const plan = plans.find(p => p.cityId === cityId);
+    if (!plan) return false;
+    
+    const analysis = getPhaseProgress(plan, 'Análise & Viabilidade');
+    const prep = getPhaseProgress(plan, 'Preparação Operacional');
+
+    return analysis.progress >= 100 && prep.progress >= 100;
+  };
+
+  const sortCitiesByDate = (a: City, b: City) => {
+    const planA = plans.find(p => p.cityId === a.id);
+    const planB = plans.find(p => p.cityId === b.id);
+    if (!planA || !planB) return 0;
+    return new Date(planA.startDate).getTime() - new Date(planB.startDate).getTime()
+  };
 
   const getCitiesByStatus = (status: CityStatus) => {
     return cities
       .filter(city => city.status === status && plans.some(p => p.cityId === city.id))
-      .sort((a, b) => {
-        const planA = plans.find(p => p.cityId === a.id);
-        const planB = plans.find(p => p.cityId === b.id);
-        if (!planA || !planB) return 0;
-        return new Date(planA.startDate).getTime() - new Date(planB.startDate).getTime()
-      });
+      .sort(sortCitiesByDate);
   };
 
-  const planningCities = useMemo(() => getCitiesByStatus(CityStatus.Planning), [plans, cities]);
-  const implementingCities = useMemo(() => getCitiesByStatus(CityStatus.Expansion), [plans, cities]);
+  const planningCities = useMemo(() => {
+    return cities.filter(city => {
+        const hasPlan = plans.some(p => p.cityId === city.id);
+        // Only include in Planning list if status is Planning AND not effectively complete
+        return hasPlan && city.status === CityStatus.Planning && !isPlanningComplete(city.id);
+    }).sort(sortCitiesByDate);
+  }, [plans, cities]);
+
+  const implementingCities = useMemo(() => {
+    return cities.filter(city => {
+        const hasPlan = plans.some(p => p.cityId === city.id);
+        const isExpansion = city.status === CityStatus.Expansion;
+        // Include if explicitly Expansion OR (Planning status but effectively complete)
+        const isPlanningDone = city.status === CityStatus.Planning && isPlanningComplete(city.id);
+        return hasPlan && (isExpansion || isPlanningDone);
+    }).sort(sortCitiesByDate);
+  }, [plans, cities]);
+
   const consolidatedCities = useMemo(() => getCitiesByStatus(CityStatus.Consolidated), [plans, cities]);
   
   const renderCityListItem = (city: City) => {
     const cityPlan = plans.find(p => p.cityId === city.id);
     if (!cityPlan) return null;
     
+    const isPlanningDone = isPlanningComplete(city.id);
+    const effectiveStatus = (city.status === CityStatus.Expansion || isPlanningDone) 
+        ? CityStatus.Expansion 
+        : CityStatus.Planning;
+
+    // Use actual phase start date if available, otherwise fallback to plan general date
+    const analysisPhase = cityPlan.phases.find(p => p.name === 'Análise & Viabilidade');
+    const startDate = analysisPhase?.startDate 
+        ? new Date(analysisPhase.startDate) 
+        : new Date(cityPlan.startDate + '-02');
+
+    const block = marketBlocks.find(b => b.cityIds.includes(city.id));
+
     return (
       <div key={city.id} className="p-3 rounded-lg hover:bg-base-200 dark:hover:bg-dark-100 transition-colors">
         <div 
@@ -101,13 +144,20 @@ const Planning: React.FC = () => {
           onClick={() => navigate(`/planejamento/${city.id}`)}
         >
           <div className="flex-grow">
-            <p className="font-semibold text-lg">{city.name}</p>
-            {city.status === CityStatus.Planning && <PlanningProgressBar plan={cityPlan} />}
-            {city.status === CityStatus.Expansion && <ImplementationProgressBar plan={cityPlan} city={city} />}
+            <div className="flex items-center gap-2 mb-1">
+              <p className="font-semibold text-lg">{city.name}</p>
+              {block && (
+                <span className="text-[10px] uppercase tracking-wider text-gray-400 font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-full">
+                  {block.name}
+                </span>
+              )}
+            </div>
+            {effectiveStatus === CityStatus.Planning && <PlanningProgressBar plan={cityPlan} />}
+            {effectiveStatus === CityStatus.Expansion && <ImplementationProgressBar plan={cityPlan} city={city} />}
           </div>
           <div className="text-right flex-shrink-0 ml-4">
             <p className="text-sm font-medium">
-              {new Date(cityPlan.startDate + '-02').toLocaleString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '').toUpperCase()}
+              {startDate.toLocaleString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '').toUpperCase()}
             </p>
             <p className="text-xs text-gray-500">Início</p>
           </div>
@@ -138,26 +188,31 @@ const Planning: React.FC = () => {
           <h2 className="text-2xl font-bold">Visão Geral do Planejamento</h2>
       </div>
 
-      <Card
-        title="Cidades em Planejamento"
-        tooltipText="Cidades na fase de planejamento. A barra mostra o progresso das fases de Análise (verde) e Preparação (azul). Ao completar 100%, a cidade é movida para Implementação."
-      >
-        {renderCityList(planningCities, "Nenhuma cidade em planejamento.")}
-      </Card>
-      
-      <Card
-        title="Cidades em Implementação"
-        tooltipText="Cidades em expansão. A barra mostra o progresso das fases de Aquisição e Marketing. Após 6 meses, a cidade é movida para Consolidadas."
-      >
-        {renderCityList(implementingCities, "Nenhuma cidade em implementação.")}
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card
+          title="Cidades em Planejamento"
+          className="border-l-4 border-l-blue-500 h-full"
+          tooltipText="Cidades na fase de planejamento. A barra mostra o progresso das fases de Análise (verde) e Preparação (azul). Ao completar 100%, a cidade é movida para Implementação."
+        >
+          {renderCityList(planningCities, "Nenhuma cidade em planejamento.")}
+        </Card>
+        
+        <Card
+          title="Cidades em Implementação"
+          className="border-l-4 border-l-yellow-500 h-full"
+          tooltipText="Cidades em expansão. A barra mostra o progresso das fases de Aquisição e Marketing. Após 6 meses, a cidade é movida para Consolidadas."
+        >
+          {renderCityList(implementingCities, "Nenhuma cidade em implementação.")}
+        </Card>
 
-      <Card
-        title="Cidades Consolidadas"
-        tooltipText="Cidades com operação estabelecida. Clique para revisar o plano executado."
-      >
-        {renderCityList(consolidatedCities, "Nenhuma cidade consolidada com plano ativo.")}
-      </Card>
+        <Card
+          title="Cidades Consolidadas"
+          className="border-l-4 border-l-green-500 h-full"
+          tooltipText="Cidades com operação estabelecida. Clique para revisar o plano executado."
+        >
+          {renderCityList(consolidatedCities, "Nenhuma cidade consolidada com plano ativo.")}
+        </Card>
+      </div>
     </div>
   );
 };

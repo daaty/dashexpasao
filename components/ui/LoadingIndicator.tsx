@@ -11,8 +11,8 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ status }) => {
       <div className="flex flex-col items-center">
         <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
         <h2 className="text-xl font-bold text-primary mb-2">Conectando ao IBGE...</h2>
-        <p className="text-gray-500 animate-pulse">{status}</p>
-        <p className="text-xs text-gray-400 mt-4">Obtendo dados reais de 141 municípios</p>
+        <p className="text-gray-900 font-bold animate-pulse">{status}</p>
+        <p className="text-xs text-gray-700 font-medium mt-4">Obtendo dados reais de 141 municípios</p>
       </div>
     </div>
   );

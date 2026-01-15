@@ -9,7 +9,7 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { to: '/', icon: FiGrid, label: 'Dashboard' },
+  { to: '/', icon: FiGrid, label: 'Visão Geral' },
   { to: '/consulta', icon: FiSearch, label: 'Consulta' },
   { to: '/comparacao', icon: FiLayers, label: 'Comparação' },
   { to: '/roadmap', icon: FiMap, label: 'Roadmap' },

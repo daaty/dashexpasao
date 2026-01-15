@@ -4,7 +4,7 @@ import { City } from '../types';
 import { getFinancialProjections, getGrowthRoadmap, calculateStateAverages, getMarketPotential } from '../services/calculationService';
 import { Line } from 'react-chartjs-2';
 import type { Chart as ChartJS } from 'chart.js';
-import { FiExternalLink, FiUsers, FiDollarSign, FiPlusCircle, FiMessageSquare, FiGrid, FiMaximize, FiRefreshCw, FiBriefcase } from 'react-icons/fi';
+import { FiExternalLink, FiUsers, FiDollarSign, FiPlusCircle, FiMessageSquare, FiGrid, FiMaximize, FiRefreshCw, FiBriefcase, FiHash, FiFlag, FiCalendar, FiAward } from 'react-icons/fi';
 import { slugify } from '../utils/textUtils';
 import InfoTooltip from './ui/InfoTooltip';
 import { DataContext } from '../context/DataContext';
@@ -13,13 +13,17 @@ import Spinner from './ui/Spinner';
 import { useNavigate } from 'react-router-dom';
 
 const KpiCard = ({ icon, title, value, tooltipText }: { icon: React.ReactElement, title: string, value: string, tooltipText: string }) => (
-    <div className="bg-base-200 dark:bg-dark-100 p-4 rounded-lg text-center relative">
-        <InfoTooltip text={tooltipText} className="absolute top-2 right-2"/>
-        <div className="mx-auto w-12 h-12 flex items-center justify-center rounded-full bg-primary/20 text-primary mb-2">
-            {icon}
+    <div className="bg-white p-3 rounded-lg flex items-center space-x-3 border border-gray-100 shadow-sm hover:border-indigo-500/30 transition-colors relative min-h-[80px]">
+        <div className="absolute top-2 right-2">
+            <InfoTooltip text={tooltipText} />
         </div>
-        <p className="text-xl font-bold">{value}</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">{title}</p>
+        <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+             {React.cloneElement(icon, { className: "w-5 h-5" })}
+        </div>
+        <div className="pr-4">
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider leading-tight mb-0.5">{title}</p>
+            <p className="text-lg font-bold text-gray-900 leading-none">{value}</p>
+        </div>
     </div>
 );
 
@@ -31,25 +35,25 @@ const ComparisonBar = ({ label, cityValue, stateValue, formatFn }: { label: stri
     return (
         <div>
             <div className="flex justify-between items-baseline mb-1">
-                <span className="text-sm font-semibold">{label}</span>
-                <span className={`text-xs font-bold ${isAboveAverage ? 'text-green-500' : 'text-orange-500'}`}>
+                <span className="text-sm font-semibold text-gray-700">{label}</span>
+                <span className={`text-xs font-bold ${isAboveAverage ? 'text-green-600' : 'text-orange-500'}`}>
                     {isAboveAverage ? '▲' : '▼'} {percentageDiff.toFixed(1)}% {isAboveAverage ? 'acima da' : 'abaixo da'} média
                 </span>
             </div>
             <div className="space-y-1">
                  <div className="flex items-center">
-                    <span className="w-20 text-xs text-right mr-2">Cidade:</span>
-                    <div className="w-full bg-base-200 dark:bg-dark-100 rounded-full h-4">
+                    <span className="w-20 text-xs text-right mr-2 text-gray-500">Cidade:</span>
+                    <div className="w-full bg-gray-200 rounded-full h-4">
                         <div className={`h-4 rounded-full ${isAboveAverage ? 'bg-primary' : 'bg-tertiary'}`} style={{ width: `${Math.min(100, (cityValue / (Math.max(cityValue, stateValue) * 1.2)) * 100)}%` }}></div>
                     </div>
-                    <span className="w-24 text-xs ml-2 font-bold">{formatFn(cityValue)}</span>
+                    <span className="w-24 text-xs ml-2 font-bold text-gray-900">{formatFn(cityValue)}</span>
                 </div>
                  <div className="flex items-center">
-                    <span className="w-20 text-xs text-right mr-2">Média MT:</span>
-                    <div className="w-full bg-base-200 dark:bg-dark-100 rounded-full h-4">
+                    <span className="w-20 text-xs text-right mr-2 text-gray-500">Média MT:</span>
+                    <div className="w-full bg-gray-200 rounded-full h-4">
                         <div className="bg-gray-400 h-4 rounded-full" style={{ width: `${Math.min(100, (stateValue / (Math.max(cityValue, stateValue) * 1.2)) * 100)}%` }}></div>
                     </div>
-                    <span className="w-24 text-xs ml-2">{formatFn(stateValue)}</span>
+                    <span className="w-24 text-xs ml-2 text-gray-700">{formatFn(stateValue)}</span>
                 </div>
             </div>
         </div>
@@ -57,8 +61,21 @@ const ComparisonBar = ({ label, cityValue, stateValue, formatFn }: { label: stri
 };
 
 
+const InfoItem = ({ icon, label, value }: { icon: React.ReactElement, label: string, value: string | number }) => (
+    <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-100 shadow-sm transition-colors hover:border-indigo-300">
+        <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 text-xl flex-shrink-0">
+            {icon}
+        </div>
+        <div className="min-w-0">
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5 truncate">{label}</p>
+            <p className="font-bold text-gray-900 text-sm truncate" title={String(value)}>{value}</p>
+        </div>
+    </div>
+);
+
 const CityDetails: React.FC<{ city: City }> = ({ city }) => {
   const chartRef = useRef<ChartJS<'line'>>(null);
+// ... existing code ...
   const { cities, updateCity, isUpdating, plans, addPlanForCity, addCityToIntelligence } = useContext(DataContext);
   const navigate = useNavigate();
   
@@ -78,14 +95,8 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
     navigate(`/inteligencia/${city.id}`);
   }
 
-  const handleResetZoom = () => {
-    if (chartRef.current) {
-        chartRef.current.resetZoom();
-    }
-  };
-
   const scenarioDetails: { [key: string]: { color: string; percentage: number } } = {
-    'Muito Baixa': { color: 'bg-gray-800 dark:bg-gray-300', percentage: PENETRATION_SCENARIOS['Muito Baixa'] * 100 },
+    'Muito Baixa': { color: 'bg-gray-800', percentage: PENETRATION_SCENARIOS['Muito Baixa'] * 100 },
     'Baixa': { color: 'bg-red-500', percentage: PENETRATION_SCENARIOS['Baixa'] * 100 },
     'Média': { color: 'bg-yellow-500', percentage: PENETRATION_SCENARIOS['Média'] * 100 },
     'Alta': { color: 'bg-primary', percentage: PENETRATION_SCENARIOS['Alta'] * 100 },
@@ -130,28 +141,25 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: true, position: 'top' as const },
-      zoom: {
-        pan: {
-          enabled: true,
-          mode: 'xy' as const,
-        },
-        zoom: {
-          wheel: {
-            enabled: true,
-          },
-          pinch: {
-            enabled: true,
-          },
-          mode: 'xy' as const,
-        },
+      legend: { 
+        display: true, 
+        position: 'top' as const,
+        labels: { color: '#374151' }
       },
     },
     scales: {
+      x: {
+        ticks: { color: '#4B5563' },
+        grid: { color: '#E5E7EB' }
+      },
       y: {
         beginAtZero: true,
-        ticks: { callback: (value: string | number) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(value)) },
-        title: { display: true, text: 'Corridas Estimadas' }
+        ticks: { 
+          color: '#4B5563',
+          callback: (value: string | number) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(value)) 
+        },
+        grid: { color: '#E5E7EB' },
+        title: { display: true, text: 'Corridas Estimadas', color: '#111827' }
       }
     },
   };
@@ -159,57 +167,73 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
   return (
     <div className="space-y-6">
        <div>
-        <h3 className="font-bold text-lg mb-3">Informações Gerais (IBGE)</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm bg-base-200 dark:bg-dark-100 p-4 rounded-lg">
-            <div>
-                <p className="text-gray-500 dark:text-gray-400">Código do Município</p>
-                <p className="font-semibold">{city.id}</p>
-            </div>
-            <div>
-                <p className="text-gray-500 dark:text-gray-400">Gentílico</p>
-                <p className="font-semibold">{city.gentilic}</p>
-            </div>
-            <div>
-                <p className="text-gray-500 dark:text-gray-400">Aniversário</p>
-                <p className="font-semibold">{city.anniversary}</p>
-            </div>
-            <div>
-                <p className="text-gray-500 dark:text-gray-400">Prefeito(a) Atual</p>
-                <p className="font-semibold">{city.mayor}</p>
-            </div>
+        <h3 className="font-bold text-lg mb-3 flex items-center">
+            Informações Gerais (IBGE)
+            <a 
+                href={`https://cidades.ibge.gov.br/brasil/mt/${slugify(city.name)}/panorama`} 
+                target="_blank" 
+                rel="noreferrer"
+                className="ml-2 text-primary hover:text-primary-focus transition-colors"
+                title="Ver no IBGE Cidades"
+            >
+                <FiExternalLink className="w-4 h-4" />
+            </a>
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-lg">
+            <InfoItem 
+                icon={<FiHash />} 
+                label="Código Município" 
+                value={city.id} 
+            />
+            <InfoItem 
+                icon={<FiFlag />} 
+                label="Gentílico" 
+                value={city.gentilic} 
+            />
+            <InfoItem 
+                icon={<FiCalendar />} 
+                label="Aniversário" 
+                value={city.anniversary} 
+            />
+            <InfoItem 
+                icon={<FiAward />} 
+                label="Prefeito(a)" 
+                value={city.mayor} 
+            />
         </div>
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <KpiCard icon={<FiUsers className="w-6 h-6"/>} title="População Total" value={city.population.toLocaleString('pt-BR')} tooltipText="População total do município, de acordo com o Censo 2022 do IBGE." />
-        <KpiCard icon={<FiUsers className="w-6 h-6"/>} title="População Alvo (15-44)" value={city.population15to44.toLocaleString('pt-BR')} tooltipText="Público-alvo principal para o serviço, com base na faixa etária economicamente ativa." />
-        <KpiCard icon={<FiGrid className="w-6 h-6"/>} title="% de Urbanização" value={`${(city.urbanizationIndex * 100).toFixed(0)}%`} tooltipText="Porcentagem da população que vive em áreas urbanas, indicando a concentração de potenciais usuários." />
-        <KpiCard icon={<FiMaximize className="w-6 h-6"/>} title="Área Urbanizada" value={`${city.urbanizedAreaKm2?.toLocaleString('pt-BR') || 'N/D'} km²`} tooltipText="Extensão da mancha urbana da cidade, útil para estimar a complexidade logística e a área de cobertura." />
-        <KpiCard icon={<FiDollarSign className="w-6 h-6"/>} title="Salário Médio (Formal)" value={city.averageFormalSalary.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} tooltipText="Salário médio mensal dos trabalhadores com carteira assinada, um forte indicador do poder de compra." />
-        <KpiCard icon={<FiDollarSign className="w-6 h-6"/>} title="Renda Per Capita (Mensal Est.)" value={city.averageIncome.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} tooltipText="Estimativa mensal da renda per capita baseada no PIB per capita municipal dividido por 12." />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
+        <KpiCard icon={<FiUsers />} title="População Total" value={city.population.toLocaleString('pt-BR')} tooltipText="População total do município, de acordo com o Censo 2022 do IBGE." />
+        <KpiCard icon={<FiUsers />} title="População Alvo (15-44)" value={city.population15to44.toLocaleString('pt-BR')} tooltipText="Público-alvo principal para o serviço, com base na faixa etária economicamente ativa." />
+        <KpiCard icon={<FiGrid />} title="% de Urbanização" value={`${(city.urbanizationIndex * 100).toFixed(0)}%`} tooltipText="Porcentagem da população que vive em áreas urbanas, indicando a concentração de potenciais usuários." />
+        <KpiCard icon={<FiMaximize />} title="Área Urbanizada" value={`${city.urbanizedAreaKm2?.toLocaleString('pt-BR') || 'N/D'} km²`} tooltipText="Extensão da mancha urbana da cidade, útil para estimar a complexidade logística e a área de cobertura." />
+        <KpiCard icon={<FiDollarSign />} title="Salário Médio (Formal)" value={city.averageFormalSalary.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} tooltipText="Salário médio mensal dos trabalhadores com carteira assinada, um forte indicador do poder de compra." />
+        <KpiCard icon={<FiDollarSign />} title="Renda Per Capita (Est.)" value={city.averageIncome.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} tooltipText="Estimativa mensal da renda per capita baseada no PIB per capita municipal dividido por 12." />
       </div>
 
-       <div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+       <div className="h-full flex flex-col">
             <div className="flex justify-between items-center mb-2">
-                <h3 className="font-bold text-lg">Projeções de Receita Mensal</h3>
+                <h3 className="font-bold text-lg">Projeções de Receita</h3>
                 <InfoTooltip text="Receita mensal estimada com base em diferentes cenários de penetração de mercado (de 2% a 20%) sobre a população alvo."/>
             </div>
-            <div className="bg-base-200 dark:bg-dark-100 p-4 rounded-lg">
+            <div className="bg-gray-50 border border-gray-100 p-4 rounded-lg flex-grow">
                 <ul className="space-y-2">
                     {financialProjections.map((proj, index) => {
                         const details = scenarioDetails[proj.scenario as keyof typeof scenarioDetails];
                         const correspondingRides = marketPotential[index]?.rides || 0;
                         return (
-                            <li key={index} className="flex justify-between items-center text-sm p-2 rounded-md even:bg-base-100 dark:even:bg-dark-200">
+                            <li key={index} className="flex justify-between items-center text-sm p-2 rounded-md even:bg-white odd:bg-transparent">
                                 <div className="flex items-center">
                                     <span className={`w-3 h-3 rounded-full mr-3 ${details?.color || 'bg-gray-400'}`}></span>
-                                    <span className="text-gray-600 dark:text-gray-300 w-32">
+                                    <span className="text-gray-700 w-32">
                                         ({details?.percentage}%) {proj.scenario}
                                     </span>
                                 </div>
                                 <div className="text-right">
-                                    <span className="font-bold text-base">{proj.revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                    <span className="text-xs text-gray-500 dark:text-gray-400 block">{Math.round(correspondingRides).toLocaleString('pt-BR')} corridas/mês</span>
+                                    <span className="font-bold text-base text-gray-900">{proj.revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    <span className="text-xs text-gray-500 block">{Math.round(correspondingRides).toLocaleString('pt-BR')} corridas/mês</span>
                                 </div>
                             </li>
                         );
@@ -218,9 +242,9 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
             </div>
       </div>
 
-       <div>
-            <h3 className="font-bold text-lg mb-3">Análise Comparativa (vs. Média do Estado)</h3>
-            <div className="space-y-4 bg-base-200 dark:bg-dark-100 p-4 rounded-lg">
+       <div className="h-full flex flex-col">
+            <h3 className="font-bold text-lg mb-3">Comparativo (vs. Estado)</h3>
+            <div className="space-y-4 bg-gray-50 border border-gray-100 p-4 rounded-lg flex-grow">
                 <ComparisonBar 
                     label="População Total"
                     cityValue={city.population}
@@ -228,7 +252,7 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
                     formatFn={(val) => val.toLocaleString('pt-BR')}
                 />
                 <ComparisonBar 
-                    label="Renda Média Familiar / Per Capita (Est.)"
+                    label="Renda Média Familiar"
                     cityValue={city.averageIncome}
                     stateValue={stateAverages.averageIncome}
                     formatFn={(val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -241,18 +265,16 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
                 />
             </div>
         </div>
+      </div>
 
-      <div>
+      <div className="w-full">
         <div className="flex justify-between items-center mb-2">
-            <h3 className="font-bold text-lg">Projeção de Crescimento (6 Meses)</h3>
+            <h3 className="font-bold text-lg">Crescimento (6 Meses)</h3>
             <div className="flex items-center space-x-2">
-              <button onClick={handleResetZoom} className="p-1 rounded-full hover:bg-base-200 dark:hover:bg-dark-100" title="Resetar Zoom">
-                  <FiRefreshCw className="h-4 w-4 text-gray-500" />
-              </button>
-              <InfoTooltip text="Projeção de crescimento de corridas para os primeiros 6 meses. Use a roda do mouse para dar zoom e clique e arraste para mover o gráfico."/>
+              <InfoTooltip text="Projeção de crescimento de corridas para os primeiros 6 meses."/>
             </div>
         </div>
-        <div className="h-56">
+        <div className="h-64 bg-white border border-gray-100 p-4 rounded-lg">
           <Line ref={chartRef} options={growthChartOptions} data={growthChartData} />
         </div>
       </div>
@@ -291,7 +313,7 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
         </div>
       </div>
 
-      <div className="text-center pt-4 border-t border-base-200 dark:border-dark-100">
+      <div className="text-center pt-4 border-t border-gray-200">
         <a 
             href={`https://cidades.ibge.gov.br/brasil/mt/${slugify(city.name)}/panorama`}
             target="_blank"

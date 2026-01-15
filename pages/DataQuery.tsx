@@ -6,8 +6,6 @@ import Card from '../components/ui/Card';
 import { FiFilter, FiX, FiDownload, FiBarChart2, FiChevronUp, FiChevronDown, FiArrowDown, FiArrowUp, FiExternalLink, FiBriefcase, FiPlusCircle, FiPackage, FiUsers, FiDollarSign, FiGrid, FiFolderPlus, FiCheck } from 'react-icons/fi';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { slugify, formatMesorregion } from '../utils/textUtils';
-import Modal from '../components/ui/Modal';
-import CityDetails from '../components/CityDetails';
 import InfoTooltip from '../components/ui/InfoTooltip';
 import { DataContext } from '../context/DataContext';
 import jsPDF from 'jspdf';
@@ -40,7 +38,6 @@ const DataQuery: React.FC = () => {
     const [selectedStatuses, setSelectedStatuses] = useState<CityStatus[]>(searchParams.getAll('status') as CityStatus[] || []);
     
     const [selectedCities, setSelectedCities] = useState<number[]>([]);
-    const [modalCity, setModalCity] = useState<City | null>(null);
     const [isFiltersOpen, setIsFiltersOpen] = useState(true);
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
     
@@ -107,6 +104,29 @@ const DataQuery: React.FC = () => {
         });
     }, [debouncedSearchTerm, selectedMesorregions, minPopulation, minRevenue, selectedStatuses, cities]);
     
+    // Resumo GERAL - todas as cidades do MT
+    const globalSummary = useMemo(() => {
+        const totalCities = cities.length;
+        const totalTargetPopulation = cities.reduce((acc, city) => acc + city.population15to44, 0);
+        const totalFullPopulation = cities.reduce((acc, city) => acc + city.population, 0);
+        
+        const totalRevenue = cities.reduce((acc, city) => {
+            acc.baixa += calculatePotentialRevenue(city, 'Baixa');
+            acc.media += calculatePotentialRevenue(city, 'Média');
+            acc.alta += calculatePotentialRevenue(city, 'Alta');
+            return acc;
+        }, { baixa: 0, media: 0, alta: 0 });
+
+        return {
+            totalCities,
+            totalFullPopulation,
+            totalTargetPopulation,
+            averageTargetPopulation: totalCities > 0 ? totalTargetPopulation / totalCities : 0,
+            totalRevenue,
+        };
+    }, [cities]);
+
+    // Resumo FILTRADO - cidades que passaram nos filtros ou selecionadas
     const citiesForSummary = useMemo(() => {
         if (selectedCities.length > 0) {
             return cities.filter(city => selectedCities.includes(city.id));
@@ -136,6 +156,7 @@ const DataQuery: React.FC = () => {
         return {
             totalCities: totalCities,
             totalFullPopulation: totalFullPopulation,
+            totalTargetPopulation: totalTargetPopulation,
             averageTargetPopulation: totalCities > 0 ? totalTargetPopulation / totalCities : 0,
             totalRevenue,
             statusCounts,
@@ -331,31 +352,35 @@ const DataQuery: React.FC = () => {
             >
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
                     <div className="p-4 bg-base-200 dark:bg-dark-100 rounded-lg relative">
-                        <InfoTooltip text="Número total de cidades que correspondem à seleção atual." className="absolute top-2 right-2" />
+                        <InfoTooltip text={selectedCities.length > 0 ? "Quantidade de cidades selecionadas." : "Total de municípios do Mato Grosso."} className="absolute top-2 right-2" />
                         <FiPackage className="mx-auto text-3xl text-primary mb-2" />
-                        <p className="text-2xl font-bold">{summary.totalCities.toLocaleString('pt-BR')}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Cidades Filtradas</p>
+                        <p className="text-2xl font-bold">{(selectedCities.length > 0 ? summary.totalCities : globalSummary.totalCities).toLocaleString('pt-BR')}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{selectedCities.length > 0 ? 'Cidades Selecionadas' : 'Cidades MT'}</p>
                     </div>
                      <div className="p-4 bg-base-200 dark:bg-dark-100 rounded-lg relative">
+                        <InfoTooltip text={selectedCities.length > 0 ? "População total das cidades selecionadas." : "População total somada de todos os municípios do Mato Grosso."} className="absolute top-2 right-2" />
                         <FiUsers className="mx-auto text-3xl text-secondary mb-2" />
-                        <p className="text-2xl font-bold">{summary.totalFullPopulation.toLocaleString('pt-BR')}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">População Total</p>
+                        <p className="text-2xl font-bold">{(selectedCities.length > 0 ? summary.totalFullPopulation : globalSummary.totalFullPopulation).toLocaleString('pt-BR')}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{selectedCities.length > 0 ? 'População Total' : 'População Total MT'}</p>
                     </div>
                      <div className="p-4 bg-base-200 dark:bg-dark-100 rounded-lg relative">
+                        <InfoTooltip text={selectedCities.length > 0 ? "População alvo (15-44 anos) das cidades selecionadas." : "Soma total da população entre 15-44 anos (público-alvo) de todas as cidades do MT."} className="absolute top-2 right-2" />
                         <FiUsers className="mx-auto text-3xl text-tertiary mb-2" />
-                        <p className="text-2xl font-bold">{Math.round(summary.averageTargetPopulation).toLocaleString('pt-BR')}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Média Pop. Alvo</p>
+                        <p className="text-2xl font-bold">{(selectedCities.length > 0 ? summary.totalTargetPopulation : globalSummary.totalTargetPopulation).toLocaleString('pt-BR')}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Pop. Alvo Total (15-44)</p>
+                        <p className="text-xs text-gray-400 mt-1">Média: {Math.round(selectedCities.length > 0 ? summary.averageTargetPopulation : globalSummary.averageTargetPopulation).toLocaleString('pt-BR')}</p>
                     </div>
                      <div className="p-4 bg-base-200 dark:bg-dark-100 rounded-lg relative">
+                        <InfoTooltip text={selectedCities.length > 0 ? "Receita potencial das cidades selecionadas." : "Receita potencial estimada somando todas as cidades do Mato Grosso."} className="absolute top-2 right-2" />
                         <FiDollarSign className="mx-auto text-3xl text-primary mb-2" />
-                        <p className="text-2xl font-bold">{formatCurrency(summary.totalRevenue.media)}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Receita Potencial</p>
+                        <p className="text-2xl font-bold">{formatCurrency((selectedCities.length > 0 ? summary.totalRevenue : globalSummary.totalRevenue).media)}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{selectedCities.length > 0 ? 'Receita Potencial' : 'Receita Potencial MT'}</p>
                          <div className="flex justify-between text-xs mt-2 px-2">
                             <span className="flex items-center text-red-500 font-semibold">
-                                <FiArrowDown className="mr-1" /> {formatCurrency(summary.totalRevenue.baixa)}
+                                <FiArrowDown className="mr-1" /> {formatCurrency((selectedCities.length > 0 ? summary.totalRevenue : globalSummary.totalRevenue).baixa)}
                             </span>
                             <span className="flex items-center text-green-500 font-semibold">
-                                <FiArrowUp className="mr-1" /> {formatCurrency(summary.totalRevenue.alta)}
+                                <FiArrowUp className="mr-1" /> {formatCurrency((selectedCities.length > 0 ? summary.totalRevenue : globalSummary.totalRevenue).alta)}
                             </span>
                         </div>
                     </div>
@@ -525,7 +550,7 @@ const DataQuery: React.FC = () => {
                                         <td className="p-3 font-semibold">
                                             <div className="flex flex-col">
                                                 <button 
-                                                    onClick={() => setModalCity(city)}
+                                                    onClick={() => navigate(`/cidades/${city.id}`)}
                                                     className={`text-left hover:text-primary transition-colors duration-200 ${isInBlock ? 'line-through decoration-red-500/50 decoration-2 text-gray-500' : ''}`}
                                                 >
                                                     {city.name}
@@ -615,16 +640,6 @@ const DataQuery: React.FC = () => {
                     </table>
                 </div>
             </Card>
-            
-            {modalCity && (
-                <Modal 
-                    isOpen={!!modalCity} 
-                    onClose={() => setModalCity(null)}
-                    title={`Detalhes de ${modalCity.name}`}
-                >
-                    <CityDetails city={modalCity} />
-                </Modal>
-            )}
         </div>
     );
 };

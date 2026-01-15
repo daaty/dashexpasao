@@ -83,6 +83,9 @@ export interface MonthResult {
     rides: number;
     marketingCost: number;
     operationalCost: number;
+    // New projected fields
+    projectedMarketing?: number;
+    projectedOperational?: number;
 }
 
 export interface CityPlan {

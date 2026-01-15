@@ -3,7 +3,7 @@ import Joi from 'joi';
 // City validators
 export const cityQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).optional(),
-  limit: Joi.number().integer().min(1).max(100).optional(),
+  limit: Joi.number().integer().min(1).max(5000).optional(), // Aumentado limite para 5000
   status: Joi.string().valid('CONSOLIDATED', 'EXPANSION', 'NOT_SERVED', 'PLANNING').optional(),
   mesorregion: Joi.string()
     .valid('NORTE', 'NORDESTE', 'SUDESTE', 'SUDOESTE', 'CENTRO_SUL')

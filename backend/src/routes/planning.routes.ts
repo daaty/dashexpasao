@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as planningController from '../controllers/planning.controller';
+import * as planningResultsController from '../controllers/planningResults.controller';
 import { validateRequest } from '../middleware/validation';
 import { planningBodySchema, taskBodySchema } from '../utils/validators';
 
@@ -60,5 +61,33 @@ router.put('/tasks/:taskId', planningController.updateTask);
  * @access  Private
  */
 router.delete('/tasks/:taskId', planningController.deleteTask);
+
+/**
+ * @route   POST /api/plannings/results/:cityId
+ * @desc    Salvar resultados financeiros de planejamento
+ * @access  Private
+ */
+router.post('/results/:cityId', planningResultsController.saveResults);
+
+/**
+ * @route   GET /api/plannings/results/:cityId
+ * @desc    Buscar resultados financeiros de planejamento
+ * @access  Public
+ */
+router.get('/results/:cityId', planningResultsController.getResults);
+
+/**
+ * @route   PUT /api/plannings/start-date/:cityId
+ * @desc    Atualizar data de início do planejamento
+ * @access  Private
+ */
+router.put('/start-date/:cityId', planningResultsController.updateStartDate);
+
+/**
+ * @route   POST /api/plannings/sync
+ * @desc    Sincronizar todos os planos em lote
+ * @access  Private
+ */
+router.post('/sync', planningResultsController.syncAllPlans);
 
 export default router;

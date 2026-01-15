@@ -5,6 +5,7 @@ import { internalCitiesData } from '../services/internalData';
 import { fetchSingleCityUpdate, fetchInitialData } from '../services/ibgeService';
 import { fetchAllCities } from '../services/cityApiService';
 import * as planningApi from '../services/planningApiService';
+import * as planResultsService from '../services/planResultsService';
 
 
 interface DataContextType {
@@ -19,6 +20,7 @@ interface DataContextType {
   tags: Tag[];
   responsibles: Responsible[];
   marketBlocks: MarketBlock[];
+  saveCounter: number;
   updateCity: (cityId: number) => Promise<void>;
   addPlanForCity: (cityId: number) => void;
   updatePlanAction: (
@@ -45,6 +47,8 @@ interface DataContextType {
     }
   ) => void;
   updatePlanResults: (cityId: number, monthKey: string, result: MonthResult) => void;
+  updatePlanResultsBatch: (cityId: number, results: { [key: string]: MonthResult }) => void;
+  updatePlanStartDate: (cityId: number, newStartDate: string) => void;
   updatePhaseTemplate: (templateName: string, updates: Partial<PhaseTemplate>) => void;
   resetPhaseTemplates: () => void;
   addTag: (tag: Omit<Tag, 'id'>) => void;
@@ -76,11 +80,14 @@ export const DataContext = createContext<DataContextType>({
   tags: [],
   responsibles: [],
   marketBlocks: [],
+  saveCounter: 0,
   updateCity: async () => {},
   addPlanForCity: () => {},
   updatePlanAction: () => {},
   updatePlanPhase: () => {},
   updatePlanResults: () => {},
+  updatePlanResultsBatch: () => {},
+  updatePlanStartDate: () => {},
   updatePhaseTemplate: () => {},
   resetPhaseTemplates: () => {},
   addTag: () => {},
@@ -137,25 +144,48 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [loadingStatus, setLoadingStatus] = useState("Iniciando...");
   const [isUpdating, setIsUpdating] = useState<number | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [saveCounter, setSaveCounter] = useState(0);
 
   // 1. Carregar do LocalStorage
   useEffect(() => {
     const load = (key: string, setter: any, defaultVal?: any) => {
         const stored = localStorage.getItem(key);
         if (stored) {
-            try { setter(JSON.parse(stored)); } catch (e) { if(defaultVal) setter(defaultVal); }
+            try { 
+                const parsed = JSON.parse(stored);
+                setter(parsed);
+                console.log(`✅ Carregado ${key}:`, parsed.length || Object.keys(parsed).length || 'dados');
+            } catch (e) { 
+                console.error(`❌ Erro ao carregar ${key}:`, e);
+                if(defaultVal) setter(defaultVal); 
+            }
         } else if (defaultVal) {
             setter(defaultVal);
+            localStorage.setItem(key, JSON.stringify(defaultVal));
         }
     };
 
     load('urban_phase_templates', setPhaseTemplates, DEFAULT_PHASE_TEMPLATES);
     load('urban_planning_tags', setTags, DEFAULT_TAGS);
     load('urban_planning_responsibles', setResponsibles, DEFAULT_RESPONSIBLES);
-    load('urban_market_blocks', setMarketBlocks);
-    load('urban_market_data', setMarketData);
-    load('urban_plans', setPlans);
+    load('urban_market_blocks', setMarketBlocks, []);
+    load('urban_market_data', setMarketData, []);
+    load('urban_plans', setPlans, []);
   }, []);
+
+  // Auto-salvar market blocks quando houver mudanças
+  useEffect(() => {
+    if (marketBlocks.length > 0) {
+      localStorage.setItem('urban_market_blocks', JSON.stringify(marketBlocks));
+    }
+  }, [marketBlocks]);
+
+  // Auto-salvar market data quando houver mudanças
+  useEffect(() => {
+    if (marketData.length > 0) {
+      localStorage.setItem('urban_market_data', JSON.stringify(marketData));
+    }
+  }, [marketData]);
 
   // 2. Fetch dados do backend (cidades e planejamentos)
   useEffect(() => {
@@ -172,9 +202,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
         
         try {
-            // Tentar buscar cidades do backend
+            // Tentar buscar cidades do backend (Aumentando limite para garantir que todas venham)
             setLoadingStatus('Carregando cidades do banco de dados...');
-            const { cities: backendCities } = await fetchAllCities({ limit: 100 });
+            const { cities: backendCities } = await fetchAllCities({ limit: 1000 });
             
             if (backendCities && backendCities.length > 0) {
                 console.log('✅ Cidades carregadas do backend:', backendCities.length);
@@ -189,18 +219,48 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             // Buscar planejamentos do backend
             setLoadingStatus('Carregando planejamentos...');
             const backendPlans = await planningApi.getAllPlannings();
+            
+            // Carregar local para fusão
+            const savedPlans = JSON.parse(localStorage.getItem('urban_plans') || '[]');
+
             if (backendPlans && backendPlans.length > 0) {
                 console.log('✅ Planejamentos carregados do backend:', backendPlans.length);
-                // Converter formato do backend para o formato do frontend
-                const convertedPlans = backendPlans.map((plan: any) => ({
-                    cityId: plan.cityId,
-                    startDate: plan.startDate,
-                    phases: [] // Manter estrutura local por enquanto
-                }));
+                // Converter formato do backend para o formato do frontend e mesclar com local
+                const convertedPlansPromises = backendPlans.map(async (plan: any) => {
+                    const localMatch = savedPlans.find((p: any) => p.cityId === plan.cityId);
+                    
+                    // Buscar resultados salvos do backend
+                    const backendResults = await planResultsService.getPlanResults(plan.cityId);
+                    const resultsToUse = backendResults || localMatch?.results || {};
+                    
+                    // Se tiver dados locais de fases, usa. Senão, inicializa padrão.
+                    let phasesToUse = localMatch?.phases;
+                    if (!phasesToUse || phasesToUse.length === 0) {
+                         const now = new Date().toISOString();
+                         phasesToUse = DEFAULT_PHASE_TEMPLATES.map((t, phaseIndex) => ({
+                            name: t.name,
+                            startDate: now,
+                            estimatedCompletionDate: undefined,
+                            completionDate: undefined,
+                            actions: t.actions.map((desc, i) => ({ id: `${Date.now()}-${phaseIndex}-${i}`, description: desc, completed: false, createdAt: now, tagIds: [] }))
+                        }));
+                    }
+
+                    return {
+                        cityId: plan.cityId,
+                        startDate: plan.startDate ? String(plan.startDate).slice(0, 7) : (localMatch?.startDate || new Date().toISOString().slice(0, 7)),
+                        phases: phasesToUse,
+                        results: resultsToUse
+                    };
+                });
+                
+                const convertedPlans = await Promise.all(convertedPlansPromises);
                 setPlans(convertedPlans);
+                
+                // Salvar no localStorage como cache
+                localStorage.setItem('urban_plans', JSON.stringify(convertedPlans));
             } else {
                 // Tentar carregar do localStorage como fallback
-                const savedPlans = JSON.parse(localStorage.getItem('urban_plans') || '[]');
                 if (savedPlans.length > 0) {
                     console.log('📦 Planejamentos carregados do localStorage');
                     setPlans(savedPlans);
@@ -251,11 +311,36 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       const saved = JSON.parse(localStorage.getItem('urban_cities_status') || '{}');
       saved[cityId] = status;
       localStorage.setItem('urban_cities_status', JSON.stringify(saved));
+      setSaveCounter(prev => prev + 1);
+      console.log(`💾 Status salvo para cidade ${cityId}:`, status);
   };
 
   const persistPlans = (newPlans: CityPlan[]) => {
       localStorage.setItem('urban_plans', JSON.stringify(newPlans));
       setPlans(newPlans);
+      setSaveCounter(prev => prev + 1);
+      console.log(`💾 ${newPlans.length} planejamento(s) salvo(s) no localStorage`);
+      
+      // Sincronizar com backend em background (sem bloquear a UI)
+      planResultsService.syncAllPlans(newPlans)
+        .then(() => {
+          localStorage.setItem('last_sync_time', new Date().toISOString());
+          console.log('🔄 Sincronização automática com backend concluída');
+        })
+        .catch(err => {
+          console.warn('⚠️ Sincronização automática com backend falhou. Dados salvos localmente.', err);
+        });
+  };
+
+  const persistCities = (newCities: City[]) => {
+      // Salvar status de todas as cidades
+      const statusMap: { [key: number]: CityStatus } = {};
+      newCities.forEach(city => {
+          statusMap[city.id] = city.status;
+      });
+      localStorage.setItem('urban_cities_status', JSON.stringify(statusMap));
+      setSaveCounter(prev => prev + 1);
+      console.log(`💾 Status de ${newCities.length} cidades salvo`);
   };
 
   const updateCity = async (cityId: number) => {
@@ -269,21 +354,29 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   };
 
   const addPlanForCity = async (cityId: number) => {
-    if (plans.some(p => p.cityId === cityId)) return;
+    if (plans.some(p => p.cityId === cityId)) {
+        console.log('⚠️ Planejamento já existe para cidade', cityId);
+        return;
+    }
     
     const city = cities.find(c => c.id === cityId);
-    if (!city) return;
+    if (!city) {
+        console.error('❌ Cidade não encontrada:', cityId);
+        return;
+    }
     
     const now = new Date().toISOString();
     const newPlan: CityPlan = {
         cityId,
         startDate: now.slice(0, 7),
-        phases: DEFAULT_PHASE_TEMPLATES.map(t => ({
+        phases: DEFAULT_PHASE_TEMPLATES.map((t, phaseIndex) => ({
             name: t.name,
             startDate: now,
-            actions: t.actions.map((desc, i) => ({ id: `${Date.now()}-${i}`, description: desc, completed: false, createdAt: now, tagIds: [] }))
+            actions: t.actions.map((desc, i) => ({ id: `${Date.now()}-${phaseIndex}-${i}`, description: desc, completed: false, createdAt: now, tagIds: [] }))
         }))
     };
+    
+    console.log('🆕 Criando novo planejamento para:', city.name);
     
     try {
         // Tentar salvar no backend
@@ -306,21 +399,30 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     }
     
     // Salvar localmente (sempre, como backup)
-    persistPlans([...plans, newPlan]);
+    const updatedPlans = [...plans, newPlan];
+    persistPlans(updatedPlans);
     
-    setCities(prev => prev.map(c => {
+    // Atualizar status da cidade
+    const updatedCities = cities.map(c => {
         if (c.id === cityId) {
             persistCityStatus(cityId, CityStatus.Planning);
             return { ...c, status: CityStatus.Planning };
         }
         return c;
-    }));
+    });
+    setCities(updatedCities);
+    persistCities(updatedCities);
+    
+    console.log('✅ Planejamento criado e salvo com sucesso');
   };
 
   const saveCityMarketData = (data: CityMarketData) => {
+      const cityName = cities.find(c => c.id === data.cityId)?.name || data.cityId;
       setMarketData(prev => {
           const updated = [...prev.filter(d => d.cityId !== data.cityId), { ...data, updatedAt: new Date().toISOString() }];
           localStorage.setItem('urban_market_data', JSON.stringify(updated));
+          setSaveCounter(prevCounter => prevCounter + 1);
+          console.log(`💾 Dados de mercado salvos para ${cityName}:`, updated.length, 'cidades');
           return updated;
       });
   };
@@ -356,112 +458,239 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   };
   
   const addMarketBlock = (name: string) => {
-      const updated = [...marketBlocks, { id: Date.now().toString(), name, cityIds: [] }];
+      const newBlock = { id: Date.now().toString(), name, cityIds: [] };
+      const updated = [...marketBlocks, newBlock];
       setMarketBlocks(updated);
       localStorage.setItem('urban_market_blocks', JSON.stringify(updated));
+      console.log(`💾 Bloco criado: ${name}`);
   };
 
   const updateMarketBlock = (id: string, name: string) => {
        const updated = marketBlocks.map(b => b.id === id ? { ...b, name } : b);
        setMarketBlocks(updated);
        localStorage.setItem('urban_market_blocks', JSON.stringify(updated));
+       console.log(`💾 Bloco atualizado: ${name}`);
   };
 
   const deleteMarketBlock = (id: string) => {
+       const blockName = marketBlocks.find(b => b.id === id)?.name;
        const updated = marketBlocks.filter(b => b.id !== id);
        setMarketBlocks(updated);
        localStorage.setItem('urban_market_blocks', JSON.stringify(updated));
+       console.log(`💾 Bloco deletado: ${blockName}`);
   };
 
   const moveCityToBlock = (cityId: number, blockId: string | null) => {
+      const cityName = cities.find(c => c.id === cityId)?.name || cityId;
+      const blockName = blockId ? marketBlocks.find(b => b.id === blockId)?.name : 'nenhum bloco';
+      
       const updated = marketBlocks.map(block => {
           if (block.id === blockId) return block.cityIds.includes(cityId) ? block : { ...block, cityIds: [...block.cityIds, cityId] };
           return { ...block, cityIds: block.cityIds.filter(id => id !== cityId) };
       });
       setMarketBlocks(updated);
       localStorage.setItem('urban_market_blocks', JSON.stringify(updated));
+      console.log(`💾 Cidade ${cityName} movida para ${blockName}`);
+      
       if (blockId) addCityToIntelligence(cityId);
   };
 
   const addCitiesToBlock = (cityIds: number[], blockId: string) => {
+      const blockName = marketBlocks.find(b => b.id === blockId)?.name;
+      const cityNames = cityIds.map(id => cities.find(c => c.id === id)?.name).filter(Boolean);
+      
       const updated = marketBlocks.map(block => {
           if (block.id === blockId) return { ...block, cityIds: [...new Set([...block.cityIds, ...cityIds])] };
           return { ...block, cityIds: block.cityIds.filter(id => !cityIds.includes(id)) };
       });
       setMarketBlocks(updated);
       localStorage.setItem('urban_market_blocks', JSON.stringify(updated));
+      console.log(`💾 ${cityIds.length} cidade(s) adicionadas ao bloco ${blockName}:`, cityNames);
+      
       cityIds.forEach(id => addCityToIntelligence(id));
   };
 
+  const checkAndUpdateCityStatus = (cityId: number, updatedPlans: CityPlan[]) => {
+    const plan = updatedPlans.find(p => p.cityId === cityId);
+    if (!plan || plan.phases.length === 0) return;
+
+    // Calcula progresso de cada fase
+    const phaseProgress = plan.phases.map(phase => {
+      if (phase.actions.length === 0) return { name: phase.name, progress: 0 };
+      const completed = phase.actions.filter(a => a.completed).length;
+      return { name: phase.name, progress: (completed / phase.actions.length) * 100 };
+    });
+
+    // Verifica se Análise & Viabilidade e Preparação Operacional estão 100%
+    const analiseViabilidade = phaseProgress.find(p => p.name === 'Análise & Viabilidade');
+    const preparacaoOperacional = phaseProgress.find(p => p.name === 'Preparação Operacional');
+    
+    const isReadyForImplementation = 
+      analiseViabilidade?.progress === 100 && 
+      preparacaoOperacional?.progress === 100;
+
+    // Verifica se todas as fases estão 100%
+    const allPhasesComplete = phaseProgress.every(p => p.progress === 100);
+
+    // Atualiza status da cidade
+    const currentCity = cities.find(c => c.id === cityId);
+    if (!currentCity) return;
+
+    let newStatus = currentCity.status;
+
+    if (allPhasesComplete && currentCity.status !== CityStatus.Consolidated) {
+      newStatus = CityStatus.Consolidated;
+      updateCityStatus(cityId, newStatus);
+    } else if (isReadyForImplementation && !allPhasesComplete && currentCity.status !== CityStatus.Implementation) {
+      newStatus = CityStatus.Implementation;
+      updateCityStatus(cityId, newStatus);
+    }
+  };
+
+  const updateCityStatus = (cityId: number, status: CityStatus) => {
+    const cityName = cities.find(c => c.id === cityId)?.name || cityId;
+    const statusMap: { [key: number]: CityStatus } = JSON.parse(localStorage.getItem('urban_cities_status') || '{}');
+    statusMap[cityId] = status;
+    localStorage.setItem('urban_cities_status', JSON.stringify(statusMap));
+    console.log(`💾 Status atualizado para ${cityName}: ${status}`);
+    
+    const updatedCities = cities.map(city => city.id === cityId ? { ...city, status } : city);
+    setCities(updatedCities);
+    persistCities(updatedCities);
+  };
+
   const updatePlanAction = (cityId: number, phaseName: string, actionId: string, updates: any) => {
+    const cityName = cities.find(c => c.id === cityId)?.name || cityId;
+    
     const newPlans = plans.map(plan => {
       if (plan.cityId !== cityId) return plan;
       return {
         ...plan,
         phases: plan.phases.map(phase => {
           if (phase.name !== phaseName) return phase;
-          if (updates.delete) return { ...phase, actions: phase.actions.filter(a => a.id !== actionId) };
+          if (updates.delete) {
+            console.log(`🗑️ Ação deletada em ${cityName} - ${phaseName}`);
+            return { ...phase, actions: phase.actions.filter(a => a.id !== actionId) };
+          }
           if (actionId === '') {
              const newAction = { id: Date.now().toString(), description: updates.description || 'Nova Ação', completed: false, createdAt: new Date().toISOString(), tagIds: [], ...updates };
+             console.log(`➕ Nova ação adicionada em ${cityName} - ${phaseName}:`, newAction.description);
              return { ...phase, actions: [...phase.actions, newAction] };
           }
+          console.log(`✏️ Ação atualizada em ${cityName} - ${phaseName}:`, updates);
           return { ...phase, actions: phase.actions.map(action => action.id === actionId ? { ...action, ...updates } : action) };
         })
       };
     });
     persistPlans(newPlans);
+    
+    // Verifica e atualiza status da cidade após mudança
+    checkAndUpdateCityStatus(cityId, newPlans);
   };
 
   const updatePlanPhase = (cityId: number, phaseName: string, updates: any) => {
-    persistPlans(plans.map(p => p.cityId === cityId ? { ...p, phases: p.phases.map(ph => ph.name === phaseName ? { ...ph, ...updates } : ph) } : p));
+    const cityName = cities.find(c => c.id === cityId)?.name || cityId;
+    console.log(`📅 Fase atualizada em ${cityName} - ${phaseName}:`, updates);
+    
+    const updatedPlans = plans.map(p => p.cityId === cityId ? { ...p, phases: p.phases.map(ph => ph.name === phaseName ? { ...ph, ...updates } : ph) } : p);
+    persistPlans(updatedPlans);
   };
 
-  const updatePlanResults = (cityId: number, monthKey: string, result: MonthResult) => {
-    persistPlans(plans.map(p => p.cityId === cityId ? { ...p, results: { ...p.results, [monthKey]: result } } : p));
+  const updatePlanResults = async (cityId: number, monthKey: string, result: MonthResult) => {
+    const cityName = cities.find(c => c.id === cityId)?.name || cityId;
+    console.log(`📊 Resultados atualizados em ${cityName} para ${monthKey}:`, result);
+    
+    const updatedPlans = plans.map(p => p.cityId === cityId ? { ...p, results: { ...p.results, [monthKey]: result } } : p);
+    persistPlans(updatedPlans);
+    
+    // Salvar no backend
+    const plan = updatedPlans.find(p => p.cityId === cityId);
+    if (plan?.results) {
+      await planResultsService.savePlanResults(cityId, plan.results);
+    }
+  };
+
+  const updatePlanResultsBatch = async (cityId: number, results: { [key: string]: MonthResult }) => {
+    const cityName = cities.find(c => c.id === cityId)?.name || cityId;
+    console.log(`📊 Resultados em lote atualizados em ${cityName}:`, results);
+    
+    const updatedPlans = plans.map(p => p.cityId === cityId ? { 
+        ...p, 
+        results: { ...(p.results || {}), ...results } 
+    } : p);
+    persistPlans(updatedPlans);
+    
+    // Salvar no backend
+    const plan = updatedPlans.find(p => p.cityId === cityId);
+    if (plan?.results) {
+      const saved = await planResultsService.savePlanResults(cityId, plan.results);
+      if (saved) {
+        console.log(`✅ Resultados de ${cityName} salvos permanentemente no servidor`);
+      } else {
+        console.warn(`⚠️ Resultados de ${cityName} salvos localmente. Sincronização com servidor pendente.`);
+      }
+    }
+  };
+
+  const updatePlanStartDate = async (cityId: number, newStartDate: string) => {
+    const updatedPlans = plans.map(p => p.cityId === cityId ? { ...p, startDate: newStartDate } : p);
+    persistPlans(updatedPlans);
+    console.log(`📅 Data de início atualizada para ${newStartDate}`);
+    
+    // Salvar no backend
+    await planResultsService.savePlanStartDate(cityId, newStartDate);
   };
 
   return (
     <DataContext.Provider value={{ 
-      cities, plans, marketData, isLoading, loadingStatus, isUpdating, warnings, phaseTemplates, tags, responsibles, marketBlocks,
-      updateCity, addPlanForCity, updatePlanAction, updatePlanPhase, updatePlanResults,
+      cities, plans, marketData, isLoading, loadingStatus, isUpdating, warnings, phaseTemplates, tags, responsibles, marketBlocks, saveCounter,
+      updateCity, addPlanForCity, updatePlanAction, updatePlanPhase, updatePlanResults, updatePlanResultsBatch, updatePlanStartDate,
       updatePhaseTemplate: (n, u) => {
           const updated = phaseTemplates.map(t => t.name === n ? {...t, ...u} : t);
           setPhaseTemplates(updated);
           localStorage.setItem('urban_phase_templates', JSON.stringify(updated));
+          setSaveCounter(prev => prev + 1);
       },
       resetPhaseTemplates: () => {
           setPhaseTemplates(DEFAULT_PHASE_TEMPLATES);
           localStorage.setItem('urban_phase_templates', JSON.stringify(DEFAULT_PHASE_TEMPLATES));
+          setSaveCounter(prev => prev + 1);
       },
       addTag: (t) => {
           const updated = [...tags, { ...t, id: Date.now().toString() }];
           setTags(updated);
           localStorage.setItem('urban_planning_tags', JSON.stringify(updated));
+          setSaveCounter(prev => prev + 1);
       },
       updateTag: (id, u) => {
           const updated = tags.map(t => t.id === id ? {...t, ...u} : t);
           setTags(updated);
           localStorage.setItem('urban_planning_tags', JSON.stringify(updated));
+          setSaveCounter(prev => prev + 1);
       },
       deleteTag: (id) => {
           const updated = tags.filter(t => t.id !== id);
           setTags(updated);
           localStorage.setItem('urban_planning_tags', JSON.stringify(updated));
+          setSaveCounter(prev => prev + 1);
       },
       addResponsible: (r) => {
           const updated = [...responsibles, { ...r, id: Date.now().toString(), initials: getInitials(r.name) }];
           setResponsibles(updated);
           localStorage.setItem('urban_planning_responsibles', JSON.stringify(updated));
+          setSaveCounter(prev => prev + 1);
       },
       updateResponsible: (id, u) => {
           const updated = responsibles.map(r => r.id === id ? {...r, ...u, initials: getInitials(u.name || r.name)} : r);
           setResponsibles(updated);
           localStorage.setItem('urban_planning_responsibles', JSON.stringify(updated));
+          setSaveCounter(prev => prev + 1);
       },
       deleteResponsible: (id) => {
           const updated = responsibles.filter(r => r.id !== id);
           setResponsibles(updated);
           localStorage.setItem('urban_planning_responsibles', JSON.stringify(updated));
+          setSaveCounter(prev => prev + 1);
       },
       getCityMarketData, saveCityMarketData, addCityToIntelligence, removeCityFromIntelligence,
       addMarketBlock, updateMarketBlock, deleteMarketBlock, moveCityToBlock, addCitiesToBlock

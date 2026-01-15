@@ -152,25 +152,25 @@ const CityMarketAnalysis: React.FC = () => {
             <div className="flex overflow-x-auto gap-2 border-b border-base-300 dark:border-dark-100 pb-1">
                 <button 
                     onClick={() => setActiveTab('overview')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'overview' ? 'bg-base-200 dark:bg-dark-100 text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700'}`}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'overview' ? 'bg-base-200 dark:bg-dark-100 text-primary border-b-2 border-primary' : 'text-gray-900 font-bold hover:text-primary'}`}
                 >
                     Visão Geral
                 </button>
                 <button 
                     onClick={() => setActiveTab('competition')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'competition' ? 'bg-base-200 dark:bg-dark-100 text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700'}`}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'competition' ? 'bg-base-200 dark:bg-dark-100 text-primary border-b-2 border-primary' : 'text-gray-900 font-bold hover:text-primary'}`}
                 >
                     Concorrência
                 </button>
                 <button 
                     onClick={() => setActiveTab('stakeholders')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'stakeholders' ? 'bg-base-200 dark:bg-dark-100 text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700'}`}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'stakeholders' ? 'bg-base-200 dark:bg-dark-100 text-primary border-b-2 border-primary' : 'text-gray-900 font-bold hover:text-primary'}`}
                 >
                     Todos os Stakeholders
                 </button>
                 <button 
                     onClick={() => setActiveTab('swot')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'swot' ? 'bg-base-200 dark:bg-dark-100 text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700'}`}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'swot' ? 'bg-base-200 dark:bg-dark-100 text-primary border-b-2 border-primary' : 'text-gray-900 font-bold hover:text-primary'}`}
                 >
                     Análise SWOT
                 </button>
@@ -296,7 +296,7 @@ const CityMarketAnalysis: React.FC = () => {
                                                 />
                                             </td>
                                             <td className="p-3 text-center">
-                                                <button onClick={() => removeStakeholder(stake.id)} className="text-gray-400 hover:text-red-500">
+                                                <button onClick={() => removeStakeholder(stake.id)} className="text-gray-700 hover:text-red-500">
                                                     <FiTrash2 />
                                                 </button>
                                             </td>
@@ -304,7 +304,7 @@ const CityMarketAnalysis: React.FC = () => {
                                     ))}
                                     {governmentContacts.length === 0 && (
                                         <tr>
-                                            <td colSpan={5} className="p-6 text-center text-gray-400 italic">
+                                            <td colSpan={5} className="p-6 text-center text-gray-700 font-medium italic">
                                                 Nenhum contato governamental adicionado ainda.
                                             </td>
                                         </tr>
@@ -312,7 +312,7 @@ const CityMarketAnalysis: React.FC = () => {
                                 </tbody>
                             </table>
                         </div>
-                        <button onClick={addGovernmentContact} className="w-full py-2 border-2 border-dashed border-base-300 dark:border-dark-100 rounded-lg text-gray-500 hover:text-primary hover:border-primary transition-colors flex items-center justify-center">
+                        <button onClick={addGovernmentContact} className="w-full py-2 border-2 border-dashed border-base-300 dark:border-dark-100 rounded-lg text-gray-900 font-bold hover:text-primary hover:border-primary transition-colors flex items-center justify-center">
                             <FiPlus className="mr-2"/> Adicionar Prefeito / Secretário / Vereador
                         </button>
                     </Card>
@@ -334,7 +334,7 @@ const CityMarketAnalysis: React.FC = () => {
                             <div key={comp.id} className="bg-base-100 dark:bg-dark-200 border border-base-300 dark:border-dark-100 rounded-xl p-4 shadow-sm relative group">
                                 <button 
                                     onClick={() => removeCompetitor(comp.id)}
-                                    className="absolute top-2 right-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="absolute top-2 right-2 text-gray-700 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                     <FiTrash2 />
                                 </button>
@@ -349,7 +349,7 @@ const CityMarketAnalysis: React.FC = () => {
 
                                 <div className="space-y-3">
                                     <div>
-                                        <label className="text-xs text-gray-500 font-semibold uppercase">Nível de Preço</label>
+                                        <label className="text-xs text-gray-900 font-semibold uppercase">Nível de Preço</label>
                                         <select 
                                             value={comp.priceLevel}
                                             onChange={(e) => updateCompetitor(comp.id, 'priceLevel', e.target.value)}
@@ -362,7 +362,7 @@ const CityMarketAnalysis: React.FC = () => {
                                     </div>
 
                                     <div>
-                                        <label className="text-xs text-gray-500 font-semibold uppercase">Pontos Fortes</label>
+                                        <label className="text-xs text-gray-900 font-semibold uppercase">Pontos Fortes</label>
                                         <textarea 
                                             value={comp.strengths}
                                             onChange={(e) => updateCompetitor(comp.id, 'strengths', e.target.value)}
@@ -373,7 +373,7 @@ const CityMarketAnalysis: React.FC = () => {
                                     </div>
 
                                     <div>
-                                        <label className="text-xs text-gray-500 font-semibold uppercase">Pontos Fracos</label>
+                                        <label className="text-xs text-gray-900 font-semibold uppercase">Pontos Fracos</label>
                                         <textarea 
                                             value={comp.weaknesses}
                                             onChange={(e) => updateCompetitor(comp.id, 'weaknesses', e.target.value)}
@@ -386,7 +386,7 @@ const CityMarketAnalysis: React.FC = () => {
                             </div>
                         ))}
                         {formData.competitors.length === 0 && (
-                            <div className="col-span-full py-10 text-center text-gray-400 bg-base-200 dark:bg-dark-100 rounded-xl border border-dashed border-gray-300">
+                            <div className="col-span-full py-10 text-center text-gray-700 font-medium bg-base-200 dark:bg-dark-100 rounded-xl border border-dashed border-gray-300">
                                 Nenhum concorrente registrado.
                             </div>
                         )}

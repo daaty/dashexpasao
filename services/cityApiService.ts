@@ -1,5 +1,29 @@
 import api from './api';
-import { City } from '../types';
+import { City, CityStatus } from '../types';
+
+const mapBackendStatusToFrontend = (backendStatus: string): CityStatus => {
+  switch (backendStatus) {
+    case 'PLANNING':
+    case 'planning':
+      return CityStatus.Planning; // "Planejamento"
+    case 'EXPANSION':
+    case 'expansion':
+      return CityStatus.Expansion; // "Em expansão"
+    case 'CONSOLIDATED':
+    case 'consolidated':
+      return CityStatus.Consolidated; // "Consolidada"
+    case 'NOT_SERVED':
+    case 'NOT_SERVED':
+      return CityStatus.NotServed; // "Não atendida"
+    default:
+      return CityStatus.NotServed;
+  }
+};
+
+const mapBackendCityToFrontend = (city: any): City => ({
+  ...city,
+  status: mapBackendStatusToFrontend(city.status)
+});
 
 /**
  * Busca todas as cidades
@@ -13,7 +37,7 @@ export const fetchAllCities = async (params?: {
   try {
     const response = await api.get('/cities', { params });
     return {
-      cities: response.data.data,
+      cities: response.data.data.map(mapBackendCityToFrontend),
       pagination: response.data.pagination,
     };
   } catch (error) {
@@ -28,7 +52,7 @@ export const fetchAllCities = async (params?: {
 export const fetchCityById = async (cityId: number): Promise<City | null> => {
   try {
     const response = await api.get(`/cities/${cityId}`);
-    return response.data.data;
+    return mapBackendCityToFrontend(response.data.data);
   } catch (error) {
     console.error('Erro ao buscar cidade:', error);
     return null;
@@ -41,7 +65,7 @@ export const fetchCityById = async (cityId: number): Promise<City | null> => {
 export const updateCityFromIBGE = async (cityId: number): Promise<City | null> => {
   try {
     const response = await api.put(`/cities/${cityId}/update-ibge`);
-    return response.data.data;
+    return mapBackendCityToFrontend(response.data.data);
   } catch (error) {
     console.error('Erro ao atualizar cidade do IBGE:', error);
     return null;

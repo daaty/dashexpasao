@@ -145,32 +145,57 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   
   return (
     <>
-        <header className="flex items-center justify-between px-6 py-4 bg-base-100 dark:bg-dark-200 border-b border-base-300 dark:border-dark-100">
-        <div className="flex items-center">
-            <button onClick={toggleSidebar} className="text-content dark:text-dark-content focus:outline-none lg:hidden">
-            <FiMenu className="h-6 w-6" />
-            </button>
-        </div>
-        <div className="flex items-center space-x-4">
-            <button onClick={toggleDarkMode} className="p-2 rounded-full hover:bg-base-200 dark:hover:bg-dark-100">
-                {isDarkMode ? <FiSun className="h-5 w-5"/> : <FiMoon className="h-5 w-5"/>}
-            </button>
-            <button 
-                onClick={() => setIsSettingsOpen(true)}
-                className="p-2 rounded-full hover:bg-base-200 dark:hover:bg-dark-100 transition-colors"
-                title="Configurações"
-            >
-                <FiSettings className="h-5 w-5" />
-            </button>
-            <button className="relative p-2 rounded-full hover:bg-base-200 dark:hover:bg-dark-100">
-            <FiBell className="h-5 w-5" />
-            <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">3</span>
-            </button>
-            <div className="flex items-center space-x-2">
-            <FiUser className="h-8 w-8 rounded-full bg-primary text-white p-1" />
-            <span className="hidden sm:inline">Usuário</span>
+        <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-white/90 dark:bg-dark-200/80 backdrop-blur-md border-b border-slate-200 dark:border-dark-100 transition-all duration-300">
+            <div className="flex items-center gap-4">
+                <button 
+                    onClick={toggleSidebar} 
+                    className="p-2 -ml-2 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-300 rounded-lg lg:hidden transition-colors"
+                >
+                    <FiMenu className="h-6 w-6" />
+                </button>
             </div>
-        </div>
+
+            <div className="flex items-center gap-2 sm:gap-4">
+                 <button 
+                    onClick={toggleDarkMode} 
+                    className="p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-300 rounded-full transition-colors"
+                    title={isDarkMode ? "Modo Claro" : "Modo Escuro"}
+                >
+                    {isDarkMode ? <FiSun className="h-5 w-5"/> : <FiMoon className="h-5 w-5"/>}
+                </button>
+
+                <div className="h-6 w-px bg-gray-200 dark:bg-dark-100 mx-1 hidden sm:block"></div>
+
+                <button 
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-300 rounded-full transition-colors"
+                    title="Configurações"
+                >
+                    <FiSettings className="h-5 w-5" />
+                </button>
+                
+                <button className="relative p-2 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-300 rounded-full transition-colors group">
+                    <FiBell className="h-5 w-5 group-hover:text-primary transition-colors" />
+                    <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white dark:border-dark-200"></span>
+                    </span>
+                </button>
+                
+                <div className="border-l border-gray-200 dark:border-dark-100 h-8 mx-2 hidden sm:block"></div>
+
+                <div className="flex items-center gap-3 pl-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-300 py-1 px-2 rounded-xl transition-colors">
+                    <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-primary to-blue-400 p-[2px]">
+                        <div className="h-full w-full rounded-full bg-white dark:bg-dark-200 flex items-center justify-center">
+                             <FiUser className="h-5 w-5 text-gray-900 dark:text-white" />
+                        </div>
+                    </div>
+                    <div className="hidden sm:block text-left">
+                         <p className="text-sm font-bold text-gray-700 dark:text-gray-200 leading-none">Admin</p>
+                         <p className="text-xs text-gray-700 font-medium mt-1 leading-none">Gestor de Expansão</p>
+                    </div>
+                </div>
+            </div>
         </header>
 
         {/* SETTINGS MODAL */}
@@ -210,7 +235,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
                             {/* Inner Sidebar: Phase List */}
                             <div className="md:col-span-1 border-r border-base-300 dark:border-dark-100 pr-4 flex flex-col h-full overflow-hidden">
-                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Fases do Roadmap</h4>
+                                <h4 className="text-xs font-bold text-gray-900 uppercase mb-3">Fases do Roadmap</h4>
                                 <div className="space-y-1 flex-grow overflow-y-auto">
                                     {phaseTemplates.map(template => (
                                         <button
@@ -239,7 +264,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                                         <div className="flex justify-between items-start mb-4 pb-4 border-b border-base-300 dark:border-dark-100">
                                             <div>
                                                 <h3 className="text-lg font-bold text-primary">{selectedTemplate.name}</h3>
-                                                <p className="text-sm text-gray-500">Configure os padrões para novos planos.</p>
+                                                <p className="text-sm text-gray-700 font-medium">Configure os padrões para novos planos.</p>
                                             </div>
                                             <div className="flex items-center bg-base-200 dark:bg-dark-100 p-2 rounded-lg">
                                                 <label className="text-sm font-semibold mr-3">Duração (Dias):</label>
@@ -266,14 +291,14 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                                                         <span className="text-sm">{action}</span>
                                                         <button 
                                                             onClick={() => handleDeleteAction(index)}
-                                                            className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                            className="text-gray-700 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
                                                         >
                                                             <FiTrash2 />
                                                         </button>
                                                     </div>
                                                 ))}
                                                 {selectedTemplate.actions.length === 0 && (
-                                                    <p className="text-sm text-gray-400 italic text-center py-4">Nenhuma ação padrão.</p>
+                                                    <p className="text-sm text-gray-700 italic text-center py-4">Nenhuma ação padrão.</p>
                                                 )}
                                             </div>
                                         </div>
@@ -312,7 +337,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                         <div className="flex flex-col h-full overflow-hidden">
                              <div className="mb-4">
                                 <h3 className="text-lg font-bold mb-1">Gerenciar Etiquetas</h3>
-                                <p className="text-sm text-gray-500">Crie etiquetas personalizadas para organizar as ações do planejamento.</p>
+                                <p className="text-sm text-gray-700 font-medium">Crie etiquetas personalizadas para organizar as ações do planejamento.</p>
                             </div>
 
                             {/* Create New Tag */}
@@ -320,7 +345,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                                 <h4 className="text-sm font-bold mb-3">Nova Etiqueta</h4>
                                 <div className="flex flex-col md:flex-row gap-4 items-end">
                                     <div className="flex-grow w-full">
-                                        <label className="text-xs text-gray-500 mb-1 block">Nome</label>
+                                        <label className="text-xs text-gray-900 font-bold mb-1 block">Nome</label>
                                         <input 
                                             type="text" 
                                             placeholder="Ex: Urgente, Financeiro..." 
@@ -331,7 +356,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                                         />
                                     </div>
                                     <div className="flex-grow-0">
-                                        <label className="text-xs text-gray-500 mb-1 block">Cor</label>
+                                        <label className="text-xs text-gray-900 font-bold mb-1 block">Cor</label>
                                         <div className="flex gap-2 p-2 bg-base-100 dark:bg-dark-300 rounded-lg border border-base-300 dark:border-dark-200">
                                             {COLORS.map(color => (
                                                 <button
@@ -387,10 +412,10 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                                                         <span className="font-medium">{tag.label}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <button onClick={() => startEditingTag(tag)} className="p-1 text-gray-400 hover:text-primary transition">
+                                                        <button onClick={() => startEditingTag(tag)} className="p-1 text-gray-700 hover:text-primary transition">
                                                             <FiSettings size={14} />
                                                         </button>
-                                                        <button onClick={() => handleDeleteTag(tag.id)} className="p-1 text-gray-400 hover:text-red-500 transition">
+                                                        <button onClick={() => handleDeleteTag(tag.id)} className="p-1 text-gray-700 hover:text-red-500 transition">
                                                             <FiTrash2 size={14} />
                                                         </button>
                                                     </div>
@@ -399,7 +424,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                                         </div>
                                     ))}
                                     {tags.length === 0 && (
-                                        <p className="text-center text-gray-400 py-8 italic">Nenhuma etiqueta criada.</p>
+                                        <p className="text-center text-gray-700 py-8 italic">Nenhuma etiqueta criada.</p>
                                     )}
                                 </div>
                             </div>
@@ -411,7 +436,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                         <div className="flex flex-col h-full overflow-hidden">
                              <div className="mb-4">
                                 <h3 className="text-lg font-bold mb-1">Gerenciar Equipe</h3>
-                                <p className="text-sm text-gray-500">Adicione os responsáveis pelas tarefas de expansão.</p>
+                                <p className="text-sm text-gray-700 font-medium">Adicione os responsáveis pelas tarefas de expansão.</p>
                             </div>
 
                             {/* Create New Responsible */}
@@ -419,7 +444,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                                 <h4 className="text-sm font-bold mb-3">Novo Responsável</h4>
                                 <div className="flex flex-col md:flex-row gap-4 items-end">
                                     <div className="flex-grow w-full">
-                                        <label className="text-xs text-gray-500 mb-1 block">Nome / Cargo</label>
+                                        <label className="text-xs text-gray-900 font-bold mb-1 block">Nome / Cargo</label>
                                         <input 
                                             type="text" 
                                             placeholder="Ex: Gerente de Projetos, Ana Silva..." 
@@ -430,7 +455,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                                         />
                                     </div>
                                     <div className="flex-grow-0">
-                                        <label className="text-xs text-gray-500 mb-1 block">Cor do Avatar</label>
+                                        <label className="text-xs text-gray-900 font-bold mb-1 block">Cor do Avatar</label>
                                         <div className="flex gap-2 p-2 bg-base-100 dark:bg-dark-300 rounded-lg border border-base-300 dark:border-dark-200">
                                             {COLORS.map(color => (
                                                 <button
@@ -493,10 +518,10 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                                                         <span className="font-medium">{resp.name}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <button onClick={() => startEditingResp(resp)} className="p-1 text-gray-400 hover:text-primary transition">
+                                                        <button onClick={() => startEditingResp(resp)} className="p-1 text-gray-700 hover:text-primary transition">
                                                             <FiSettings size={14} />
                                                         </button>
-                                                        <button onClick={() => handleDeleteResp(resp.id)} className="p-1 text-gray-400 hover:text-red-500 transition">
+                                                        <button onClick={() => handleDeleteResp(resp.id)} className="p-1 text-gray-700 hover:text-red-500 transition">
                                                             <FiTrash2 size={14} />
                                                         </button>
                                                     </div>
@@ -505,7 +530,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                                         </div>
                                     ))}
                                     {responsibles.length === 0 && (
-                                        <p className="text-center text-gray-400 py-8 italic">Nenhum responsável cadastrado.</p>
+                                        <p className="text-center text-gray-700 py-8 italic">Nenhum responsável cadastrado.</p>
                                     )}
                                 </div>
                             </div>

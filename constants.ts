@@ -22,9 +22,9 @@ export const chartColors = ['#22c55e', '#3b82f6', '#f97316', '#8b5cf6', '#ec4899
 
 export const PHASE_COLORS: { [key: string]: { bg: string; borderL: string; } } = {
     'Análise & Viabilidade':        { bg: 'bg-blue-500',    borderL: 'border-l-blue-500' },
-    'Preparação Operacional':       { bg: 'bg-indigo-500',  borderL: 'border-l-indigo-500' },
-    'Aquisição de Motoristas':      { bg: 'bg-tertiary',    borderL: 'border-l-tertiary' },
-    'Marketing & Lançamento':       { bg: 'bg-primary',     borderL: 'border-l-primary' },
-    'Aquisição de Passageiros':     { bg: 'bg-cyan-500',    borderL: 'border-l-cyan-500' },
-    'Pós-Lançamento & Otimização':  { bg: 'bg-purple-500',  borderL: 'border-l-purple-500' },
+    'Preparação Operacional':       { bg: 'bg-blue-500',    borderL: 'border-l-blue-500' },
+    'Aquisição de Motoristas':      { bg: 'bg-yellow-500',  borderL: 'border-l-yellow-500' },
+    'Marketing & Lançamento':       { bg: 'bg-yellow-500',  borderL: 'border-l-yellow-500' },
+    'Aquisição de Passageiros':     { bg: 'bg-yellow-500',  borderL: 'border-l-yellow-500' },
+    'Pós-Lançamento & Otimização':  { bg: 'bg-green-500',   borderL: 'border-l-green-500' },
 };
