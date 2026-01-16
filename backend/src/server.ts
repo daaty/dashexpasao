@@ -46,7 +46,7 @@ class Server {
     // Rate limiting
     const limiter = rateLimit({
       windowMs: config.rateLimitWindowMs,
-      max: config.rateLimitMaxRequests,
+      max: config.nodeEnv === 'development' ? 1000 : config.rateLimitMaxRequests, // Muito mais permissivo em dev
       message: 'Muitas requisições deste IP, tente novamente mais tarde.',
       standardHeaders: true,
       legacyHeaders: false,

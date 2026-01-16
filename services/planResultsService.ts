@@ -18,14 +18,21 @@ export const savePlanResults = async (cityId: number, results: { [key: string]: 
 /**
  * Buscar resultados de planejamento do backend
  */
-export const getPlanResults = async (cityId: number): Promise<{ [key: string]: MonthResult } | null> => {
+export const getPlanResults = async (cityId: number): Promise<{ results: { [key: string]: MonthResult } | null, startDate?: string } | null> => {
   try {
     const response = await api.get(`/plannings/results/${cityId}`);
-    const results = response.data.data?.results || null;
-    if (results && Object.keys(results).length > 0) {
-      console.log(`✅ Resultados recuperados do backend para cidade ${cityId}:`, Object.keys(results).length, 'meses');
+    const data = response.data.data;
+    
+    if (data) {
+        if (data.results && Object.keys(data.results).length > 0) {
+            console.log(`✅ Resultados recuperados do backend para cidade ${cityId}:`, Object.keys(data.results).length, 'meses');
+        }
+        return {
+            results: data.results || null,
+            startDate: data.startDate
+        };
     }
-    return results;
+    return null;
   } catch (error) {
     console.error('❌ Erro ao buscar resultados do backend:', error);
     return null;

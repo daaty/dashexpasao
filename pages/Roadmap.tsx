@@ -47,6 +47,8 @@ interface DraggedItem {
     originalStart: string;
     originalEnd?: string;
     durationDays: number;
+    resizeMode?: 'move' | 'resize-start' | 'resize-end';
+    initialOffsetDays?: number;
 }
 
 // Interfaces para a nova Agenda Diária
@@ -82,15 +84,15 @@ const TagSummary: React.FC<{ actions: DailyActionItem[], allTags: Tag[] }> = ({ 
     if (activeTagIds.length === 0) return null;
 
     return (
-        <div className="flex flex-wrap gap-2 mb-4 px-1 pb-2 border-b border-base-200 dark:border-dark-100">
-            <span className="text-[10px] font-bold text-gray-400 uppercase self-center mr-1">Resumo:</span>
+        <div className="flex flex-wrap gap-2 mb-4 px-1 pb-3 border-b border-slate-200 dark:border-slate-700">
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase self-center mr-1 tracking-wider">Resumo:</span>
             {activeTagIds.map(id => {
                 const tag = allTags.find(t => t.id === id);
                 if (!tag) return null;
                 return (
-                    <div key={id} className="text-[10px] pl-2 pr-1 py-0.5 rounded-full text-white font-medium flex items-center shadow-sm" style={{ backgroundColor: tag.color }}>
+                    <div key={id} className="text-[10px] pl-2.5 pr-1.5 py-1 rounded-full text-white font-semibold flex items-center shadow-md hover:shadow-lg transition-all" style={{ backgroundColor: tag.color }}>
                         <span className="mr-1.5">{tag.label}</span>
-                        <span className="bg-white/30 px-1.5 rounded-full text-[9px] min-w-[16px] text-center">{counts[id]}</span>
+                        <span className="bg-white/30 px-2 rounded-full text-[9px] min-w-[18px] text-center font-bold">{counts[id]}</span>
                     </div>
                 );
             })}
@@ -122,6 +124,7 @@ const Roadmap: React.FC = () => {
     
     // Drag and Drop State
     const [draggedAction, setDraggedAction] = useState<DraggedItem | null>(null);
+    const [resizingAction, setResizingAction] = useState<{ id: string, mode: 'start' | 'end' } | null>(null);
     
     // Expanded States
     const [expandedPhaseIds, setExpandedPhaseIds] = useState<Set<string>>(new Set());
@@ -209,8 +212,8 @@ const Roadmap: React.FC = () => {
             if (filterStatus !== 'Todos' && city.status !== filterStatus) return;
             if (filterRegion !== 'Todos' && city.mesorregion !== filterRegion) return;
 
-            plan.phases.forEach(phase => {
-                phase.actions.forEach(action => {
+            plan.phases.forEach((phase, phaseIdx) => {
+                phase.actions.forEach((action, actionIdx) => {
                     const createdAt = new Date(action.createdAt);
                     const dueDate = action.estimatedCompletionDate ? new Date(action.estimatedCompletionDate) : null;
                     const isCompleted = action.completed;
@@ -231,7 +234,7 @@ const Roadmap: React.FC = () => {
 
                     if (status) {
                         actions.push({
-                            id: action.id,
+                            id: `${city.id}-${phaseIdx}-${actionIdx}`, // ID único composto
                             description: action.description,
                             cityId: city.id,
                             cityName: city.name,
@@ -277,14 +280,14 @@ const Roadmap: React.FC = () => {
                 if (filterStatus !== 'Todos' && city.status !== filterStatus) return;
                 if (filterRegion !== 'Todos' && city.mesorregion !== filterRegion) return;
 
-                plan.phases.forEach(phase => {
-                    phase.actions.forEach(action => {
+                plan.phases.forEach((phase, phaseIdx) => {
+                    phase.actions.forEach((action, actionIdx) => {
                         const dueDate = action.estimatedCompletionDate ? new Date(action.estimatedCompletionDate) : null;
                         
                         // Check for Exact Match on Date (Future tasks only)
                         if (dueDate && isSameDay(dueDate, day) && !action.completed) {
                             dayActions.push({
-                                id: action.id,
+                                id: `${city.id}-${phaseIdx}-${actionIdx}-weekly`, // ID único com sufixo
                                 description: action.description,
                                 cityId: city.id,
                                 cityName: city.name,
@@ -371,20 +374,32 @@ const Roadmap: React.FC = () => {
     };
 
     // Drag & Drop
-    const handleDragStart = (e: React.DragEvent, action: any, cityId: number, phaseName: string) => {
+    const handleDragStart = (e: React.DragEvent, action: any, cityId: number, phaseName: string, mode: 'move' | 'resize-start' | 'resize-end' = 'move') => {
         const start = new Date(action.createdAt);
         const end = action.estimatedCompletionDate 
             ? new Date(action.estimatedCompletionDate) 
             : new Date(start.getTime() + (5 * 24 * 60 * 60 * 1000));
         const durationDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
 
+        // Calcular onde o clique ocorreu relativo ao início da ação (para manter a posição relativa ao arrastar pelo meio)
+        const rect = e.currentTarget.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const initialOffsetDays = Math.floor(offsetX / 40); // 40 = PIXELS_PER_DAY
+
         setDraggedAction({
             id: action.id, cityId, phaseName,
             originalStart: action.createdAt,
-            originalEnd: action.estimatedCompletionDate,
-            durationDays
+            originalEnd: end.toISOString(),
+            durationDays,
+            resizeMode: mode,
+            initialOffsetDays: mode === 'move' ? initialOffsetDays : 0
         });
-        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.effectAllowed = mode === 'move' ? 'move' : 'copy';
+        
+        // Use a transparent drag image to prevent visual clutter
+        const img = new Image();
+        img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        e.dataTransfer.setDragImage(img, 0, 0);
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -398,22 +413,53 @@ const Roadmap: React.FC = () => {
 
         const rect = e.currentTarget.getBoundingClientRect();
         const offsetX = e.clientX - rect.left;
-        const scrollLeft = e.currentTarget.scrollLeft;
         const PIXELS_PER_DAY = 40;
         
-        const daysOffset = Math.floor((offsetX + scrollLeft) / PIXELS_PER_DAY);
+        const daysOffset = Math.floor(offsetX / PIXELS_PER_DAY);
         const monthStart = startOfMonth(roadmapDate);
         
-        const newStartDate = new Date(monthStart);
-        newStartDate.setDate(newStartDate.getDate() + daysOffset);
+        if (draggedAction.resizeMode === 'move') {
+            // Ajustar o deslocamento subtraindo onde o usuário clicou na ação
+            const adjustedDaysOffset = daysOffset - (draggedAction.initialOffsetDays || 0);
+
+            // Mover a ação mantendo a duração
+            const newStartDate = new Date(monthStart);
+            newStartDate.setDate(newStartDate.getDate() + adjustedDaysOffset);
+            
+            const newEndDate = new Date(newStartDate);
+            newEndDate.setDate(newEndDate.getDate() + draggedAction.durationDays);
+            
+            // ATENÇÃO: Atualizo tanto o início quanto o fim para mover
+            updatePlanAction(cityId, phaseName, draggedAction.id, {
+                createdAt: newStartDate.toISOString(),
+                estimatedCompletionDate: newEndDate.toISOString(),
+            } as any);
+        } else if (draggedAction.resizeMode === 'resize-end') {
+            // Redimensionar alterando a data final
+            const originalStart = new Date(draggedAction.originalStart);
+            const newEndDate = new Date(monthStart);
+            newEndDate.setDate(newEndDate.getDate() + daysOffset);
+            
+            // Garantir que a data final seja pelo menos 1 dia após o início
+            if (newEndDate > originalStart) {
+                updatePlanAction(cityId, phaseName, draggedAction.id, {
+                    estimatedCompletionDate: newEndDate.toISOString(),
+                } as any);
+            }
+        } else if (draggedAction.resizeMode === 'resize-start') {
+            // Redimensionar alterando a data inicial
+            const originalEnd = new Date(draggedAction.originalEnd || draggedAction.originalStart);
+            const newStartDate = new Date(monthStart);
+            newStartDate.setDate(newStartDate.getDate() + daysOffset);
+            
+            // Garantir que a data inicial seja pelo menos 1 dia antes do fim
+            if (newStartDate < originalEnd) {
+                updatePlanAction(cityId, phaseName, draggedAction.id, {
+                    createdAt: newStartDate.toISOString(),
+                } as any);
+            }
+        }
         
-        const newEndDate = new Date(newStartDate);
-        newEndDate.setDate(newEndDate.getDate() + draggedAction.durationDays);
-        
-        updatePlanAction(cityId, phaseName, draggedAction.id, {
-            estimatedCompletionDate: newEndDate.toISOString(),
-            // In a real app we might also update createdAt if the logic allows moving start date
-        });
         setDraggedAction(null);
     };
 
@@ -476,41 +522,41 @@ const Roadmap: React.FC = () => {
         const responsible = getResponsible(action.responsibleId);
 
         return (
-            <div key={action.id} className={`flex items-start p-3 mb-2 rounded-lg border transition-all hover:shadow-md ${action.completed ? 'bg-gray-500/5 dark:bg-dark-200 border-gray-200 dark:border-dark-100 opacity-75' : isOverdue ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30' : 'bg-base-100 dark:bg-dark-200 border-base-300 dark:border-dark-100'}`}>
+            <div key={action.id} className={`flex items-start p-3.5 mb-3 rounded-xl border-2 transition-all hover:shadow-lg hover:scale-[1.01] ${action.completed ? 'bg-slate-100/50 dark:bg-slate-900 border-slate-300 dark:border-slate-700 opacity-75' : isOverdue ? 'bg-gradient-to-r from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-300 dark:border-red-800 shadow-md' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm'}`}>
                 {/* Time Column (Simulated) */}
-                <div className={`flex flex-col items-center justify-center mr-4 w-12 pt-1 ${action.completed ? 'text-gray-400' : isOverdue ? 'text-red-500' : 'text-primary'}`}>
-                    <span className="text-xs font-bold">{action.simulatedTime}</span>
-                    <FiClock className="w-3 h-3 mt-1 opacity-50"/>
+                <div className={`flex flex-col items-center justify-center mr-4 w-14 pt-1 ${action.completed ? 'text-slate-400' : isOverdue ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                    <span className="text-xs font-black">{action.simulatedTime}</span>
+                    <FiClock className="w-3.5 h-3.5 mt-1 opacity-60"/>
                 </div>
 
                 {/* Content */}
                 <div className="flex-grow min-w-0">
                     <div className="flex justify-between items-start">
                         <div className="flex-grow">
-                             <div className="flex items-center mb-1 flex-wrap gap-1">
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full mr-2 ${
-                                    action.cityStatus === 'Consolidada' ? 'bg-green-100 text-green-800' : 
-                                    action.cityStatus === 'Em expansão' ? 'bg-orange-100 text-orange-800' : 
-                                    'bg-blue-100 text-blue-800'
+                             <div className="flex items-center mb-1.5 flex-wrap gap-1.5">
+                                <span className={`text-xs font-black px-2.5 py-1 rounded-lg mr-2 shadow-sm ${
+                                    action.cityStatus === 'Consolidada' ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-800 dark:from-green-900/40 dark:to-green-800/40 dark:text-green-300' : 
+                                    action.cityStatus === 'Em expansão' ? 'bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800 dark:from-orange-900/40 dark:to-orange-800/40 dark:text-orange-300' : 
+                                    'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 dark:from-blue-900/40 dark:to-blue-800/40 dark:text-blue-300'
                                 }`}>
                                     {action.cityName}
                                 </span>
-                                <span className="text-[10px] text-gray-400 uppercase tracking-wider">{action.phaseName}</span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold">{action.phaseName}</span>
                             </div>
-                            <h4 className={`text-sm font-medium ${action.completed ? 'line-through text-gray-500' : isOverdue ? 'text-red-700 dark:text-red-400' : 'text-content dark:text-dark-content'}`}>
+                            <h4 className={`text-sm font-semibold ${action.completed ? 'line-through text-slate-500 dark:text-slate-400' : isOverdue ? 'text-red-700 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'}`}>
                                 {action.description}
                             </h4>
                             
                             {/* Tags & Responsible Display */}
-                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
                                 {/* Responsible Avatar */}
                                 {responsible && (
                                     <div 
-                                        className="flex items-center gap-1 pr-2 border-r border-gray-200 dark:border-gray-700"
+                                        className="flex items-center gap-1.5 pr-2.5 border-r-2 border-slate-200 dark:border-slate-700"
                                         title={`Responsável: ${responsible.name}`}
                                     >
                                         <div 
-                                            className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow-sm"
+                                            className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow-lg ring-2 ring-white dark:ring-slate-800"
                                             style={{ backgroundColor: responsible.color }}
                                         >
                                             {responsible.initials}
@@ -522,17 +568,17 @@ const Roadmap: React.FC = () => {
                                 {actionTags.length > 0 && actionTags.map(tag => (
                                     <span 
                                         key={tag.id} 
-                                        className="text-[9px] px-1.5 py-0.5 rounded text-white font-medium flex items-center shadow-sm"
+                                        className="text-[9px] px-2 py-1 rounded-md text-white font-bold flex items-center shadow-md hover:shadow-lg transition-shadow"
                                         style={{ backgroundColor: tag.color }}
                                     >
-                                        <FiTag size={8} className="mr-1" /> {tag.label}
+                                        <FiTag size={9} className="mr-1" /> {tag.label}
                                     </span>
                                 ))}
                             </div>
                         </div>
                         <button 
                             onClick={() => handleToggleAction(action)}
-                            className={`ml-3 p-1 rounded-full transition-colors flex-shrink-0 ${action.completed ? 'text-primary hover:text-primary-600' : 'text-gray-300 hover:text-primary'}`}
+                            className={`ml-3 p-1.5 rounded-lg transition-all flex-shrink-0 hover:scale-110 ${action.completed ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-100/50 dark:bg-blue-900/20' : 'text-slate-300 dark:text-slate-600 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
                         >
                             {action.completed ? <FiCheckSquare className="w-6 h-6" /> : <FiSquare className="w-6 h-6" />}
                         </button>
@@ -547,23 +593,23 @@ const Roadmap: React.FC = () => {
         const todayActions = dailyActions.filter(a => a.status !== 'overdue');
 
         return (
-            <Card className="h-[500px] flex flex-col">
-                <div className="flex justify-between items-center mb-4 border-b border-base-300 dark:border-dark-100 pb-4 flex-shrink-0">
-                    <div className="flex items-center space-x-2">
-                        <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
+            <Card className="h-[500px] flex flex-col shadow-lg">
+                <div className="flex justify-between items-center mb-4 border-b-2 border-slate-200 dark:border-slate-700 pb-4 flex-shrink-0">
+                    <div className="flex items-center space-x-3">
+                        <div className="p-2.5 bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl shadow-lg">
                             <FiSun className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold">Agenda Operacional</h2>
-                            <p className="text-xs text-gray-500 capitalize">
+                            <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Agenda Operacional</h2>
+                            <p className="text-xs text-slate-600 dark:text-slate-400 capitalize font-medium">
                                 {selectedDayDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center bg-base-200 dark:bg-dark-300 rounded-lg p-1">
-                        <button onClick={handlePrevDay} className="p-2 hover:bg-base-300 dark:hover:bg-dark-100 rounded-md"><FiChevronLeft /></button>
-                        <button onClick={handleTodayDay} className="px-3 text-sm font-semibold hover:bg-base-300 dark:hover:bg-dark-100 rounded-md">Hoje</button>
-                        <button onClick={handleNextDay} className="p-2 hover:bg-base-300 dark:hover:bg-dark-100 rounded-md"><FiChevronRight /></button>
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-1 shadow-inner">
+                        <button onClick={handlePrevDay} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"><FiChevronLeft className="w-5 h-5" /></button>
+                        <button onClick={handleTodayDay} className="px-4 text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300">Hoje</button>
+                        <button onClick={handleNextDay} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"><FiChevronRight className="w-5 h-5" /></button>
                     </div>
                 </div>
 
@@ -572,18 +618,18 @@ const Roadmap: React.FC = () => {
 
                 <div className="flex-grow overflow-y-auto custom-scrollbar pr-2">
                     {dailyActions.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                            <FiCalendar className="w-12 h-12 mb-2 opacity-50" />
-                            <p className="font-medium">Nenhuma ação planejada para este dia.</p>
-                            <p className="text-xs">Verifique o Roadmap Geral para adicionar tarefas.</p>
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+                            <FiCalendar className="w-14 h-14 mb-3 opacity-40" />
+                            <p className="font-bold text-slate-600 dark:text-slate-400">Nenhuma ação planejada para este dia</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">Verifique o Roadmap Geral para adicionar tarefas.</p>
                         </div>
                     ) : (
                         <div className="space-y-6">
                             {/* Section: Overdue (Only if Today) */}
                             {overdueActions.length > 0 && (
                                 <div>
-                                    <div className="flex items-center mb-2 text-red-600 font-bold text-xs uppercase tracking-wider">
-                                        <FiAlertTriangle className="mr-1" /> Atrasadas / Atenção
+                                    <div className="flex items-center mb-3 text-red-600 dark:text-red-400 font-black text-xs uppercase tracking-wider">
+                                        <FiAlertTriangle className="mr-1.5 w-4 h-4" /> Atrasadas / Atenção
                                     </div>
                                     {overdueActions.map(renderActionCard)}
                                 </div>
@@ -592,8 +638,8 @@ const Roadmap: React.FC = () => {
                             {/* Section: Scheduled Today */}
                             {todayActions.length > 0 && (
                                 <div>
-                                     <div className="flex items-center mb-2 text-gray-500 font-bold text-xs uppercase tracking-wider">
-                                        <FiClock className="mr-1" /> Cronograma do Dia
+                                     <div className="flex items-center mb-2 text-slate-600 dark:text-slate-400 font-black text-xs uppercase tracking-wider">
+                                        <FiClock className="mr-1.5 w-3.5 h-3.5" /> Cronograma do Dia
                                     </div>
                                     {todayActions.map(renderActionCard)}
                                 </div>
@@ -610,14 +656,14 @@ const Roadmap: React.FC = () => {
          const allWeeklyActions = weeklyActions.flatMap(d => d.actions);
 
          return (
-            <Card className="h-[500px] flex flex-col bg-base-100/50 dark:bg-dark-200/50 border-l border-base-300 dark:border-dark-100">
-                 <div className="flex items-center mb-4 border-b border-base-300 dark:border-dark-100 pb-4">
-                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg mr-3">
+            <Card className="h-[500px] flex flex-col bg-white dark:bg-slate-900 border-l-2 border-slate-200 dark:border-slate-800 shadow-xl">
+                 <div className="flex items-center mb-4 border-b-2 border-slate-200 dark:border-slate-700 pb-4">
+                    <div className="p-2.5 bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl mr-3 shadow-lg">
                         <FiCalendar className="w-5 h-5" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold">Próximos Passos</h2>
-                        <p className="text-xs text-gray-500">Visão de 7 dias</p>
+                        <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Próximos Passos</h2>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">Visão de 7 dias</p>
                     </div>
                 </div>
                 
@@ -626,18 +672,18 @@ const Roadmap: React.FC = () => {
 
                 <div className="flex-grow overflow-y-auto custom-scrollbar pr-1 space-y-4">
                     {weeklyActions.length === 0 ? (
-                         <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                             <p className="text-sm">Sem atividades futuras próximas.</p>
+                         <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+                             <p className="text-sm font-medium">Sem atividades futuras próximas.</p>
                         </div>
                     ) : (
                         weeklyActions.map((dayGroup, idx) => (
-                            <div key={idx} className="relative pl-4 border-l-2 border-base-300 dark:border-dark-100">
+                            <div key={idx} className="relative pl-4 border-l-2 border-slate-300 dark:border-slate-700">
                                 {/* Timeline Dot */}
-                                <div className={`absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full ${dayGroup.density > 0 ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                                <div className={`absolute -left-[5px] top-0 w-3 h-3 rounded-full shadow-lg ${dayGroup.density > 0 ? 'bg-gradient-to-br from-blue-500 to-blue-700 ring-2 ring-blue-300 dark:ring-blue-900' : 'bg-slate-300 dark:bg-slate-600'}`}></div>
                                 
-                                <h4 className="text-xs font-bold uppercase text-gray-500 mb-2 flex justify-between items-center">
+                                <h4 className="text-xs font-black uppercase text-slate-600 dark:text-slate-400 mb-2 flex justify-between items-center">
                                     <span>{dayGroup.date.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'numeric' })}</span>
-                                    {dayGroup.density > 0 && <span className="px-1.5 py-0.5 bg-base-200 dark:bg-dark-300 rounded text-[9px]">{dayGroup.density} ações</span>}
+                                    {dayGroup.density > 0 && <span className="px-2 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg text-[10px] font-bold shadow-sm">{dayGroup.density} ações</span>}
                                 </h4>
 
                                 {dayGroup.actions.length === 0 ? (
@@ -649,19 +695,19 @@ const Roadmap: React.FC = () => {
                                             const responsible = getResponsible(action.responsibleId);
                                             
                                             return (
-                                                <div key={action.id} className="bg-white dark:bg-dark-300 p-2 rounded border border-base-200 dark:border-dark-100 flex flex-col shadow-sm hover:shadow-md transition-shadow">
+                                                <div key={action.id} className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border-2 border-slate-200 dark:border-slate-700 flex flex-col shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-200 hover:border-blue-400 dark:hover:border-blue-600">
                                                     <div className="flex items-center">
-                                                        <span className={`w-1 h-6 rounded-full mr-2 flex-shrink-0 ${
-                                                            action.cityStatus === 'Consolidada' ? 'bg-green-500' : 
-                                                            action.cityStatus === 'Em expansão' ? 'bg-orange-500' : 
-                                                            'bg-blue-500'
+                                                        <span className={`w-1 h-6 rounded-full mr-2.5 flex-shrink-0 shadow-md ${
+                                                            action.cityStatus === 'Consolidada' ? 'bg-gradient-to-b from-green-400 to-green-600' : 
+                                                            action.cityStatus === 'Em expansão' ? 'bg-gradient-to-b from-orange-400 to-orange-600' : 
+                                                            'bg-gradient-to-b from-blue-400 to-blue-600'
                                                         }`}></span>
                                                         <div className="min-w-0 flex-grow">
                                                             <div className="flex items-center mb-0.5 justify-between">
-                                                                <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wide truncate">{action.cityName}</span>
+                                                                <span className="text-[9px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-wider truncate">{action.cityName}</span>
                                                                 {responsible && (
                                                                      <div 
-                                                                        className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white shadow-sm flex-shrink-0"
+                                                                        className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white shadow-lg flex-shrink-0 ring-2 ring-white dark:ring-slate-800"
                                                                         style={{ backgroundColor: responsible.color }}
                                                                         title={responsible.name}
                                                                     >
@@ -669,23 +715,23 @@ const Roadmap: React.FC = () => {
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <p className="text-xs font-medium leading-tight line-clamp-1">{action.description}</p>
+                                                            <p className="text-xs font-medium leading-tight line-clamp-1 text-slate-900 dark:text-slate-100">{action.description}</p>
                                                         </div>
                                                     </div>
                                                     {/* Small Tags in Weekly View */}
                                                     {itemTags.length > 0 && (
-                                                        <div className="flex gap-1 mt-1 pl-3">
+                                                        <div className="flex gap-1.5 mt-1.5 pl-3">
                                                             {itemTags.slice(0, 2).map(tag => (
-                                                                <span key={tag.id} className="block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tag.color }} title={tag.label}></span>
+                                                                <span key={tag.id} className="block w-2 h-2 rounded-full shadow-sm ring-1 ring-white dark:ring-slate-800" style={{ backgroundColor: tag.color }} title={tag.label}></span>
                                                             ))}
-                                                            {itemTags.length > 2 && <span className="text-[8px] text-gray-400">...</span>}
+                                                            {itemTags.length > 2 && <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold">+{itemTags.length - 2}</span>}
                                                         </div>
                                                     )}
                                                 </div>
                                             );
                                         })}
                                         {dayGroup.actions.length > 4 && (
-                                            <div className="text-xs text-center text-primary font-medium cursor-pointer hover:underline flex items-center justify-center">
+                                            <div className="text-xs text-center text-blue-600 dark:text-blue-400 font-bold cursor-pointer hover:underline flex items-center justify-center hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
                                                 + {dayGroup.actions.length - 4} mais <FiArrowRight className="ml-1 w-3 h-3"/>
                                             </div>
                                         )}
@@ -720,22 +766,25 @@ const Roadmap: React.FC = () => {
 
         if (filteredData.length === 0) {
             return (
-                <div className="text-center py-20 bg-base-100 dark:bg-dark-200 rounded-xl border border-base-300 dark:border-dark-100">
-                    <FiCalendar className="mx-auto text-4xl text-gray-300 mb-4" />
-                    <p className="text-gray-500 text-lg font-semibold">Nenhuma atividade encontrada.</p>
-                    <p className="text-gray-400 text-sm mt-1">Tente ajustar os filtros ou selecionar outro mês.</p>
+                <div className="text-center py-24 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950 rounded-xl border-2 border-slate-200 dark:border-slate-700 shadow-lg">
+                    <div className="relative inline-block">
+                        <div className="absolute inset-0 blur-2xl bg-blue-600/10 dark:bg-blue-500/20"></div>
+                        <FiCalendar className="relative mx-auto text-5xl text-slate-300 dark:text-slate-600 mb-6" />
+                    </div>
+                    <p className="text-slate-700 dark:text-slate-300 text-xl font-bold mb-2">Nenhuma atividade encontrada</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Tente ajustar os filtros ou selecionar outro mês.</p>
                 </div>
             );
         }
 
         return (
-            <div className="bg-base-100 dark:bg-dark-200 rounded-b-xl shadow-sm border border-base-300 dark:border-dark-100 flex flex-col h-[600px] relative overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border-2 border-slate-200 dark:border-slate-800 flex flex-col h-[600px] relative overflow-hidden">
                 <div className="overflow-auto flex-grow custom-scrollbar relative h-full">
                     <div className="min-w-max relative">
                         
                         {/* Header Row */}
-                        <div className="flex sticky top-0 z-40 bg-base-200 dark:bg-dark-300 border-b border-base-300 dark:border-dark-100 shadow-sm">
-                            <div className="sticky left-0 w-[240px] flex-shrink-0 p-4 font-bold border-r border-base-300 dark:border-dark-100 bg-base-200 dark:bg-dark-300 z-50 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                        <div className="flex sticky top-0 z-40 bg-gradient-to-b from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border-b-2 border-slate-300 dark:border-slate-700 shadow-md">
+                            <div className="sticky left-0 w-[240px] flex-shrink-0 p-4 font-bold border-r-2 border-slate-300 dark:border-slate-700 bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 z-50 shadow-[4px_0_10px_rgba(0,0,0,0.1)] text-slate-900 dark:text-slate-100 text-sm uppercase tracking-wider">
                                 Cidade / Fase
                             </div>
                             <div className="flex relative">
@@ -745,10 +794,14 @@ const Roadmap: React.FC = () => {
                                     return (
                                         <div 
                                             key={day} 
-                                            className={`flex-shrink-0 w-[40px] text-center border-r border-base-300 dark:border-dark-100 py-2 text-xs ${isWeekend ? 'bg-base-300/50 dark:bg-dark-100/50 text-gray-500' : ''} ${isToday(d) ? 'bg-primary/10 text-primary font-bold' : ''}`}
+                                            className={`flex-shrink-0 w-[40px] text-center border-r border-slate-300 dark:border-slate-700 py-2 text-xs font-semibold transition-colors ${
+                                                isWeekend ? 'bg-slate-200/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400' : 'text-slate-700 dark:text-slate-300'
+                                            } ${
+                                                isToday(d) ? 'bg-gradient-to-b from-blue-600 to-blue-700 text-white shadow-md font-black' : ''
+                                            }`}
                                         >
                                             <div className="font-bold">{day}</div>
-                                            <div className="text-[10px] uppercase">{d.toLocaleString('pt-BR', { weekday: 'narrow' })}</div>
+                                            <div className="text-[10px] uppercase font-medium">{d.toLocaleString('pt-BR', { weekday: 'narrow' })}</div>
                                         </div>
                                     );
                                 })}
@@ -811,22 +864,22 @@ const Roadmap: React.FC = () => {
                                 if (maxExpandedHeight > 0) totalHeight += 24; 
 
                                 return (
-                                    <div key={city.id} className="flex border-b border-base-200 dark:border-dark-100 group relative" style={{ height: `${totalHeight}px` }}>
+                                    <div key={city.id} className="flex border-b border-slate-200 dark:border-slate-800 group relative hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors" style={{ height: `${totalHeight}px` }}>
                                         {/* Sidebar */}
                                         <div 
-                                            className="sticky left-0 w-[240px] flex-shrink-0 p-3 border-r border-base-300 dark:border-dark-100 bg-base-100 dark:bg-dark-200 z-30 font-medium text-sm hover:bg-base-200 dark:hover:bg-dark-100 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.05)] cursor-pointer group/city"
+                                            className="sticky left-0 w-[240px] flex-shrink-0 p-4 border-r border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 z-30 font-medium text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-[2px_0_8px_rgba(0,0,0,0.08)] dark:shadow-[2px_0_8px_rgba(0,0,0,0.3)] cursor-pointer group/city"
                                             onClick={() => toggleCityAllPhases(city.id, plan.phases.length)}
                                         >
                                             <div className="flex items-center justify-between h-10 w-full">
                                                 <div className="flex items-center overflow-hidden mr-2">
-                                                    <div className={`w-1.5 h-8 rounded-full mr-3 flex-shrink-0 shadow-sm ${city.status === 'Consolidada' ? 'bg-green-500' : city.status === 'Em expansão' ? 'bg-orange-500' : 'bg-blue-500'}`}></div>
+                                                    <div className={`w-1 h-10 rounded-full mr-3 flex-shrink-0 shadow-lg ${city.status === 'Consolidada' ? 'bg-gradient-to-b from-green-400 to-green-600' : city.status === 'Em expansão' ? 'bg-gradient-to-b from-orange-400 to-orange-600' : 'bg-gradient-to-b from-blue-500 to-blue-700'}`}></div>
                                                     <div>
-                                                        <div className="truncate font-bold text-gray-700 dark:text-gray-200">{city.name}</div>
-                                                        <div className="text-[10px] text-gray-400 font-normal">{formatMesorregion(city.mesorregion)}</div>
+                                                        <div className="truncate font-bold text-slate-900 dark:text-slate-100">{city.name}</div>
+                                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wide">{formatMesorregion(city.mesorregion)}</div>
                                                     </div>
                                                 </div>
-                                                <div className="text-gray-400 group-hover/city:text-primary transition-colors">
-                                                    {isCityExpanded ? <FiChevronUp /> : <FiChevronDown />}
+                                                <div className="text-slate-400 group-hover/city:text-blue-600 dark:group-hover/city:text-blue-400 transition-colors">
+                                                    {isCityExpanded ? <FiChevronUp className="w-5 h-5" /> : <FiChevronDown className="w-5 h-5" />}
                                                 </div>
                                             </div>
                                         </div>
@@ -838,7 +891,7 @@ const Roadmap: React.FC = () => {
                                                 {days.map(day => {
                                                     const d = new Date(roadmapDate.getFullYear(), roadmapDate.getMonth(), day);
                                                     const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                                                    return <div key={day} className={`flex-shrink-0 w-[40px] border-r border-base-200 dark:border-dark-100 h-full ${isWeekend ? 'bg-base-200/20 dark:bg-dark-100/20' : ''}`}></div>;
+                                                    return <div key={day} className={`flex-shrink-0 w-[40px] border-r border-slate-200 dark:border-slate-800 h-full ${isWeekend ? 'bg-slate-100/40 dark:bg-slate-950/40' : ''}`}></div>;
                                                 })}
                                             </div>
 
@@ -856,24 +909,20 @@ const Roadmap: React.FC = () => {
                                                         <React.Fragment key={id}>
                                                             {/* Phase Bar with improved visuals */}
                                                             <div 
-                                                                className={`absolute h-9 rounded-md shadow-sm text-white text-xs flex flex-col justify-center transition-all overflow-hidden border border-white/10 hover:shadow-md hover:translate-y-[-1px] z-20`}
+                                                                className={`absolute h-10 rounded-xl shadow-lg text-white text-xs flex flex-col justify-center transition-all overflow-hidden border-2 border-white/20 hover:shadow-2xl hover:scale-105 hover:z-30 z-20 cursor-pointer`}
                                                                 style={{ 
                                                                     left: `${left}px`, 
                                                                     width: `${width}px`,
-                                                                    top: '14px',
+                                                                    top: '12px',
                                                                 }}
+                                                                onClick={() => togglePhaseExpansion(id)}
                                                             >
+                                                                {/* Base Color with Gradient */}
+                                                                <div className={`absolute inset-0 ${getPhaseColor(phase.name)} opacity-20`}></div>
                                                                 <div 
-                                                                    className="absolute inset-0 cursor-pointer"
-                                                                    onClick={() => togglePhaseExpansion(id)}
-                                                                >
-                                                                    {/* Base Color with Gradient */}
-                                                                    <div className={`absolute inset-0 ${getPhaseColor(phase.name)} opacity-20`}></div>
-                                                                    <div 
-                                                                        className={`absolute inset-y-0 left-0 ${getPhaseColor(phase.name)} ${isFullyComplete ? 'saturate-50' : ''} bg-gradient-to-r from-transparent to-white/10`} 
-                                                                        style={{ width: `${isFullyComplete ? 100 : progress}%` }}
-                                                                    ></div>
-                                                                </div>
+                                                                    className={`absolute inset-y-0 left-0 ${getPhaseColor(phase.name)} ${isFullyComplete ? 'saturate-50' : ''} bg-gradient-to-r from-transparent to-white/10`} 
+                                                                    style={{ width: `${isFullyComplete ? 100 : progress}%` }}
+                                                                ></div>
 
                                                                 <div className="relative z-10 px-2 flex items-center justify-between w-full pointer-events-none">
                                                                     <div className="flex items-center overflow-hidden">
@@ -891,7 +940,7 @@ const Roadmap: React.FC = () => {
                                                                     onDragOver={handleDragOver}
                                                                     onDrop={(e) => handleDrop(e, city.id, phase.name)}
                                                                 >
-                                                                    <div className="absolute border-l-2 border-dashed border-gray-300 dark:border-gray-600" style={{ left: `${left + 15}px`, top: '-4px', bottom: '10px' }}></div>
+                                                                    <div className="absolute border-l-2 border-dashed border-slate-300 dark:border-slate-600" style={{ left: `${left + 15}px`, top: '-4px', bottom: '10px' }}></div>
 
                                                                     {phase.actions.map((action: any, aIdx: number) => {
                                                                         const aStart = new Date(action.createdAt);
@@ -922,7 +971,7 @@ const Roadmap: React.FC = () => {
                                                                                     draggable="true"
                                                                                     onDragStart={(e) => handleDragStart(e, action, city.id, phase.name)}
                                                                                     className={`absolute w-5 h-5 flex items-center justify-center transform rotate-45 border-2 shadow-md cursor-pointer hover:scale-110 transition-transform z-30
-                                                                                        ${action.completed ? 'bg-green-500 border-white' : isOverdue ? 'bg-red-500 border-white animate-pulse' : 'bg-tertiary border-white'}
+                                                                                        ${action.completed ? 'bg-green-500 border-white' : isOverdue ? 'bg-red-500 border-white animate-pulse' : 'bg-blue-600 border-white'}
                                                                                     `}
                                                                                     style={{
                                                                                         left: `${aLeft + (PIXELS_PER_DAY/2) - 10}px`, // Centered on day
@@ -943,12 +992,15 @@ const Roadmap: React.FC = () => {
                                                                             <div 
                                                                                 key={action.id}
                                                                                 draggable="true"
-                                                                                onDragStart={(e) => handleDragStart(e, action, city.id, phase.name)}
-                                                                                className={`absolute h-6 rounded-full flex items-center px-2 text-[10px] shadow-sm border cursor-move transition-all overflow-hidden
-                                                                                    ${action.completed ? 'bg-green-100 border-green-300 text-green-800' : 
-                                                                                    isOverdue ? 'bg-red-50 dark:bg-red-900/20 border-red-500 border-l-4 text-red-700 dark:text-red-400' :
-                                                                                    'bg-white dark:bg-dark-300 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'}
-                                                                                    ${isDragging ? 'opacity-50 border-dashed border-primary ring-2 ring-primary ring-offset-2' : 'hover:border-primary'}
+                                                                                onDragStart={(e) => {
+                                                                                    // Default move drag start
+                                                                                    handleDragStart(e, action, city.id, phase.name, 'move');
+                                                                                }}
+                                                                                className={`absolute h-7 rounded-lg flex items-center px-2.5 text-[10px] shadow-md border-2 cursor-move transition-all overflow-visible hover:shadow-lg hover:scale-105 hover:z-40 group/action
+                                                                                    ${action.completed ? 'bg-gradient-to-r from-green-100 to-green-200 border-green-400 text-green-900 dark:from-green-900/30 dark:to-green-800/30 dark:border-green-700 dark:text-green-300' : 
+                                                                                    isOverdue ? 'bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/20 border-red-500 border-l-4 text-red-700 dark:text-red-400 animate-pulse' :
+                                                                                    'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300'}
+                                                                                    ${isDragging ? 'opacity-50 border-dashed border-blue-600 dark:border-blue-400 ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2' : 'hover:border-blue-500 dark:hover:border-blue-400'}
                                                                                 `}
                                                                                 style={{
                                                                                     left: `${aLeft}px`,
@@ -957,21 +1009,33 @@ const Roadmap: React.FC = () => {
                                                                                 }}
                                                                                 title={`${tagNames ? tagNames + ' ' : ''}${action.description} ${isOverdue ? '(Atrasado)' : ''} ${responsible ? `- Resp: ${responsible.name}` : ''}`}
                                                                             >
-                                                                                <FiMove className="mr-1 text-gray-400 flex-shrink-0 cursor-move opacity-0 group-hover:opacity-100" size={10} />
-                                                                                {action.completed ? <FiCheckCircle className="mr-1 text-green-500 flex-shrink-0" /> : <FiActivity className="mr-1 text-gray-400 flex-shrink-0" />}
-                                                                                <span className="truncate flex-grow flex items-center">
+                                                                                {/* Resize Handle - Left (Explicit) */}
+                                                                                <div
+                                                                                    draggable="true"
+                                                                                    onDragStart={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleDragStart(e, action, city.id, phase.name, 'resize-start');
+                                                                                    }}
+                                                                                    className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize bg-blue-500/0 hover:bg-blue-500/20 transition-all z-50 group-hover/action:opacity-100 opacity-0"
+                                                                                    title="Arrastar para ajustar data inicial"
+                                                                                />
+                                                                                
+                                                                                {/* Visuals */}
+                                                                                <FiMove className="mr-1 text-slate-400 dark:text-slate-500 flex-shrink-0 cursor-move opacity-0 group-hover/action:opacity-100" size={10} />
+                                                                                {action.completed ? <FiCheckCircle className="mr-1 text-green-600 dark:text-green-400 flex-shrink-0" /> : <FiActivity className="mr-1 text-slate-400 dark:text-slate-500 flex-shrink-0" />}
+                                                                                <span className="truncate flex-grow flex items-center font-medium pointer-events-none">
                                                                                     {/* Show Tiny Dot for Tags in Timeline */}
                                                                                     {itemTags.length > 0 && (
-                                                                                         <span className="flex mr-1 gap-0.5">
+                                                                                         <span className="flex mr-1.5 gap-0.5">
                                                                                              {itemTags.slice(0, 2).map(t => (
-                                                                                                 <span key={t.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: t.color }}></span>
+                                                                                                 <span key={t.id} className="w-1.5 h-1.5 rounded-full shadow-sm" style={{ backgroundColor: t.color }}></span>
                                                                                              ))}
                                                                                          </span>
                                                                                     )}
                                                                                      {/* Show Responsible Avatar in Timeline */}
                                                                                     {responsible && (
                                                                                          <span 
-                                                                                            className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold text-white shadow-sm flex-shrink-0 mr-1"
+                                                                                            className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white shadow-md flex-shrink-0 mr-1.5 ring-1 ring-white dark:ring-slate-800"
                                                                                             style={{ backgroundColor: responsible.color }}
                                                                                         >
                                                                                             {responsible.initials}
@@ -979,6 +1043,17 @@ const Roadmap: React.FC = () => {
                                                                                     )}
                                                                                     {action.description}
                                                                                 </span>
+
+                                                                                {/* Resize Handle - Right (Explicit) */}
+                                                                                <div
+                                                                                    draggable="true"
+                                                                                    onDragStart={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleDragStart(e, action, city.id, phase.name, 'resize-end');
+                                                                                    }}
+                                                                                    className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize bg-blue-500/0 hover:bg-blue-500/20 transition-all z-50 group-hover/action:opacity-100 opacity-0"
+                                                                                    title="Arrastar para ajustar data final"
+                                                                                />
                                                                             </div>
                                                                         );
                                                                     })}
@@ -1014,36 +1089,36 @@ const Roadmap: React.FC = () => {
                 {/* Header with Navigation and Toggles */}
                 <div className="flex flex-col md:flex-row justify-between items-center mb-4">
                     <div className="flex items-center space-x-4 mb-4 md:mb-0">
-                        <h2 className="text-xl font-bold capitalize w-48 truncate">
-                            {getMonthName(roadmapDate)} <span className="text-gray-500 ml-1">{roadmapDate.getFullYear()}</span>
+                        <h2 className="text-xl font-black capitalize w-48 truncate text-slate-900 dark:text-slate-100">
+                            {getMonthName(roadmapDate)} <span className="text-slate-500 dark:text-slate-400 ml-1 font-bold">{roadmapDate.getFullYear()}</span>
                         </h2>
-                        <div className="flex items-center bg-base-200 dark:bg-dark-300 rounded-lg p-1">
-                            <button onClick={handlePrevMonth} className="p-2 hover:bg-base-300 dark:hover:bg-dark-100 rounded-md"><FiChevronLeft /></button>
-                            <button onClick={handleTodayMonth} className="px-3 text-sm font-semibold hover:bg-base-300 dark:hover:bg-dark-100 rounded-md">Atual</button>
-                            <button onClick={handleNextMonth} className="p-2 hover:bg-base-300 dark:hover:bg-dark-100 rounded-md"><FiChevronRight /></button>
+                        <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-1 shadow-inner">
+                            <button onClick={handlePrevMonth} className="p-2.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"><FiChevronLeft className="w-4 h-4" /></button>
+                            <button onClick={handleTodayMonth} className="px-4 text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300">Atual</button>
+                            <button onClick={handleNextMonth} className="p-2.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"><FiChevronRight className="w-4 h-4" /></button>
                         </div>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3">
                         <button 
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${showFilters ? 'bg-base-200 text-primary' : 'hover:bg-base-200 text-gray-600'}`}
+                            className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md hover:shadow-lg ${showFilters ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'}`}
                             title="Alternar filtros"
                         >
                             <FiFilter className="mr-2"/> Filtros
                         </button>
-                        <div className="h-6 w-px bg-gray-300 mx-2"></div>
-                        <div className="flex bg-base-200 dark:bg-dark-300 rounded-lg p-1">
+                        <div className="h-8 w-px bg-slate-300 dark:bg-slate-700 mx-2"></div>
+                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 shadow-inner">
                             <button 
                                 onClick={() => setViewMode('timeline')}
-                                className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'timeline' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-content'}`}
+                                className={`flex items-center px-5 py-2.5 text-sm font-bold rounded-lg transition-all ${viewMode === 'timeline' ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-lg' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'}`}
                             >
                                 <FiList className="mr-2" /> Cronograma
                             </button>
                             {/* Disabled Month view for now to focus on Timeline enhancements */}
                              <button 
                                 onClick={() => setViewMode('month')}
-                                className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'month' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-content'}`}
+                                className={`flex items-center px-5 py-2.5 text-sm font-bold rounded-lg transition-all ${viewMode === 'month' ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-lg' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'}`}
                             >
                                 <FiCalendar className="mr-2" /> Mês
                             </button>
@@ -1056,23 +1131,46 @@ const Roadmap: React.FC = () => {
                 <div className="flex-grow relative mt-4">
                      {/* Currently only showing timeline as it is the main focus, Month view logic exists but kept simple for this update */}
                     {viewMode === 'timeline' ? renderTimelineView() : (
-                        <div className="p-10 text-center text-gray-500">Visualização de calendário mensal simplificada (Use o cronograma para recursos avançados).</div>
+                        <div className="p-10 text-center text-slate-500 dark:text-slate-400 font-medium">Visualização de calendário mensal simplificada (Use o cronograma para recursos avançados).</div>
                     )}
                 </div>
             </Card>
 
              {/* Footer Legend */}
-            <div className="flex flex-wrap gap-4 text-xs mt-4 p-4 bg-base-100 dark:bg-dark-200 rounded-lg border border-base-300 dark:border-dark-100">
-                <div className="flex items-center font-bold text-gray-500 uppercase mr-4">Legenda:</div>
-                {Object.entries(PHASE_COLORS).map(([name, colors]) => (
-                    <div key={name} className="flex items-center">
-                        <div className={`w-3 h-3 rounded-full mr-2 ${colors.bg}`}></div>
-                        <span className="truncate">{name}</span>
+            <div className="flex flex-col gap-4 text-xs mt-4 p-5 bg-white dark:bg-slate-900 rounded-xl border-2 border-slate-200 dark:border-slate-800 shadow-lg">
+                <div className="flex flex-wrap gap-4 items-center">
+                    <div className="flex items-center font-black text-slate-600 dark:text-slate-400 uppercase mr-4 tracking-wider">Legenda:</div>
+                    {Object.entries(PHASE_COLORS).map(([name, colors]) => (
+                        <div key={name} className="flex items-center font-medium text-slate-700 dark:text-slate-300">
+                            <div className={`w-3.5 h-3.5 rounded-full mr-2 ${colors.bg} shadow-md ring-2 ring-white dark:ring-slate-900`}></div>
+                            <span className="truncate">{name}</span>
+                        </div>
+                    ))}
+                    <div className="flex items-center ml-4 border-l-2 pl-4 border-slate-300 dark:border-slate-700 font-medium text-slate-700 dark:text-slate-300">
+                        <div className="w-3 h-3 transform rotate-45 bg-blue-600 border border-white shadow-md mr-2"></div>
+                        <span>Marco Crítico (Inauguração/Evento)</span>
                     </div>
-                ))}
-                 <div className="flex items-center ml-4 border-l pl-4 border-gray-300">
-                    <div className="w-3 h-3 transform rotate-45 bg-tertiary border border-white shadow-sm mr-2"></div>
-                    <span>Marco Crítico (Inauguração/Evento)</span>
+                </div>
+                
+                {/* Drag & Drop Instructions */}
+                <div className="flex flex-wrap gap-6 items-center pt-3 border-t-2 border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center font-black text-blue-600 dark:text-blue-400 uppercase mr-2 tracking-wider">
+                        <FiMove className="mr-2 w-4 h-4" /> Interação:
+                    </div>
+                    <div className="flex items-center font-medium text-slate-700 dark:text-slate-300">
+                        <div className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-lg mr-2 shadow-md font-bold text-[10px]">
+                            CENTRO
+                        </div>
+                        <span>Arraste pelo <strong>centro</strong> para mover a ação</span>
+                    </div>
+                    <div className="flex items-center font-medium text-slate-700 dark:text-slate-300">
+                        <div className="flex gap-1 mr-2 items-center">
+                            <div className="w-3 h-6 bg-blue-500/30 rounded-l-lg border-2 border-blue-500"></div>
+                            <span className="text-slate-400">...</span>
+                            <div className="w-3 h-6 bg-blue-500/30 rounded-r-lg border-2 border-blue-500"></div>
+                        </div>
+                        <span>Clique nas <strong>extremidades</strong> (8px) para redimensionar</span>
+                    </div>
                 </div>
             </div>
         </div>

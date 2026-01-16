@@ -145,9 +145,9 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   
   return (
     <>
-        <header className="sticky top-0 z-10 flex items-center justify-between px-6 lg:px-10 py-4 bg-white/95 dark:bg-dark-200/95 backdrop-blur-lg border-b border-slate-200/60 dark:border-dark-100 shadow-sm">
+        <header className="sticky top-0 z-10 flex items-center justify-between px-6 lg:px-10 py-4 bg-white dark:bg-slate-900 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-4">
-                <h1 className="font-black text-2xl bg-gradient-to-r from-primary to-primary-600 bg-clip-text text-transparent">
+                <h1 className="font-black text-2xl bg-gradient-to-r from-blue-800 to-blue-600 dark:from-blue-500 dark:to-blue-400 bg-clip-text text-transparent">
                     Urban<span className="font-light">Passageiro</span>
                 </h1>
             </div>
@@ -155,36 +155,36 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
             <div className="flex items-center gap-2 sm:gap-4">
                  <button 
                     onClick={toggleDarkMode} 
-                    className="p-2.5 text-gray-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-dark-100 rounded-xl transition-all duration-200 hover:scale-105"
+                    className="p-2.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 hover:scale-105"
                     title={isDarkMode ? "Modo Claro" : "Modo Escuro"}
                 >
                     {isDarkMode ? <FiSun className="h-5 w-5"/> : <FiMoon className="h-5 w-5"/>}
                 </button>
 
-                <div className="h-6 w-px bg-gray-200 dark:bg-dark-100 mx-1 hidden sm:block"></div>
+                <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
 
                 <button 
                     onClick={() => setIsSettingsOpen(true)}
-                    className="p-2.5 text-gray-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-dark-100 rounded-xl transition-all duration-200 hover:scale-105"
+                    className="p-2.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 hover:scale-105"
                     title="Configurações"
                 >
                     <FiSettings className="h-5 w-5" />
                 </button>
                 
-                <button className="relative p-2.5 text-gray-700 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-dark-100 rounded-xl transition-all duration-200 hover:scale-105 group">
-                    <FiBell className="h-5 w-5 group-hover:text-primary transition-colors" />
+                <button className="relative p-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 hover:scale-105 group">
+                    <FiBell className="h-5 w-5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
                     <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white dark:border-dark-200"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500 border-2 border-white dark:border-slate-900"></span>
                     </span>
                 </button>
                 
-                <div className="border-l border-gray-200 dark:border-dark-100 h-8 mx-2 hidden sm:block"></div>
+                <div className="border-l border-slate-200 dark:border-slate-800 h-8 mx-2 hidden sm:block"></div>
 
-                <div className="flex items-center gap-3 pl-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-dark-100 py-1 px-3 rounded-xl transition-all duration-200">
-                    <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-primary to-blue-400 p-[2px]">
-                        <div className="h-full w-full rounded-full bg-white dark:bg-dark-200 flex items-center justify-center">
-                             <FiUser className="h-5 w-5 text-gray-900 dark:text-white" />
+                <div className="flex items-center gap-3 pl-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 py-1 px-3 rounded-xl transition-all duration-200">
+                    <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-blue-600 to-blue-400 p-[2px]">
+                        <div className="h-full w-full rounded-full bg-white dark:bg-slate-900 flex items-center justify-center">
+                             <FiUser className="h-5 w-5 text-slate-900 dark:text-slate-100" />
                         </div>
                     </div>
                     <div className="hidden sm:block text-left">

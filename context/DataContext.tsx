@@ -230,8 +230,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                     const localMatch = savedPlans.find((p: any) => p.cityId === plan.cityId);
                     
                     // Buscar resultados salvos do backend
-                    const backendResults = await planResultsService.getPlanResults(plan.cityId);
-                    const resultsToUse = backendResults || localMatch?.results || {};
+                    const backendData = await planResultsService.getPlanResults(plan.cityId);
+                    const resultsToUse = backendData?.results || localMatch?.results || {};
+                    const startDateResult = backendData?.startDate;
                     
                     // Se tiver dados locais de fases, usa. Senão, inicializa padrão.
                     let phasesToUse = localMatch?.phases;
@@ -248,7 +249,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
                     return {
                         cityId: plan.cityId,
-                        startDate: plan.startDate ? String(plan.startDate).slice(0, 7) : (localMatch?.startDate || new Date().toISOString().slice(0, 7)),
+                        startDate: startDateResult || (plan.startDate ? String(plan.startDate).slice(0, 7) : (localMatch?.startDate || new Date().toISOString().slice(0, 7))),
                         phases: phasesToUse,
                         results: resultsToUse
                     };

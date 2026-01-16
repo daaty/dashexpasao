@@ -12,10 +12,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100 dark:from-dark-300 dark:via-dark-300 dark:to-dark-200 overflow-hidden font-sans text-slate-800 dark:text-slate-100">
+    <div className="flex flex-col h-screen bg-white dark:bg-slate-950 overflow-hidden font-sans text-slate-900 dark:text-slate-100">
       <Header toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} />
       <Sidebar />
-      <main className="flex-1 overflow-x-hidden overflow-y-auto scroll-smooth p-6 lg:p-10 relative">
+      <main className="flex-1 overflow-x-hidden overflow-y-auto scroll-smooth p-6 lg:p-10 relative bg-slate-50 dark:bg-slate-950">
         <div className="max-w-[1920px] mx-auto w-full">
           {children}
         </div>

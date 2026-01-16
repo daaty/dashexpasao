@@ -6,7 +6,7 @@ import Card from '../components/ui/Card';
 import Modal from '../components/ui/Modal';
 import { FiArrowLeft, FiClipboard, FiPlusCircle, FiChevronDown, FiChevronUp, FiEdit, FiTrash2, FiCheckSquare, FiSquare, FiSave, FiCalendar, FiClock, FiX, FiUsers, FiDollarSign, FiRefreshCw, FiLink, FiExternalLink, FiTrendingUp, FiTrendingDown, FiActivity, FiTarget, FiTag, FiUser, FiZap, FiAlertCircle, FiCheck } from 'react-icons/fi';
 import { getFinancialProjections, calculatePotentialRevenue, getMarketPotential, getGrowthRoadmap } from '../services/calculationService';
-import { PENETRATION_SCENARIOS, PHASE_COLORS } from '../constants';
+import { PENETRATION_SCENARIOS, PHASE_COLORS, MONTHS } from '../constants';
 import InfoTooltip from '../components/ui/InfoTooltip';
 import { Line, getElementAtEvent } from 'react-chartjs-2';
 import type { Chart as ChartJS } from 'chart.js';
@@ -532,11 +532,50 @@ const PlanningDetails: React.FC = () => {
     }, [localResults]);
 
     const mediumMonthlyTarget = useMemo(() => marketPotential.find(p => p.scenario === 'Média')?.rides || 0, [marketPotential]);
-    const latestRealValue = useMemo(() => {
-        const keys = Object.keys(localResults).sort();
-        return keys.length > 0 ? localResults[keys[keys.length-1]].rides : 0;
-    }, [localResults]);
-    const overallProgress = mediumMonthlyTarget > 0 ? (latestRealValue / mediumMonthlyTarget) * 100 : 0;
+    
+    // Identificar o último mês com dados preenchidos (baseado nos resultados reais)
+    const { currentRides, currentMonthLabel } = useMemo(() => {
+        if (!selectedPlan?.startDate) return { currentRides: 0, currentMonthLabel: 'Mês Atual' };
+
+        const start = new Date(selectedPlan.startDate + '-02');
+        
+        // Encontrar o último mês que tem dados de passageiros preenchidos
+        let latestMonthIndex = 0;
+        let latestRides = 0;
+        
+        Object.keys(localResults).forEach(key => {
+            if (key.startsWith('Mes')) {
+                const index = parseInt(key.replace('Mes', ''));
+                const data = localResults[key];
+                // Verifica se tem dados relevantes (rides > 0)
+                if (data && data.rides > 0 && index > latestMonthIndex) {
+                    latestMonthIndex = index;
+                    latestRides = data.rides;
+                }
+            }
+        });
+
+        // Se não tiver nenhum dado preenchido, usa o primeiro mês ou mês atual como fallback (mas mostra 0)
+        if (latestMonthIndex === 0) {
+             const now = new Date();
+             const diffMonths = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+             const monthIndex = Math.max(1, diffMonths + 1);
+             const monthName = MONTHS[(start.getMonth() + monthIndex - 1) % 12];
+             return { currentRides: 0, currentMonthLabel: monthName };
+        }
+
+        // Calcula o label do mês encontrado
+        const targetDate = new Date(start);
+        targetDate.setMonth(start.getMonth() + (latestMonthIndex - 1));
+        const monthName = MONTHS[targetDate.getMonth()];
+        
+        return { 
+            currentRides: latestRides, 
+            currentMonthLabel: monthName 
+        };
+    }, [selectedPlan?.startDate, localResults]);
+
+    const overallProgress = mediumMonthlyTarget > 0 ? (currentRides / mediumMonthlyTarget) * 100 : 0;
 
     const handleLocalChange = (month: number, field: keyof MonthResult, value: string) => {
         const val = parseFloat(value) || 0;
@@ -827,13 +866,13 @@ const PlanningDetails: React.FC = () => {
 
                     <div className="bg-base-200 dark:bg-dark-100 p-6 rounded-xl border border-base-300 dark:border-dark-100">
                          <h4 className="font-bold text-sm text-gray-700 dark:text-gray-300 flex items-center mb-4">
-                            <FiTarget className="mr-1.5 text-primary"/> Progresso de Metas (Mês Atual)
+                            <FiTarget className="mr-1.5 text-primary"/> Progresso de Metas ({currentMonthLabel})
                         </h4>
                         <div className="w-full bg-base-300 dark:bg-dark-300 rounded-full h-4 mb-2">
                             <div className="bg-gradient-to-r from-blue-500 to-primary h-4 rounded-full transition-all duration-700 shadow-sm" style={{ width: `${Math.min(100, overallProgress)}%` }}></div>
                         </div>
                         <div className="flex justify-between text-xs font-bold text-gray-500 mb-6">
-                            <span>0 passageiros</span>
+                            <span>{currentRides} passageiros</span>
                             <span className="text-primary">{overallProgress.toFixed(1)}% da meta atingida</span>
                             <span>{Math.round(mediumMonthlyTarget)} passageiros</span>
                         </div>

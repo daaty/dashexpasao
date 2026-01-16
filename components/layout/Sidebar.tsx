@@ -14,14 +14,14 @@ const navItems = [
 
 const Sidebar: React.FC = () => {
   return (
-    <nav className="bg-white dark:bg-dark-200 border-b border-slate-200/60 dark:border-dark-100 shadow-sm">
+    <nav className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
       <div className="max-w-[1920px] mx-auto px-6">
         <ul className="flex items-center space-x-1 overflow-x-auto">
           {navItems.map((item) => (
             <li key={item.to}>
               <NavLink
                 to={item.to}
-                className={({ isActive }) => `flex items-center px-6 py-4 transition-all duration-200 border-b-2 ${isActive ? 'border-primary text-primary bg-primary/5' : 'border-transparent hover:bg-slate-50 dark:hover:bg-dark-100 hover:text-primary'}`}
+                className={({ isActive }) => `flex items-center px-6 py-4 transition-all duration-200 border-b-2 ${isActive ? 'border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50' : 'border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400'}`}
               >
                 <item.icon className="h-5 w-5 mr-3" />
                 <span className="font-semibold text-sm whitespace-nowrap">{item.label}</span>
@@ -33,7 +33,5 @@ const Sidebar: React.FC = () => {
     </nav>
   );
 };
-
-export default Sidebar;
 
 export default Sidebar;
