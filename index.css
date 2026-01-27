@@ -1,77 +1,128 @@
 @import "tailwindcss";
+@import "./dashtrans-theme.css";
 
+/*
+===========================================
+TEMA DARK DASHTRANS - BOOTSTRAP 5 STYLE
+Sistema de Design Visual Completo
+===========================================
+*/
+
+/* ===== VARIÁVEIS CSS - TEMA DASHTRANS ===== */
 :root {
-  --card: #ffffff;
-  --ring: #1e3a8a;
-  --input: #e5e7eb;
-  --muted: #f8fafc;
+  /* Core Colors - DashTrans Dark Blue Theme */
+  --dt-bg-body: #0c1929;
+  --dt-bg-card: rgb(255 255 255 / 5%);
+  --dt-bg-input: rgb(255 255 255 / 8%);
+  --dt-bg-hover: rgb(255 255 255 / 10%);
+  --dt-bg-active: rgb(255 255 255 / 12%);
+  
+  /* Text Colors */
+  --dt-text-primary: rgb(255 255 255 / 70%);
+  --dt-text-heading: #ffffff;
+  --dt-text-secondary: rgb(255 255 255 / 50%);
+  --dt-text-muted: rgb(255 255 255 / 40%);
+  
+  /* Border Colors */
+  --dt-border: rgb(255 255 255 / 10%);
+  --dt-border-light: rgb(255 255 255 / 8%);
+  --dt-border-focus: rgb(255 255 255 / 25%);
+  
+  /* Shadows */
+  --dt-shadow-sm: 0 .1rem .3rem rgba(0, 0, 0, .15);
+  --dt-shadow: 0 .3rem .8rem rgba(0, 0, 0, .2);
+  --dt-shadow-lg: 0 .5rem 1rem rgba(0, 0, 0, .3);
+  --dt-shadow-hover: 0 .5rem 1rem 0 rgba(0, 0, 0, .35);
+  
+  /* Accent Colors */
+  --dt-accent-primary: #3b82f6;
+  --dt-accent-success: #08a50e;
+  --dt-accent-warning: #ffc107;
+  --dt-accent-danger: #f62718;
+  --dt-accent-info: #0dcaf0;
+  
+  /* Theme Gradients */
+  --dt-gradient-teal: linear-gradient(45deg, #0c675e, #069e90);
+  --dt-gradient-slate: linear-gradient(45deg, #29323c, #485563);
+  --dt-gradient-blue: linear-gradient(45deg, #1565C0, #1E88E5);
+  --dt-gradient-purple: linear-gradient(45deg, #65379b, #886aea);
+  --dt-gradient-pink: linear-gradient(180deg, #ff5447, #f1076f);
+  --dt-gradient-green: linear-gradient(180deg, #08a50e, #69bb03);
+  --dt-gradient-indigo: linear-gradient(45deg, #6a11cb, #2575fc);
+  
+  /* Original Variables - Mapped to DashTrans */
+  --card: rgb(255 255 255 / 5%);
+  --ring: #3b82f6;
+  --input: rgb(255 255 255 / 8%);
+  --muted: rgb(255 255 255 / 8%);
   --accent: #3b82f6;
-  --border: #e5e7eb;
-  --radius: 0.75rem;
-  --shadow: 0 1px 3px 0 rgba(0,0,0,.1);
+  --border: rgb(255 255 255 / 10%);
+  --radius: 10px;
+  --shadow: 0 .3rem .8rem rgba(0, 0, 0, .2);
   --chart-1: #3b82f6;
-  --chart-2: #1e40af;
-  --chart-3: #60a5fa;
-  --chart-4: #93c5fd;
-  --chart-5: #dbeafe;
-  --popover: #ffffff;
-  --primary: #1e3a8a;
+  --chart-2: #069e90;
+  --chart-3: #886aea;
+  --chart-4: #08a50e;
+  --chart-5: #ffc107;
+  --popover: rgb(15 35 60 / 95%);
+  --primary: #3b82f6;
   --spacing: 0.25rem;
   --font-mono: "JetBrains Mono", monospace;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --secondary: #f1f5f9;
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1);
-  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,.1);
-  --background: #ffffff;
+  --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --secondary: rgb(255 255 255 / 10%);
+  --shadow-lg: 0 .5rem 1rem rgba(0, 0, 0, .3);
+  --shadow-md: 0 .3rem .8rem rgba(0, 0, 0, .2);
+  --shadow-sm: 0 .1rem .3rem rgba(0, 0, 0, .15);
+  --shadow-xl: 0 1rem 2rem rgba(0, 0, 0, .4);
+  --background: #0c1929;
   --font-serif: ui-serif, Georgia, serif;
-  --foreground: #0f172a;
-  --shadow-2xl: 0 25px 50px -12px rgba(0,0,0,.25);
-  --destructive: #ef4444;
-  --card-foreground: #0f172a;
-  --muted-foreground: #64748b;
+  --foreground: rgb(255 255 255 / 70%);
+  --shadow-2xl: 0 1.5rem 3rem rgba(0, 0, 0, .5);
+  --destructive: #f62718;
+  --card-foreground: rgb(255 255 255 / 85%);
+  --muted-foreground: rgb(255 255 255 / 50%);
   --accent-foreground: #ffffff;
-  --popover-foreground: #0f172a;
+  --popover-foreground: rgb(255 255 255 / 85%);
   --primary-foreground: #ffffff;
-  --secondary-foreground: #0f172a;
+  --secondary-foreground: rgb(255 255 255 / 85%);
   --destructive-foreground: #ffffff;
 }
 
+/* Dark mode uses same values (DashTrans is inherently dark blue) */
 .dark {
-  --card: #0f172a;
+  --card: rgb(255 255 255 / 5%);
   --ring: #3b82f6;
-  --input: #334155;
-  --muted: #1e293b;
+  --input: rgb(255 255 255 / 8%);
+  --muted: rgb(255 255 255 / 8%);
   --accent: #3b82f6;
-  --border: #1e293b;
-  --radius: 0.75rem;
-  --shadow: 0 1px 3px 0 rgba(0,0,0,.8);
+  --border: rgb(255 255 255 / 10%);
+  --radius: 10px;
+  --shadow: 0 .3rem .8rem rgba(0, 0, 0, .2);
   --chart-1: #3b82f6;
-  --chart-2: #60a5fa;
-  --chart-3: #93c5fd;
-  --chart-4: #dbeafe;
-  --chart-5: #1e40af;
-  --popover: #0f172a;
+  --chart-2: #069e90;
+  --chart-3: #886aea;
+  --chart-4: #08a50e;
+  --chart-5: #ffc107;
+  --popover: rgb(15 35 60 / 95%);
   --primary: #3b82f6;
   --font-mono: "JetBrains Mono", monospace;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --secondary: #1e293b;
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.9);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,.8);
-  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,.8);
-  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,.9);
-  --background: #020617;
+  --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --secondary: rgb(255 255 255 / 10%);
+  --shadow-lg: 0 .5rem 1rem rgba(0, 0, 0, .3);
+  --shadow-md: 0 .3rem .8rem rgba(0, 0, 0, .2);
+  --shadow-sm: 0 .1rem .3rem rgba(0, 0, 0, .15);
+  --shadow-xl: 0 1rem 2rem rgba(0, 0, 0, .4);
+  --background: #0c1929;
   --font-serif: ui-serif, Georgia, serif;
-  --foreground: #f8fafc;
-  --shadow-2xl: 0 25px 50px -12px rgba(0,0,0,.95);
-  --destructive: #ef4444;
-  --card-foreground: #f8fafc;
-  --muted-foreground: #94a3b8;
+  --foreground: rgb(255 255 255 / 70%);
+  --shadow-2xl: 0 1.5rem 3rem rgba(0, 0, 0, .5);
+  --destructive: #f62718;
+  --card-foreground: rgb(255 255 255 / 85%);
+  --muted-foreground: rgb(255 255 255 / 50%);
   --accent-foreground: #ffffff;
-  --popover-foreground: #f8fafc;
+  --popover-foreground: rgb(255 255 255 / 85%);
   --primary-foreground: #ffffff;
-  --secondary-foreground: #f8fafc;
+  --secondary-foreground: rgb(255 255 255 / 85%);
   --destructive-foreground: #ffffff;
 }
 

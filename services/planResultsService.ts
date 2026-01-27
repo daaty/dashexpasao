@@ -40,6 +40,20 @@ export const getPlanResults = async (cityId: number): Promise<{ results: { [key:
 };
 
 /**
+ * Deletar resultados de planejamento do backend
+ */
+export const deletePlanResults = async (cityId: number): Promise<boolean> => {
+  try {
+    const response = await api.delete(`/plannings/results/${cityId}`);
+    console.log('✅ Resultados deletados no backend:', response.data);
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao deletar resultados do backend:', error);
+    return false;
+  }
+};
+
+/**
  * Salvar data de início do planejamento
  */
 export const savePlanStartDate = async (cityId: number, startDate: string): Promise<boolean> => {

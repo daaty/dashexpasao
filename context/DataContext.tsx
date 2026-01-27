@@ -23,6 +23,7 @@ interface DataContextType {
   saveCounter: number;
   updateCity: (cityId: number) => Promise<void>;
   addPlanForCity: (cityId: number) => void;
+  deletePlan: (cityId: number) => void;
   updatePlanAction: (
     cityId: number, 
     phaseName: string, 
@@ -49,6 +50,7 @@ interface DataContextType {
   updatePlanResults: (cityId: number, monthKey: string, result: MonthResult) => void;
   updatePlanResultsBatch: (cityId: number, results: { [key: string]: MonthResult }) => void;
   updatePlanStartDate: (cityId: number, newStartDate: string) => void;
+  updateCityImplementationDate: (cityId: number, newDate: string) => void;
   updatePhaseTemplate: (templateName: string, updates: Partial<PhaseTemplate>) => void;
   resetPhaseTemplates: () => void;
   addTag: (tag: Omit<Tag, 'id'>) => void;
@@ -83,11 +85,13 @@ export const DataContext = createContext<DataContextType>({
   saveCounter: 0,
   updateCity: async () => {},
   addPlanForCity: () => {},
+  deletePlan: () => {},
   updatePlanAction: () => {},
   updatePlanPhase: () => {},
   updatePlanResults: () => {},
   updatePlanResultsBatch: () => {},
   updatePlanStartDate: () => {},
+  updateCityImplementationDate: () => {},
   updatePhaseTemplate: () => {},
   resetPhaseTemplates: () => {},
   addTag: () => {},
@@ -206,14 +210,36 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             setLoadingStatus('Carregando cidades do banco de dados...');
             const { cities: backendCities } = await fetchAllCities({ limit: 1000 });
             
+            // Carregar cidades salvas no localStorage (prioritário)
+            const savedCities = JSON.parse(localStorage.getItem('urban_cities') || '[]');
+            
             if (backendCities && backendCities.length > 0) {
                 console.log('✅ Cidades carregadas do backend:', backendCities.length);
-                setCities(backendCities);
+                // CRÍTICO: Fazer merge com:
+                // 1. Dados salvos em localStorage (prioritário - tem edições do usuário)
+                // 2. Dados internos (fallback para implementationStartDate padrão)
+                const mergedCities = backendCities.map(backendCity => {
+                    const savedCity = savedCities.find(c => c.id === backendCity.id);
+                    const internalCity = internalCitiesData.find(c => c.id === backendCity.id);
+                    
+                    return {
+                        ...backendCity,
+                        // Prioridade: 1. localStorage salvo > 2. dados internos > 3. backend
+                        implementationStartDate: savedCity?.implementationStartDate || internalCity?.implementationStartDate || backendCity.implementationStartDate,
+                        // Preservar outros campos específicos do frontend se não vierem do backend
+                        monthlyRevenue: savedCity?.monthlyRevenue || backendCity.monthlyRevenue || internalCity?.monthlyRevenue || 0,
+                    };
+                });
+                setCities(mergedCities);
+                // Salvar o merge final no localStorage para próximas carregadas
+                localStorage.setItem('urban_cities', JSON.stringify(mergedCities));
             } else {
                 // Fallback para dados internos
                 setLoadingStatus('Usando dados locais...');
                 console.warn('⚠️ Backend sem dados, usando fallback interno');
-                setCities(internalCitiesData);
+                // Priorizar localStorage salvos, depois dados internos
+                const finalCities = savedCities.length > 0 ? savedCities : internalCitiesData;
+                setCities(finalCities);
             }
             
             // Buscar planejamentos do backend
@@ -352,6 +378,48 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       const updatedData = await fetchSingleCityUpdate(cityToUpdate);
       setCities(prev => prev.map(c => c.id === cityId ? updatedData : c));
     } finally { setIsUpdating(null); }
+  };
+
+  const deletePlan = async (cityId: number) => {
+    const city = cities.find(c => c.id === cityId);
+    const plan = plans.find(p => p.cityId === cityId);
+    
+    if (!city) {
+        console.error('❌ Cidade não encontrada:', cityId);
+        return;
+    }
+    
+    console.log('🗑️ Removendo planejamento para:', city.name);
+    
+    try {
+        // Tentar deletar do backend usando o ID correto do plano
+        if (plan?.id) {
+            await planningApi.deletePlanning(plan.id);
+            console.log('✅ Planejamento removido do backend');
+        }
+        
+        // Remover resultados do backend
+        await planResultsService.deletePlanResults(cityId);
+        console.log('✅ Resultados removidos do backend');
+    } catch (error) {
+        console.error('❌ Erro ao remover do backend:', error);
+    }
+    
+    // Remover localmente
+    const updatedPlans = plans.filter(p => p.cityId !== cityId);
+    persistPlans(updatedPlans);
+    
+    // Atualizar status da cidade para Candidate
+    const updatedCities = cities.map(c => {
+        if (c.id === cityId) {
+            persistCityStatus(cityId, CityStatus.Candidate);
+            return { ...c, status: CityStatus.Candidate };
+        }
+        return c;
+    });
+    
+    setCities(updatedCities);
+    setSaveCounter(prev => prev + 1);
   };
 
   const addPlanForCity = async (cityId: number) => {
@@ -642,10 +710,20 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     await planResultsService.savePlanStartDate(cityId, newStartDate);
   };
 
+  const updateCityImplementationDate = (cityId: number, newDate: string) => {
+    const updatedCities = cities.map(c => 
+      c.id === cityId ? { ...c, implementationStartDate: newDate } : c
+    );
+    setCities(updatedCities);
+    localStorage.setItem('urban_cities', JSON.stringify(updatedCities));
+    setSaveCounter(prev => prev + 1);
+    console.log(`📅 Data de implementação atualizada para ${newDate}`);
+  };
+
   return (
     <DataContext.Provider value={{ 
       cities, plans, marketData, isLoading, loadingStatus, isUpdating, warnings, phaseTemplates, tags, responsibles, marketBlocks, saveCounter,
-      updateCity, addPlanForCity, updatePlanAction, updatePlanPhase, updatePlanResults, updatePlanResultsBatch, updatePlanStartDate,
+      updateCity, addPlanForCity, deletePlan, updatePlanAction, updatePlanPhase, updatePlanResults, updatePlanResultsBatch, updatePlanStartDate, updateCityImplementationDate,
       updatePhaseTemplate: (n, u) => {
           const updated = phaseTemplates.map(t => t.name === n ? {...t, ...u} : t);
           setPhaseTemplates(updated);

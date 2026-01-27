@@ -135,3 +135,20 @@ export const deleteTask = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
+
+export const getRechargeRevenue = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { cityName } = req.params;
+    const revenue = await planningService.getMonthlyRechargeRevenue(cityName);
+
+    const response: ApiResponse<any> = {
+      success: true,
+      data: revenue,
+      message: 'Receita de recargas obtida com sucesso',
+    };
+
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+};

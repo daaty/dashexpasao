@@ -13,7 +13,7 @@ const mapBackendStatusToFrontend = (backendStatus: string): CityStatus => {
     case 'consolidated':
       return CityStatus.Consolidated; // "Consolidada"
     case 'NOT_SERVED':
-    case 'NOT_SERVED':
+    case 'not_served':
       return CityStatus.NotServed; // "Não atendida"
     default:
       return CityStatus.NotServed;
@@ -36,12 +36,22 @@ export const fetchAllCities = async (params?: {
 }): Promise<{ cities: City[]; pagination: any }> => {
   try {
     const response = await api.get('/cities', { params });
+    console.log('🔍 DEBUG fetchAllCities - Status:', response.status);
+    console.log('🔍 DEBUG fetchAllCities - Data keys:', Object.keys(response.data));
+    console.log('🔍 DEBUG fetchAllCities - Full response:', response.data);
+    
+    // Backend retorna { success, data, pagination }
+    const backendData = response.data.data || response.data;
+    const cities = Array.isArray(backendData) ? backendData : [];
+    
+    console.log('✅ Cidades processadas:', cities.length);
+    
     return {
-      cities: response.data.data.map(mapBackendCityToFrontend),
-      pagination: response.data.pagination,
+      cities: cities.map(mapBackendCityToFrontend),
+      pagination: response.data.pagination || null,
     };
   } catch (error) {
-    console.error('Erro ao buscar cidades:', error);
+    console.error('❌ ERRO ao buscar cidades:', error);
     return { cities: [], pagination: null };
   }
 };
@@ -52,7 +62,8 @@ export const fetchAllCities = async (params?: {
 export const fetchCityById = async (cityId: number): Promise<City | null> => {
   try {
     const response = await api.get(`/cities/${cityId}`);
-    return mapBackendCityToFrontend(response.data.data);
+    const cityData = response.data.data || response.data;
+    return cityData ? mapBackendCityToFrontend(cityData) : null;
   } catch (error) {
     console.error('Erro ao buscar cidade:', error);
     return null;
@@ -65,7 +76,8 @@ export const fetchCityById = async (cityId: number): Promise<City | null> => {
 export const updateCityFromIBGE = async (cityId: number): Promise<City | null> => {
   try {
     const response = await api.put(`/cities/${cityId}/update-ibge`);
-    return mapBackendCityToFrontend(response.data.data);
+    const cityData = response.data.data || response.data;
+    return cityData ? mapBackendCityToFrontend(cityData) : null;
   } catch (error) {
     console.error('Erro ao atualizar cidade do IBGE:', error);
     return null;
@@ -78,7 +90,7 @@ export const updateCityFromIBGE = async (cityId: number): Promise<City | null> =
 export const upsertCity = async (cityData: City): Promise<City | null> => {
   try {
     const response = await api.post('/cities', cityData);
-    return response.data.data;
+    return response.data.data || response.data || null;
   } catch (error) {
     console.error('Erro ao salvar cidade:', error);
     return null;
@@ -91,7 +103,8 @@ export const upsertCity = async (cityData: City): Promise<City | null> => {
 export const getCitiesByViability = async (limit?: number): Promise<City[]> => {
   try {
     const response = await api.get('/cities/viability', { params: { limit } });
-    return response.data.data;
+    const cities = response.data.data || response.data || [];
+    return Array.isArray(cities) ? cities : [];
   } catch (error) {
     console.error('Erro ao buscar cidades por viabilidade:', error);
     return [];

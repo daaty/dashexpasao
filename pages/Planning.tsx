@@ -5,6 +5,7 @@ import { DataContext } from '../context/DataContext';
 import Card from '../components/ui/Card';
 import { FiList } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import CityRidesInline from '../components/CityRidesInline';
 
 const getPhaseProgress = (plan: CityPlan, phaseName: string) => {
     const phase = plan.phases.find(p => p.name === phaseName);
@@ -21,15 +22,30 @@ const PlanningProgressBar: React.FC<{ plan: CityPlan }> = ({ plan }) => {
     const { progress: prepProgress } = getPhaseProgress(plan, 'Preparação Operacional');
 
     return (
-        <div className="w-full bg-base-300 rounded-full h-4 dark:bg-dark-200 mt-2 flex relative text-white text-[10px] items-center overflow-hidden font-bold">
-            <div className="bg-green-500 h-full flex items-center justify-center" style={{ width: `${analysisProgress / 2}%` }} title={`Análise & Viabilidade: ${analysisProgress.toFixed(0)}%`}>
+        <div 
+            className="w-full rounded-full h-4 mt-2 flex relative text-[10px] items-center overflow-hidden font-bold shadow-inner"
+            style={{ backgroundColor: 'rgb(255 255 255 / 15%)', color: '#ffffff' }}
+        >
+            <div 
+                className="h-full flex items-center justify-center transition-all duration-500" 
+                style={{ width: `${analysisProgress / 2}%`, backgroundColor: '#08a50e' }} 
+                title={`Análise & Viabilidade: ${analysisProgress.toFixed(0)}%`}
+            >
                 {analysisProgress > 25 && `${analysisProgress.toFixed(0)}%`}
             </div>
-            <div className="bg-blue-500 h-full flex items-center justify-center" style={{ width: `${prepProgress / 2}%` }} title={`Preparação Operacional: ${prepProgress.toFixed(0)}%`}>
+            <div 
+                className="h-full flex items-center justify-center transition-all duration-500" 
+                style={{ width: `${prepProgress / 2}%`, backgroundColor: '#3b82f6' }} 
+                title={`Preparação Operacional: ${prepProgress.toFixed(0)}%`}
+            >
                 {prepProgress > 25 && `${prepProgress.toFixed(0)}%`}
             </div>
              {analysisDate && (
-                <div className="absolute h-full w-0.5 bg-white/70 top-0 shadow-lg" style={{ left: `50%` }} title={`Análise concluída em: ${new Date(analysisDate).toLocaleDateString('pt-BR')}`}></div>
+                <div 
+                    className="absolute h-full w-0.5 top-0 shadow-lg" 
+                    style={{ left: `50%`, backgroundColor: 'rgb(255 255 255 / 70%)' }} 
+                    title={`Análise concluída em: ${new Date(analysisDate).toLocaleDateString('pt-BR')}`}
+                ></div>
             )}
         </div>
     );
@@ -48,24 +64,37 @@ const ImplementationProgressBar: React.FC<{ plan: CityPlan, city: City }> = ({ p
         return diff <= 0 ? 0 : diff;
     }
 
-    const monthsSinceStart = city.implementationStartDate ? differenceInMonths(new Date(), new Date(city.implementationStartDate)) : 0;
+    const monthsSinceStart = city.implementationStartDate ? (() => {
+        const parts = city.implementationStartDate.split('-').map(Number);
+        const year = parts[0];
+        const month = parts[1];
+        const day = parts[2] || 1; // Se não tiver dia, usar 1º do mês
+        const impDate = new Date(year, month - 1, day);
+        return differenceInMonths(new Date(), impDate);
+    })() : 0;
     
     const totalProgress = (driversProgress + marketingProgress + passengersProgress + optimizationProgress) / 4;
 
     return (
         <>
             <div className="flex justify-between items-end mt-1">
-                 <div className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                 <div className="text-xs font-bold" style={{ color: '#ffffff' }}>
                     Progresso: {totalProgress.toFixed(0)}%
                  </div>
-                 <div className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                 <div className="text-xs font-bold" style={{ color: 'rgb(255 255 255 / 70%)' }}>
                     Mês {Math.min(monthsSinceStart + 1, 6)} de 6
                 </div>
             </div>
-            <div className="w-full bg-base-300 rounded-full h-4 dark:bg-dark-200 mt-1 overflow-hidden">
+            <div 
+                className="w-full rounded-full h-4 mt-1 overflow-hidden shadow-inner"
+                style={{ backgroundColor: 'rgb(255 255 255 / 15%)' }}
+            >
                 <div 
-                    className="bg-yellow-500 h-full transition-all duration-500 rounded-full" 
-                    style={{ width: `${totalProgress}%` }} 
+                    className="h-full transition-all duration-500 rounded-full" 
+                    style={{ 
+                        width: `${totalProgress}%`,
+                        background: 'linear-gradient(to right, #ffc107, #3b82f6)'
+                    }} 
                     title={`Progresso Total: ${totalProgress.toFixed(0)}%`}
                 ></div>
             </div>
@@ -130,37 +159,65 @@ const Planning: React.FC = () => {
         : CityStatus.Planning;
 
     // Use actual phase start date if available, otherwise fallback to plan general date
-    const analysisPhase = cityPlan.phases.find(p => p.name === 'Análise & Viabilidade');
-    const startDate = analysisPhase?.startDate 
-        ? new Date(analysisPhase.startDate) 
-        : new Date(cityPlan.startDate + '-02');
+    // Para cidades em expansão, usar a data de implementação salva
+    let startDate: Date;
+    if (effectiveStatus === CityStatus.Expansion && city.implementationStartDate) {
+        const parts = city.implementationStartDate.split('-').map(Number);
+        const year = parts[0];
+        const month = parts[1];
+        const day = parts[2] || 1;
+        startDate = new Date(year, month - 1, day);
+    } else {
+        const analysisPhase = cityPlan.phases.find(p => p.name === 'Análise & Viabilidade');
+        startDate = analysisPhase?.startDate 
+            ? new Date(analysisPhase.startDate) 
+            : new Date(cityPlan.startDate + '-02');
+    }
 
     const block = marketBlocks.find(b => b.cityIds.includes(city.id));
 
     return (
-      <div key={city.id} className="p-3 rounded-lg hover:bg-base-200 dark:hover:bg-dark-100 transition-colors">
+      <div 
+        key={city.id} 
+        className="p-3 rounded-lg transition-colors cursor-pointer"
+        style={{ backgroundColor: 'transparent' }}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(255 255 255 / 10%)'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+      >
         <div 
-          className="flex justify-between items-center cursor-pointer"
+          className="flex flex-col gap-2"
           onClick={() => navigate(`/planejamento/${city.id}`)}
         >
-          <div className="flex-grow">
-            <div className="flex items-center gap-2 mb-1">
-              <p className="font-semibold text-lg">{city.name}</p>
-              {block && (
-                <span className="text-[10px] uppercase tracking-wider text-gray-400 font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-full">
-                  {block.name}
-                </span>
-              )}
+          <div className="flex justify-between items-center">
+            <div className="flex-grow">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="font-semibold text-lg" style={{ color: '#ffffff' }}>{city.name}</p>
+                {block && (
+                  <span 
+                    className="text-[10px] uppercase tracking-wider font-medium px-2 py-0.5 rounded-full"
+                    style={{
+                      color: '#17a2b8',
+                      backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                      border: '1px solid rgba(23, 162, 184, 0.3)'
+                    }}
+                  >
+                    {block.name}
+                  </span>
+                )}
+              </div>
+              {effectiveStatus === CityStatus.Planning && <PlanningProgressBar plan={cityPlan} />}
+              {effectiveStatus === CityStatus.Expansion && <ImplementationProgressBar plan={cityPlan} city={city} />}
             </div>
-            {effectiveStatus === CityStatus.Planning && <PlanningProgressBar plan={cityPlan} />}
-            {effectiveStatus === CityStatus.Expansion && <ImplementationProgressBar plan={cityPlan} city={city} />}
+            <div className="text-right flex-shrink-0 ml-4">
+              <p className="text-sm font-medium" style={{ color: '#ffffff' }}>
+                {startDate.toLocaleString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '').toUpperCase()}
+              </p>
+              <p className="text-xs" style={{ color: 'rgb(255 255 255 / 60%)' }}>Início</p>
+            </div>
           </div>
-          <div className="text-right flex-shrink-0 ml-4">
-            <p className="text-sm font-medium">
-              {startDate.toLocaleString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '').toUpperCase()}
-            </p>
-            <p className="text-xs text-gray-500">Início</p>
-          </div>
+          
+          {/* Dados Reais de Corridas */}
+          <CityRidesInline cityName={city.name} className="pl-1 border-l-2 border-green-500/30" />
         </div>
       </div>
     );
@@ -174,7 +231,7 @@ const Planning: React.FC = () => {
       {cityList.length > 0 ? (
         cityList.map(renderCityListItem)
       ) : (
-        <div className="text-center text-gray-500 p-4 space-y-2">
+        <div className="text-center p-4 space-y-2" style={{ color: 'rgb(255 255 255 / 60%)' }}>
             <FiList size={32} className="mx-auto opacity-30"/>
             <p>{emptyMessage}</p>
         </div>
@@ -185,13 +242,14 @@ const Planning: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-2">
-          <h2 className="text-2xl font-bold">Visão Geral do Planejamento</h2>
+          <h2 className="text-2xl font-bold" style={{ color: '#ffffff' }}>Visão Geral do Planejamento</h2>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card
           title="Cidades em Planejamento"
-          className="border-l-4 border-l-blue-500 h-full"
+          className="h-full"
+          style={{ borderLeft: '4px solid #3b82f6' }}
           tooltipText="Cidades na fase de planejamento. A barra mostra o progresso das fases de Análise (verde) e Preparação (azul). Ao completar 100%, a cidade é movida para Implementação."
         >
           {renderCityList(planningCities, "Nenhuma cidade em planejamento.")}
@@ -199,7 +257,8 @@ const Planning: React.FC = () => {
         
         <Card
           title="Cidades em Implementação"
-          className="border-l-4 border-l-yellow-500 h-full"
+          className="h-full"
+          style={{ borderLeft: '4px solid #ffc107' }}
           tooltipText="Cidades em expansão. A barra mostra o progresso das fases de Aquisição e Marketing. Após 6 meses, a cidade é movida para Consolidadas."
         >
           {renderCityList(implementingCities, "Nenhuma cidade em implementação.")}
@@ -207,7 +266,8 @@ const Planning: React.FC = () => {
 
         <Card
           title="Cidades Consolidadas"
-          className="border-l-4 border-l-green-500 h-full"
+          className="h-full"
+          style={{ borderLeft: '4px solid #08a50e' }}
           tooltipText="Cidades com operação estabelecida. Clique para revisar o plano executado."
         >
           {renderCityList(consolidatedCities, "Nenhuma cidade consolidada com plano ativo.")}

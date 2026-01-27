@@ -38,6 +38,61 @@ export const getGrowthRoadmap = (city: City, targetPenetration: number) => {
     });
 };
 
+/**
+ * Calcula a meta mensal gradual para uma cidade
+ * Usa curva gradual nos primeiros 6 meses e fica fixo na Média depois
+ * @param city Cidade
+ * @param monthDate Data do mês em formato YYYY-MM ou Date object
+ * @param implementationStartDate Data de início (YYYY-MM)
+ * @returns Meta de corridas para aquele mês
+ */
+export const getGradualMonthlyGoal = (city: City, monthDate: string | Date, implementationStartDate?: string): number => {
+    const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0]; // 6 meses
+    const targetPenetration = PENETRATION_SCENARIOS['Média'];
+    
+    // Se não há data de implementação, usa apenas a meta fixa (Média)
+    if (!implementationStartDate) {
+        return Math.round(city.population15to44 * targetPenetration);
+    }
+    
+    // Converter monthDate para YYYY-MM se for Date
+    let monthStr = monthDate instanceof Date 
+        ? `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`
+        : monthDate;
+    
+    // Parse dates
+    const [impYear, impMonth] = implementationStartDate.split('-').map(Number);
+    const [curYear, curMonth] = monthStr.split('-').map(Number);
+    
+    // Calcular diferença em meses (considerando que mês 1 é o mês da implementação)
+    const monthDiff = (curYear - impYear) * 12 + (curMonth - impMonth) + 1;
+    
+    // Se ainda não chegou no mês 1, retorna 0
+    if (monthDiff < 1) {
+        return 0;
+    }
+    
+    // Se está no primeiro ao sexto mês, usa curva gradual
+    if (monthDiff >= 1 && monthDiff <= 6) {
+        const factor = curveFactors[monthDiff - 1];
+        return Math.round(city.population15to44 * factor * targetPenetration);
+    }
+    
+    // Após 6 meses, usa meta fixa (Média)
+    return Math.round(city.population15to44 * targetPenetration);
+};
+
+/**
+ * Calcula a meta mensal gradual para um bloco de cidades
+ * Soma as metas de cada cidade considerando suas implementações
+ */
+export const getGradualMonthlyGoalForBlock = (cities: City[], monthDate: string | Date): number => {
+    return cities.reduce((total, city) => {
+        const goal = getGradualMonthlyGoal(city, monthDate, city.implementationStartDate);
+        return total + goal;
+    }, 0);
+};
+
 export const calculateStateAverages = (cities: City[]): { 
     averageIncome: number; 
     averageTargetAudiencePercentage: number; 

@@ -135,3 +135,22 @@ model PlanningResults {
   
   @@index([cityId])
 }
+
+model Passenger {
+  id                String   @id @default(uuid())
+  cityName          String   @db.VarChar(255)
+  totalPassengers   Int      @default(0)
+  dailyAverage      Float    @default(0)
+  peakHourPassengers Int     @default(0)
+  offPeakPassengers  Int     @default(0)
+  retentionRate     Float    @default(0)
+  repurchaseRate    Float    @default(0)
+  churnRate         Float    @default(0)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([cityName])
+  @@index([cityName])
+  @@index([createdAt])
+}

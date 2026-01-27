@@ -1,0 +1,492 @@
+/*
+===========================================
+TEMA DARK DASHTRANS - BOOTSTRAP 5 STYLE
+Sistema de Design Visual Completo
+Adaptado para React + Tailwind CSS
+===========================================
+*/
+
+/* ========== BASE STYLES - DASHTRANS ========== */
+html {
+  background: linear-gradient(135deg, #0c1929 0%, #142d4c 50%, #1a3a5c 100%) !important;
+  background-attachment: fixed !important;
+  min-height: 100vh;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  letter-spacing: .5px;
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  overflow-x: hidden;
+  color: rgb(255 255 255 / 70%) !important;
+  background-color: transparent !important;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  background-color: transparent !important;
+}
+
+/* ========== TYPOGRAPHY - DASHTRANS ========== */
+a {
+  text-decoration: none;
+  color: #fff;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: #fff;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+p {
+  color: rgb(255 255 255 / 70%);
+}
+
+/* ========== CARDS - DASHTRANS GLASSMORPHISM ========== */
+.dt-card {
+  background-color: rgb(255 255 255 / 5%) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 .3rem .8rem rgba(0, 0, 0, .2);
+  margin-bottom: 1.5rem;
+  border: 1px solid rgb(255 255 255 / 8%) !important;
+  border-radius: 10px !important;
+  transition: all .2s ease;
+}
+
+.dt-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 .5rem 1rem 0 rgba(0, 0, 0, .3);
+}
+
+/* ========== FORMS - DASHTRANS ========== */
+input, textarea, select {
+  color: #ffffff !important;
+  background-color: rgb(255 255 255 / 8%) !important;
+  border: 1px solid rgb(255 255 255 / 12%) !important;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  color: #fff !important;
+  background-color: rgb(255 255 255 / 12%) !important;
+  border-color: rgb(255 255 255 / 25%) !important;
+  box-shadow: 0 0 0 .25rem rgba(255, 255, 255, .1) !important;
+  outline: none;
+}
+
+input::placeholder, textarea::placeholder {
+  color: rgb(255 255 255 / 40%) !important;
+}
+
+select option {
+  background-color: #0c1929;
+  color: #ffffff;
+}
+
+/* ========== BUTTONS - DASHTRANS ========== */
+.dt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.dt-btn-light {
+  color: #fff !important;
+  background-color: rgb(255 255 255 / 15%) !important;
+  border: 1px solid rgb(255 255 255 / 35%) !important;
+}
+
+.dt-btn-light:hover {
+  color: #fff !important;
+  background-color: rgb(255 255 255 / 20%) !important;
+  border-color: rgb(255 255 255 / 40%) !important;
+}
+
+.dt-btn-primary {
+  color: #fff !important;
+  background-color: #3b82f6 !important;
+  border: 1px solid #3b82f6 !important;
+}
+
+.dt-btn-primary:hover {
+  background-color: #2563eb !important;
+  border-color: #1d4ed8 !important;
+}
+
+/* ========== TABLES - DASHTRANS ========== */
+table {
+  --bs-table-bg: transparent;
+  width: 100%;
+  color: rgb(255 255 255 / 85%);
+  border-collapse: collapse;
+}
+
+table th {
+  color: #ffffff !important;
+  font-weight: 600;
+  border-bottom: 1px solid rgb(255 255 255 / 15%);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background-color: rgb(255 255 255 / 8%);
+}
+
+table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  color: rgb(255 255 255 / 85%);
+  font-size: 14px;
+}
+
+table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+table tbody tr:hover {
+  background-color: rgba(13, 110, 253, 0.1);
+}
+
+/* Striped Rows */
+table.dt-striped tbody tr:nth-child(odd) {
+  background-color: rgb(255 255 255 / 3%);
+}
+
+table.dt-striped tbody tr:nth-child(even) {
+  background-color: transparent;
+}
+
+table.dt-striped tbody tr:nth-child(odd):hover,
+table.dt-striped tbody tr:nth-child(even):hover {
+  background-color: rgba(55, 65, 81, 0.4);
+}
+
+/* Table Container */
+.dt-table-container {
+  background-color: rgb(255 255 255 / 5%);
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  overflow: hidden;
+}
+
+/* ========== KPI CARDS - DASHTRANS ========== */
+.dt-kpi-card {
+  background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+  border-radius: 12px;
+  padding: 1.25rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  position: relative;
+  overflow: hidden;
+}
+
+.dt-kpi-card .dt-kpi-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgb(255 255 255 / 60%);
+  margin-bottom: 0.5rem;
+}
+
+.dt-kpi-card .dt-kpi-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.dt-kpi-card .dt-kpi-change {
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.dt-kpi-card .dt-kpi-change.positive {
+  color: #10b981;
+}
+
+.dt-kpi-card .dt-kpi-change.negative {
+  color: #ef4444;
+}
+
+.dt-kpi-card .dt-kpi-icon {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(255 255 255 / 15%);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.dt-kpi-card .dt-sparkline {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  opacity: 0.8;
+}
+
+/* ========== NAVIGATION - DASHTRANS ========== */
+.dt-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 16px;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  color: rgb(255 255 255 / 85%) !important;
+  transition: all 0.2s ease;
+}
+
+.dt-nav-link:hover {
+  color: #ffffff !important;
+  background-color: rgb(255 255 255 / 12%) !important;
+}
+
+.dt-nav-link.active {
+  color: #ffffff !important;
+  background-color: rgb(0 0 0 / 30%) !important;
+}
+
+/* ========== DROPDOWNS - DASHTRANS ========== */
+.dt-dropdown {
+  color: #ffffff;
+  background-color: rgb(15 35 60 / 95%) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 10px;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, .25);
+}
+
+.dt-dropdown-item {
+  padding: 0.5rem 1rem;
+  color: rgb(255 255 255 / 85%);
+  transition: all 0.2s ease;
+}
+
+.dt-dropdown-item:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, .1);
+}
+
+/* ========== MODALS - DASHTRANS ========== */
+.dt-modal {
+  background-color: rgb(15 35 60 / 95%) !important;
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, .15) !important;
+  border-radius: 10px;
+}
+
+.dt-modal-header {
+  border-bottom: 1px solid rgb(255 255 255 / 12%);
+  padding: 1rem;
+}
+
+.dt-modal-footer {
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  padding: 1rem;
+}
+
+/* ========== PROGRESS BARS - DASHTRANS ========== */
+.dt-progress {
+  background-color: rgb(255 255 255 / 15%);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dt-progress-bar {
+  background-color: #3b82f6;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+/* ========== ALERTS - DASHTRANS ========== */
+.dt-alert {
+  background-color: rgb(255 255 255 / 5%);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  padding: 1rem;
+  border: 1px solid rgb(255 255 255 / 8%);
+  box-shadow: 0 .3rem .8rem rgba(0, 0, 0, .15);
+}
+
+/* ========== BADGES - DASHTRANS ========== */
+.dt-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 20px;
+}
+
+.dt-badge-success {
+  background-color: rgba(8, 165, 14, 0.2) !important;
+  color: #69bb03 !important;
+}
+
+.dt-badge-warning {
+  background-color: rgba(255, 193, 7, 0.2) !important;
+  color: #ffc107 !important;
+}
+
+.dt-badge-danger {
+  background-color: rgba(246, 39, 24, 0.2) !important;
+  color: #f62718 !important;
+}
+
+.dt-badge-info {
+  background-color: rgba(13, 202, 240, 0.2) !important;
+  color: #0dcaf0 !important;
+}
+
+/* ========== WIDGETS / ICONS - DASHTRANS ========== */
+.dt-widget-icon {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background-color: rgb(255 255 255 / 15%);
+  font-size: 24px;
+  border-radius: 10px;
+}
+
+.dt-icon-badge {
+  width: 45px;
+  height: 45px;
+  background: rgb(255 255 255 / 15%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+/* ========== SCROLLBAR - DASHTRANS ========== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgb(255 255 255 / 5%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 20%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 30%);
+}
+
+/* ========== UTILITY CLASSES - DASHTRANS ========== */
+/* Text Colors */
+.text-dt-primary { color: rgb(255 255 255 / 70%) !important; }
+.text-dt-heading { color: #ffffff !important; }
+.text-dt-secondary { color: rgb(255 255 255 / 50%) !important; }
+.text-dt-muted { color: rgb(255 255 255 / 40%) !important; }
+
+/* Background Colors */
+.bg-dt-body { background: linear-gradient(135deg, #0c1929 0%, #142d4c 50%, #1a3a5c 100%) !important; }
+.bg-dt-card { background-color: rgb(255 255 255 / 5%) !important; }
+.bg-dt-light { background-color: rgb(255 255 255 / 10%) !important; }
+.bg-dt-dark { background-color: rgb(0 20 45 / 50%) !important; }
+
+/* Borders */
+.border-dt { border-color: rgb(255 255 255 / 15%) !important; }
+.border-dt-light { border-color: rgb(255 255 255 / 10%) !important; }
+
+/* Font Sizes */
+.font-13 { font-size: 13px; }
+.font-14 { font-size: 14px; }
+.font-18 { font-size: 18px; }
+.font-20 { font-size: 20px; }
+.font-22 { font-size: 22px; }
+.font-24 { font-size: 24px; }
+.font-30 { font-size: 30px; }
+.font-35 { font-size: 35px; }
+.font-50 { font-size: 50px; }
+
+/* Border Radius */
+.radius-10 { border-radius: 10px; }
+.radius-15 { border-radius: 15px; }
+.radius-30 { border-radius: 30px; }
+
+/* ========== THEME GRADIENTS - DASHTRANS ========== */
+.bg-gradient-teal { background-image: linear-gradient(45deg, #0c675e, #069e90) !important; }
+.bg-gradient-slate { background-image: linear-gradient(45deg, #29323c, #485563) !important; }
+.bg-gradient-blue { background-image: linear-gradient(45deg, #1565C0, #1E88E5) !important; }
+.bg-gradient-purple { background-image: linear-gradient(45deg, #65379b, #886aea) !important; }
+.bg-gradient-pink { background-image: linear-gradient(180deg, #ff5447, #f1076f) !important; }
+.bg-gradient-green { background-image: linear-gradient(180deg, #08a50e, #69bb03) !important; }
+.bg-gradient-indigo { background-image: linear-gradient(45deg, #6a11cb, #2575fc) !important; }
+
+/* ========== CHART CONTAINERS - DASHTRANS ========== */
+.chart-container-1 { position: relative; height: 260px; }
+.chart-container-2 { position: relative; height: 210px; }
+.chart-container-3 { position: relative; height: 188px; }
+.chart-container-4 { position: relative; height: 162px; }
+.chart-container-5 { position: relative; height: 110px; }
+
+/* ========== ANIMATIONS - DASHTRANS ========== */
+@keyframes dt-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes dt-fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dt-animate-pulse { animation: dt-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.dt-animate-fadeIn { animation: dt-fadeIn 0.3s ease-out; }
+
+/* ========== ROW DIVIDERS - DASHTRANS ========== */
+.row-group > div {
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.row-group > div:last-child {
+  border-right: none;
+}
+
+@media (max-width: 1199px) {
+  .row-group > div {
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  
+  .row-group > div:last-child {
+    border-bottom: 0;
+  }
+}

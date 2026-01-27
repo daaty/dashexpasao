@@ -247,7 +247,7 @@ const DataQuery: React.FC = () => {
         if (sortConfig?.key !== columnKey) {
             return <FiChevronDown className="ml-1 opacity-20" />;
         }
-        return sortConfig.direction === 'ascending' ? <FiChevronUp className="ml-1 text-primary" /> : <FiChevronDown className="ml-1 text-primary" />;
+        return sortConfig.direction === 'ascending' ? <FiChevronUp className="ml-1" style={{ color: '#3b82f6' }} /> : <FiChevronDown className="ml-1" style={{ color: '#3b82f6' }} />;
     };
 
     const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -351,35 +351,63 @@ const DataQuery: React.FC = () => {
                 tooltipText="Este card resume os dados das cidades que atendem aos critérios de filtro. Cidades marcadas com riscado já pertencem a um bloco de inteligência."
             >
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
-                    <div className="p-4 bg-base-200 dark:bg-dark-100 rounded-lg relative">
+                    <div 
+                        className="p-4 rounded-lg relative"
+                        style={{
+                            backgroundColor: 'rgb(0 0 0 / 30%)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgb(255 255 255 / 10%)'
+                        }}
+                    >
                         <InfoTooltip text={selectedCities.length > 0 ? "Quantidade de cidades selecionadas." : "Total de municípios do Mato Grosso."} className="absolute top-2 right-2" />
-                        <FiPackage className="mx-auto text-3xl text-primary mb-2" />
-                        <p className="text-2xl font-bold">{(selectedCities.length > 0 ? summary.totalCities : globalSummary.totalCities).toLocaleString('pt-BR')}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{selectedCities.length > 0 ? 'Cidades Selecionadas' : 'Cidades MT'}</p>
+                        <FiPackage className="mx-auto text-3xl mb-2" style={{ color: '#3b82f6' }} />
+                        <p className="text-2xl font-bold" style={{ color: '#ffffff' }}>{(selectedCities.length > 0 ? summary.totalCities : globalSummary.totalCities).toLocaleString('pt-BR')}</p>
+                        <p className="text-sm" style={{ color: 'rgb(255 255 255 / 70%)' }}>{selectedCities.length > 0 ? 'Cidades Selecionadas' : 'Cidades MT'}</p>
                     </div>
-                     <div className="p-4 bg-base-200 dark:bg-dark-100 rounded-lg relative">
+                     <div 
+                        className="p-4 rounded-lg relative"
+                        style={{
+                            backgroundColor: 'rgb(0 0 0 / 30%)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgb(255 255 255 / 10%)'
+                        }}
+                    >
                         <InfoTooltip text={selectedCities.length > 0 ? "População total das cidades selecionadas." : "População total somada de todos os municípios do Mato Grosso."} className="absolute top-2 right-2" />
-                        <FiUsers className="mx-auto text-3xl text-secondary mb-2" />
-                        <p className="text-2xl font-bold">{(selectedCities.length > 0 ? summary.totalFullPopulation : globalSummary.totalFullPopulation).toLocaleString('pt-BR')}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{selectedCities.length > 0 ? 'População Total' : 'População Total MT'}</p>
+                        <FiUsers className="mx-auto text-3xl mb-2" style={{ color: '#17a2b8' }} />
+                        <p className="text-2xl font-bold" style={{ color: '#ffffff' }}>{(selectedCities.length > 0 ? summary.totalFullPopulation : globalSummary.totalFullPopulation).toLocaleString('pt-BR')}</p>
+                        <p className="text-sm" style={{ color: 'rgb(255 255 255 / 70%)' }}>{selectedCities.length > 0 ? 'População Total' : 'População Total MT'}</p>
                     </div>
-                     <div className="p-4 bg-base-200 dark:bg-dark-100 rounded-lg relative">
+                     <div 
+                        className="p-4 rounded-lg relative"
+                        style={{
+                            backgroundColor: 'rgb(0 0 0 / 30%)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgb(255 255 255 / 10%)'
+                        }}
+                    >
                         <InfoTooltip text={selectedCities.length > 0 ? "População alvo (15-44 anos) das cidades selecionadas." : "Soma total da população entre 15-44 anos (público-alvo) de todas as cidades do MT."} className="absolute top-2 right-2" />
-                        <FiUsers className="mx-auto text-3xl text-tertiary mb-2" />
-                        <p className="text-2xl font-bold">{(selectedCities.length > 0 ? summary.totalTargetPopulation : globalSummary.totalTargetPopulation).toLocaleString('pt-BR')}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Pop. Alvo Total (15-44)</p>
-                        <p className="text-xs text-gray-400 mt-1">Média: {Math.round(selectedCities.length > 0 ? summary.averageTargetPopulation : globalSummary.averageTargetPopulation).toLocaleString('pt-BR')}</p>
+                        <FiUsers className="mx-auto text-3xl mb-2" style={{ color: '#ffc107' }} />
+                        <p className="text-2xl font-bold" style={{ color: '#ffffff' }}>{(selectedCities.length > 0 ? summary.totalTargetPopulation : globalSummary.totalTargetPopulation).toLocaleString('pt-BR')}</p>
+                        <p className="text-sm" style={{ color: 'rgb(255 255 255 / 70%)' }}>Pop. Alvo Total (15-44)</p>
+                        <p className="text-xs mt-1" style={{ color: 'rgb(255 255 255 / 60%)' }}>Média: {Math.round(selectedCities.length > 0 ? summary.averageTargetPopulation : globalSummary.averageTargetPopulation).toLocaleString('pt-BR')}</p>
                     </div>
-                     <div className="p-4 bg-base-200 dark:bg-dark-100 rounded-lg relative">
+                     <div 
+                        className="p-4 rounded-lg relative"
+                        style={{
+                            backgroundColor: 'rgb(0 0 0 / 30%)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgb(255 255 255 / 10%)'
+                        }}
+                    >
                         <InfoTooltip text={selectedCities.length > 0 ? "Receita potencial das cidades selecionadas." : "Receita potencial estimada somando todas as cidades do Mato Grosso."} className="absolute top-2 right-2" />
-                        <FiDollarSign className="mx-auto text-3xl text-primary mb-2" />
-                        <p className="text-2xl font-bold">{formatCurrency((selectedCities.length > 0 ? summary.totalRevenue : globalSummary.totalRevenue).media)}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{selectedCities.length > 0 ? 'Receita Potencial' : 'Receita Potencial MT'}</p>
+                        <FiDollarSign className="mx-auto text-3xl mb-2" style={{ color: '#08a50e' }} />
+                        <p className="text-2xl font-bold" style={{ color: '#ffffff' }}>{formatCurrency((selectedCities.length > 0 ? summary.totalRevenue : globalSummary.totalRevenue).media)}</p>
+                        <p className="text-sm" style={{ color: 'rgb(255 255 255 / 70%)' }}>{selectedCities.length > 0 ? 'Receita Potencial' : 'Receita Potencial MT'}</p>
                          <div className="flex justify-between text-xs mt-2 px-2">
-                            <span className="flex items-center text-red-500 font-semibold">
+                            <span className="flex items-center font-semibold" style={{ color: '#f62718' }}>
                                 <FiArrowDown className="mr-1" /> {formatCurrency((selectedCities.length > 0 ? summary.totalRevenue : globalSummary.totalRevenue).baixa)}
                             </span>
-                            <span className="flex items-center text-green-500 font-semibold">
+                            <span className="flex items-center font-semibold" style={{ color: '#08a50e' }}>
                                 <FiArrowUp className="mr-1" /> {formatCurrency((selectedCities.length > 0 ? summary.totalRevenue : globalSummary.totalRevenue).alta)}
                             </span>
                         </div>
@@ -392,16 +420,21 @@ const DataQuery: React.FC = () => {
                 tooltipText="Use os filtros abaixo para encontrar o próximo alvo da Urban. Cidades com o nome riscado já foram adicionadas a blocos estratégicos."
             >
                 {/* Collapsible Filters Section */}
-                <div className="border-b border-base-300 dark:border-dark-100 mb-6 pb-6">
+                <div className="mb-6 pb-6" style={{ borderBottom: '1px solid rgb(255 255 255 / 10%)' }}>
                     <div 
                         className="flex justify-between items-center cursor-pointer" 
                         onClick={() => setIsFiltersOpen(!isFiltersOpen)}
                     >
                         <div className="flex items-center">
-                            <h2 className="text-lg font-semibold flex items-center"><FiFilter className="mr-2"/>Filtros Inteligentes</h2>
-                            {!isFiltersOpen && <span className="ml-4 text-sm text-gray-500 dark:text-gray-400 hidden sm:inline">Clique para expandir</span>}
+                            <h2 className="text-lg font-semibold flex items-center" style={{ color: '#ffffff' }}><FiFilter className="mr-2"/>Filtros Inteligentes</h2>
+                            {!isFiltersOpen && <span className="ml-4 text-sm hidden sm:inline" style={{ color: 'rgb(255 255 255 / 70%)' }}>Clique para expandir</span>}
                         </div>
-                        <button className="p-2 rounded-full hover:bg-base-200 dark:hover:bg-dark-100">
+                        <button 
+                            className="p-2 rounded-full transition-colors"
+                            style={{ color: 'rgb(255 255 255 / 80%)' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(255 255 255 / 10%)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
                             {isFiltersOpen ? <FiChevronUp /> : <FiChevronDown />}
                         </button>
                     </div>
@@ -410,15 +443,32 @@ const DataQuery: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
                             <div className="space-y-6">
                                 <div>
-                                    <label className="font-semibold text-sm mb-1 block">Busca por Nome</label>
-                                    <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Ex: Cuiabá" className="w-full p-2 rounded-md bg-base-200 dark:bg-dark-300 border border-base-300 dark:border-dark-100 focus:ring-primary focus:border-primary" />
+                                    <label className="font-semibold text-sm mb-1 block" style={{ color: 'rgb(255 255 255 / 80%)' }}>Busca por Nome</label>
+                                    <input 
+                                        type="text" 
+                                        value={searchTerm} 
+                                        onChange={e => setSearchTerm(e.target.value)} 
+                                        placeholder="Ex: Cuiabá" 
+                                        className="w-full p-2 rounded-md focus:outline-none"
+                                        style={{
+                                            backgroundColor: 'rgb(0 0 0 / 30%)',
+                                            border: '1px solid rgb(255 255 255 / 15%)',
+                                            color: '#ffffff'
+                                        }}
+                                    />
                                 </div>
                                 <div>
-                                    <label className="font-semibold text-sm mb-2 block">Mesorregião</label>
+                                    <label className="font-semibold text-sm mb-2 block" style={{ color: 'rgb(255 255 255 / 80%)' }}>Mesorregião</label>
                                     <div className="space-y-2">
                                         {(Object.values(Mesorregion) as Mesorregion[]).map(mesorregion => (
-                                            <label key={mesorregion} className="flex items-center space-x-2 text-sm cursor-pointer">
-                                                <input type="checkbox" checked={selectedMesorregions.includes(mesorregion)} onChange={() => handleMesorregionChange(mesorregion)} className="form-checkbox h-4 w-4 text-primary rounded focus:ring-primary"/>
+                                            <label key={mesorregion} className="flex items-center space-x-2 text-sm cursor-pointer" style={{ color: 'rgb(255 255 255 / 80%)' }}>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={selectedMesorregions.includes(mesorregion)} 
+                                                    onChange={() => handleMesorregionChange(mesorregion)} 
+                                                    className="form-checkbox h-4 w-4 rounded"
+                                                    style={{ accentColor: '#3b82f6' }}
+                                                />
                                                 <span>{formatMesorregion(mesorregion)}</span>
                                             </label>
                                         ))}
@@ -428,11 +478,17 @@ const DataQuery: React.FC = () => {
                             
                             <div className="space-y-6">
                                 <div>
-                                    <label className="font-semibold text-sm mb-2 block">Status</label>
+                                    <label className="font-semibold text-sm mb-2 block" style={{ color: 'rgb(255 255 255 / 80%)' }}>Status</label>
                                     <div className="space-y-2">
                                         {(Object.values(CityStatus) as CityStatus[]).filter(s => s !== CityStatus.Planning).map(status => (
-                                            <label key={status} className="flex items-center space-x-2 text-sm cursor-pointer">
-                                                <input type="checkbox" checked={selectedStatuses.includes(status)} onChange={() => handleStatusChange(status)} className="form-checkbox h-4 w-4 text-primary rounded focus:ring-primary"/>
+                                            <label key={status} className="flex items-center space-x-2 text-sm cursor-pointer" style={{ color: 'rgb(255 255 255 / 80%)' }}>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={selectedStatuses.includes(status)} 
+                                                    onChange={() => handleStatusChange(status)} 
+                                                    className="form-checkbox h-4 w-4 rounded"
+                                                    style={{ accentColor: '#3b82f6' }}
+                                                />
                                                 <span>{status}</span>
                                             </label>
                                         ))}
@@ -442,17 +498,45 @@ const DataQuery: React.FC = () => {
 
                             <div className="space-y-6">
                                 <div>
-                                    <label className="font-semibold text-sm">População Total Mínima</label>
-                                    <input type="range" min="0" max="200000" step="10000" value={minPopulation} onChange={e => setMinPopulation(Number(e.target.value))} className="w-full h-2 bg-base-300 rounded-lg appearance-none cursor-pointer dark:bg-dark-100 mt-1" />
-                                    <div className="text-right text-sm">{minPopulation.toLocaleString('pt-BR')}</div>
+                                    <label className="font-semibold text-sm" style={{ color: 'rgb(255 255 255 / 80%)' }}>População Total Mínima</label>
+                                    <input 
+                                        type="range" 
+                                        min="0" 
+                                        max="200000" 
+                                        step="10000" 
+                                        value={minPopulation} 
+                                        onChange={e => setMinPopulation(Number(e.target.value))} 
+                                        className="w-full h-2 rounded-lg appearance-none cursor-pointer mt-1"
+                                        style={{ backgroundColor: 'rgb(255 255 255 / 20%)', accentColor: '#3b82f6' }}
+                                    />
+                                    <div className="text-right text-sm" style={{ color: 'rgb(255 255 255 / 80%)' }}>{minPopulation.toLocaleString('pt-BR')}</div>
                                 </div>
                                 <div>
-                                    <label className="font-semibold text-sm">Receita Potencial Mínima</label>
-                                    <input type="range" min="0" max="50000" step="1000" value={minRevenue} onChange={e => setMinRevenue(Number(e.target.value))} className="w-full h-2 bg-base-300 rounded-lg appearance-none cursor-pointer dark:bg-dark-100 mt-1" />
-                                    <div className="text-right text-sm">{minRevenue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</div>
+                                    <label className="font-semibold text-sm" style={{ color: 'rgb(255 255 255 / 80%)' }}>Receita Potencial Mínima</label>
+                                    <input 
+                                        type="range" 
+                                        min="0" 
+                                        max="50000" 
+                                        step="1000" 
+                                        value={minRevenue} 
+                                        onChange={e => setMinRevenue(Number(e.target.value))} 
+                                        className="w-full h-2 rounded-lg appearance-none cursor-pointer mt-1"
+                                        style={{ backgroundColor: 'rgb(255 255 255 / 20%)', accentColor: '#3b82f6' }}
+                                    />
+                                    <div className="text-right text-sm" style={{ color: 'rgb(255 255 255 / 80%)' }}>{minRevenue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</div>
                                 </div>
                                 <div className="pt-4">
-                                    <button onClick={clearFilters} className="w-full flex items-center justify-center bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition"><FiX className="mr-2"/>Limpar Filtros</button>
+                                    <button 
+                                        onClick={clearFilters} 
+                                        className="w-full flex items-center justify-center py-2 px-4 rounded-lg transition-colors"
+                                        style={{
+                                            backgroundColor: 'rgb(255 255 255 / 15%)',
+                                            color: '#ffffff',
+                                            border: '1px solid rgb(255 255 255 / 20%)'
+                                        }}
+                                    >
+                                        <FiX className="mr-2"/>Limpar Filtros
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -467,23 +551,36 @@ const DataQuery: React.FC = () => {
                             <div className="relative">
                                 <button 
                                     onClick={() => setShowBulkMenu(!showBulkMenu)}
-                                    className="flex items-center bg-primary text-white py-2 px-4 rounded-lg hover:bg-primary-600 transition"
+                                    className="flex items-center py-2 px-4 rounded-lg transition-colors"
+                                    style={{
+                                        backgroundColor: '#3b82f6',
+                                        color: '#ffffff'
+                                    }}
                                 >
                                     <FiFolderPlus className="mr-2"/> Agrupar ({selectedCities.length})
                                 </button>
                                 {showBulkMenu && (
                                     <>
                                         <div className="fixed inset-0 z-10" onClick={() => setShowBulkMenu(false)}></div>
-                                        <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-dark-300 border border-base-200 dark:border-dark-100 rounded-lg shadow-xl z-20 py-1 text-sm">
-                                            <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase">Mover selecionadas para...</div>
+                                        <div 
+                                            className="absolute right-0 top-full mt-1 w-56 rounded-lg shadow-xl z-20 py-1 text-sm"
+                                            style={{
+                                                backgroundColor: '#1e1e1e',
+                                                border: '1px solid rgb(255 255 255 / 10%)'
+                                            }}
+                                        >
+                                            <div className="px-3 py-1 text-xs font-semibold uppercase" style={{ color: 'rgb(255 255 255 / 70%)' }}>Mover selecionadas para...</div>
                                             {marketBlocks.length === 0 && (
-                                                <div className="px-4 py-2 text-gray-400 italic">Crie blocos na aba Inteligência</div>
+                                                <div className="px-4 py-2 italic" style={{ color: 'rgb(255 255 255 / 60%)' }}>Crie blocos na aba Inteligência</div>
                                             )}
                                             {marketBlocks.map(block => (
                                                 <button 
                                                     key={block.id}
                                                     onClick={() => handleBulkAddToBlock(block.id)}
-                                                    className="w-full text-left px-4 py-2 hover:bg-base-100 dark:hover:bg-dark-200 truncate"
+                                                    className="w-full text-left px-4 py-2 truncate transition-colors"
+                                                    style={{ color: 'rgb(255 255 255 / 80%)' }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(255 255 255 / 10%)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                                 >
                                                     {block.name}
                                                 </button>
@@ -494,92 +591,151 @@ const DataQuery: React.FC = () => {
                             </div>
                         )}
 
-                        <button onClick={handleCompare} disabled={selectedCities.length === 0 || selectedCities.length > 5} className="flex items-center bg-secondary text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed"><FiBarChart2 className="mr-2"/>Comparar ({selectedCities.length})</button>
+                        <button 
+                            onClick={handleCompare} 
+                            disabled={selectedCities.length === 0 || selectedCities.length > 5} 
+                            className="flex items-center py-2 px-4 rounded-lg transition-colors disabled:cursor-not-allowed"
+                            style={{
+                                backgroundColor: selectedCities.length === 0 || selectedCities.length > 5 ? 'rgb(255 255 255 / 20%)' : '#17a2b8',
+                                color: '#ffffff',
+                                opacity: selectedCities.length === 0 || selectedCities.length > 5 ? 0.5 : 1
+                            }}
+                        >
+                            <FiBarChart2 className="mr-2"/>Comparar ({selectedCities.length})
+                        </button>
                          <button 
                             onClick={handleExportPDF} 
                             disabled={sortedAndFilteredCities.length === 0 && selectedCities.length === 0}
-                            className="flex items-center border border-gray-300 text-gray-600 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-base-200 dark:hover:bg-dark-100 transition disabled:opacity-50"
+                            className="flex items-center py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+                            style={{
+                                backgroundColor: 'transparent',
+                                border: '1px solid rgb(255 255 255 / 20%)',
+                                color: 'rgb(255 255 255 / 80%)'
+                            }}
                          >
                             <FiDownload className="mr-2"/>PDF
                          </button>
                     </div>
                 </div>
                 
-                <div className="overflow-x-auto min-h-[400px]">
-                    <table className="w-full text-left min-w-[1024px]">
-                        <thead className="border-b border-base-300 dark:border-dark-100">
+                <div className="overflow-x-auto min-h-[400px] dt-table-container">
+                    <table className="w-full text-left min-w-[1024px] dt-table">
+                        <thead style={{ background: 'rgba(55, 65, 81, 0.9)', borderBottom: '2px solid rgba(59, 130, 246, 0.5)' }}>
                             <tr>
-                                <th className="p-3 w-12"><input type="checkbox" className="form-checkbox h-4 w-4 text-primary rounded" onChange={handleSelectAllFiltered} checked={isAllFilteredSelected} /></th>
+                                <th className="p-3 w-12">
+                                    <input 
+                                        type="checkbox" 
+                                        className="form-checkbox h-4 w-4 rounded" 
+                                        style={{ accentColor: '#3b82f6' }}
+                                        onChange={handleSelectAllFiltered} 
+                                        checked={isAllFilteredSelected} 
+                                    />
+                                </th>
                                 <th className="p-3">
-                                    <button onClick={() => requestSort('name')} className="flex items-center font-semibold text-left hover:text-primary transition-colors">
+                                    <button onClick={() => requestSort('name')} className="flex items-center text-xs font-semibold uppercase tracking-wider text-left transition-colors" style={{ color: 'rgb(255 255 255 / 80%)' }}>
                                         Cidade {getSortIndicator('name')}
                                     </button>
                                 </th>
                                 <th className="p-3">
-                                    <button onClick={() => requestSort('population')} className="flex items-center font-semibold text-left hover:text-primary transition-colors">
+                                    <button onClick={() => requestSort('population')} className="flex items-center text-xs font-semibold uppercase tracking-wider text-left transition-colors" style={{ color: 'rgb(255 255 255 / 80%)' }}>
                                         Pop. Total {getSortIndicator('population')}
                                     </button>
                                 </th>
                                 <th className="p-3">
-                                    <button onClick={() => requestSort('population15to44')} className="flex items-center font-semibold text-left hover:text-primary transition-colors">
+                                    <button onClick={() => requestSort('population15to44')} className="flex items-center text-xs font-semibold uppercase tracking-wider text-left transition-colors" style={{ color: 'rgb(255 255 255 / 80%)' }}>
                                         Pop. 15-44 {getSortIndicator('population15to44')}
                                     </button>
                                 </th>
                                 <th className="p-3">
-                                    <button onClick={() => requestSort('potentialRevenue')} className="flex items-center font-semibold text-left hover:text-primary transition-colors">
+                                    <button onClick={() => requestSort('potentialRevenue')} className="flex items-center text-xs font-semibold uppercase tracking-wider text-left transition-colors" style={{ color: 'rgb(255 255 255 / 80%)' }}>
                                         Receita Potencial {getSortIndicator('potentialRevenue')}
                                     </button>
                                 </th>
                                 <th className="p-3">
-                                    <button onClick={() => requestSort('status')} className="flex items-center font-semibold text-left hover:text-primary transition-colors">
+                                    <button onClick={() => requestSort('status')} className="flex items-center text-xs font-semibold uppercase tracking-wider text-left transition-colors" style={{ color: 'rgb(255 255 255 / 80%)' }}>
                                         Status {getSortIndicator('status')}
                                     </button>
                                 </th>
-                                <th className="p-3 font-semibold">Ações</th>
+                                <th className="p-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgb(255 255 255 / 80%)' }}>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {sortedAndFilteredCities.map(city => {
+                            {sortedAndFilteredCities.map((city, index) => {
                                 const hasPlan = plans.some(p => p.cityId === city.id);
                                 const blockName = cityBlockMap[city.id];
                                 const isInBlock = !!blockName;
 
                                 return (
-                                    <tr key={city.id} className={`border-b border-base-200 dark:border-dark-100 transition-colors ${selectedCities.includes(city.id) ? 'bg-primary/5' : 'hover:bg-base-200 dark:hover:bg-dark-100'} ${isInBlock ? 'opacity-60 bg-gray-50/50 dark:bg-dark-200/30' : ''}`}>
-                                        <td className="p-3"><input type="checkbox" className="form-checkbox h-4 w-4 text-primary rounded" checked={selectedCities.includes(city.id)} onChange={() => handleSelectCity(city.id)}/></td>
+                                    <tr 
+                                        key={city.id} 
+                                        className="transition-colors hover:bg-gray-700/40"
+                                        style={{
+                                            borderBottom: '1px solid rgb(255 255 255 / 8%)',
+                                            backgroundColor: selectedCities.includes(city.id) 
+                                                ? 'rgba(59, 130, 246, 0.15)' 
+                                                : isInBlock 
+                                                    ? 'rgba(23, 162, 184, 0.1)' 
+                                                    : index % 2 === 0 
+                                                        ? 'rgba(55, 65, 81, 0.3)' 
+                                                        : 'transparent',
+                                            opacity: isInBlock ? 0.85 : 1
+                                        }}
+                                    >
+                                        <td className="p-3">
+                                            <input 
+                                                type="checkbox" 
+                                                className="form-checkbox h-4 w-4 rounded" 
+                                                style={{ accentColor: '#3b82f6' }}
+                                                checked={selectedCities.includes(city.id)} 
+                                                onChange={() => handleSelectCity(city.id)}
+                                            />
+                                        </td>
                                         <td className="p-3 font-semibold">
                                             <div className="flex flex-col">
                                                 <button 
                                                     onClick={() => navigate(`/cidades/${city.id}`)}
-                                                    className={`text-left hover:text-primary transition-colors duration-200 ${isInBlock ? 'line-through decoration-red-500/50 decoration-2 text-gray-500' : ''}`}
+                                                    className={`text-left transition-colors duration-200 ${isInBlock ? 'line-through decoration-2' : ''}`}
+                                                    style={{ 
+                                                        color: isInBlock ? 'rgb(255 255 255 / 70%)' : 'rgb(255 255 255 / 90%)',
+                                                        textDecorationColor: isInBlock ? '#f62718' : undefined
+                                                    }}
                                                 >
                                                     {city.name}
                                                 </button>
                                                 {isInBlock && (
-                                                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold uppercase mt-1 flex items-center">
+                                                    <span className="text-[10px] font-bold uppercase mt-1 flex items-center" style={{ color: '#17a2b8' }}>
                                                         <FiCheck className="mr-1"/> No bloco: {blockName}
                                                     </span>
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="p-3">{city.population.toLocaleString('pt-BR')}</td>
-                                        <td className="p-3">{city.population15to44.toLocaleString('pt-BR')}</td>
+                                        <td className="p-3" style={{ color: 'rgb(255 255 255 / 80%)' }}>{city.population.toLocaleString('pt-BR')}</td>
+                                        <td className="p-3" style={{ color: 'rgb(255 255 255 / 80%)' }}>{city.population15to44.toLocaleString('pt-BR')}</td>
                                         <td className="p-3">
                                             <div className="flex flex-col text-sm">
-                                                <span className="font-semibold">{formatCurrency(calculatePotentialRevenue(city, 'Média'))}</span>
-                                                <div className="flex justify-between items-center text-[10px] mt-1 text-gray-500">
+                                                <span className="font-semibold" style={{ color: '#ffffff' }}>{formatCurrency(calculatePotentialRevenue(city, 'Média'))}</span>
+                                                <div className="flex justify-between items-center text-[10px] mt-1" style={{ color: 'rgb(255 255 255 / 70%)' }}>
                                                     <span>Min: {formatCurrency(calculatePotentialRevenue(city, 'Baixa'))}</span>
-                                                    <span className="text-green-600">Max: {formatCurrency(calculatePotentialRevenue(city, 'Alta'))}</span>
+                                                    <span style={{ color: '#08a50e' }}>Max: {formatCurrency(calculatePotentialRevenue(city, 'Alta'))}</span>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="p-3 text-sm">
-                                            <span className={`px-2 py-0.5 rounded-full ${
-                                                city.status === CityStatus.Consolidated ? 'bg-green-100 text-green-800' :
-                                                city.status === CityStatus.Expansion ? 'bg-orange-100 text-orange-800' :
-                                                city.status === CityStatus.Planning ? 'bg-blue-100 text-blue-800' :
-                                                'bg-gray-100 text-gray-800'
-                                            }`}>{city.status}</span>
+                                            <span 
+                                                className="px-2 py-0.5 rounded-full"
+                                                style={{
+                                                    backgroundColor: city.status === CityStatus.Consolidated ? 'rgba(8, 165, 14, 0.2)' :
+                                                        city.status === CityStatus.Expansion ? 'rgba(255, 193, 7, 0.2)' :
+                                                        city.status === CityStatus.Planning ? 'rgba(23, 162, 184, 0.2)' :
+                                                        'rgb(255 255 255 / 15%)',
+                                                    color: city.status === CityStatus.Consolidated ? '#08a50e' :
+                                                        city.status === CityStatus.Expansion ? '#ffc107' :
+                                                        city.status === CityStatus.Planning ? '#17a2b8' :
+                                                        'rgb(255 255 255 / 80%)'
+                                                }}
+                                            >
+                                                {city.status}
+                                            </span>
                                         </td>
                                         <td className="p-3 flex items-center space-x-3">
                                             <a 
@@ -587,7 +743,8 @@ const DataQuery: React.FC = () => {
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 title={`Ver ${city.name} no IBGE Cidades`}
-                                                className="text-gray-400 hover:text-primary transition"
+                                                className="transition-colors"
+                                                style={{ color: 'rgb(255 255 255 / 70%)' }}
                                             >
                                                 <FiExternalLink className="h-4 w-4" />
                                             </a>
@@ -596,7 +753,8 @@ const DataQuery: React.FC = () => {
                                             <div className="relative">
                                                 <button 
                                                     onClick={() => setActiveCityMenu(activeCityMenu === city.id ? null : city.id)}
-                                                    className={`transition ${isInBlock ? 'text-purple-500 hover:text-purple-700' : 'text-gray-400 hover:text-purple-600'}`}
+                                                    className="transition-colors"
+                                                    style={{ color: isInBlock ? '#17a2b8' : 'rgb(255 255 255 / 70%)' }}
                                                     title={isInBlock ? "Mudar de Bloco" : "Mover para Bloco Estratégico"}
                                                 >
                                                     <FiGrid className="h-4 w-4" />
@@ -604,19 +762,28 @@ const DataQuery: React.FC = () => {
                                                 {activeCityMenu === city.id && (
                                                     <>
                                                         <div className="fixed inset-0 z-10" onClick={() => setActiveCityMenu(null)}></div>
-                                                        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-dark-300 border border-base-200 dark:border-dark-100 rounded-lg shadow-xl z-20 py-1 text-xs">
-                                                            <div className="px-3 py-1 text-gray-500 font-bold uppercase tracking-wider">Selecionar Bloco</div>
+                                                        <div 
+                                                            className="absolute right-0 top-full mt-1 w-48 rounded-lg shadow-xl z-20 py-1 text-xs"
+                                                            style={{
+                                                                backgroundColor: '#1e1e1e',
+                                                                border: '1px solid rgb(255 255 255 / 10%)'
+                                                            }}
+                                                        >
+                                                            <div className="px-3 py-1 font-bold uppercase tracking-wider" style={{ color: 'rgb(255 255 255 / 70%)' }}>Selecionar Bloco</div>
                                                             {marketBlocks.length === 0 && (
-                                                                <div className="px-3 py-2 text-gray-400 italic">Vá em Inteligência para criar blocos</div>
+                                                                <div className="px-3 py-2 italic" style={{ color: 'rgb(255 255 255 / 60%)' }}>Vá em Inteligência para criar blocos</div>
                                                             )}
                                                             {marketBlocks.map(block => (
                                                                 <button 
                                                                     key={block.id}
                                                                     onClick={() => handleAddToBlock(city.id, block.id)}
-                                                                    className="w-full text-left px-4 py-2 hover:bg-base-100 dark:hover:bg-dark-200 flex justify-between items-center"
+                                                                    className="w-full text-left px-4 py-2 flex justify-between items-center transition-colors"
+                                                                    style={{ color: 'rgb(255 255 255 / 80%)' }}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(255 255 255 / 10%)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                                                 >
                                                                     <span className="truncate">{block.name}</span>
-                                                                    {blockName === block.name && <FiCheck className="text-green-500"/>}
+                                                                    {blockName === block.name && <FiCheck style={{ color: '#08a50e' }}/>}
                                                                 </button>
                                                             ))}
                                                         </div>
@@ -627,7 +794,11 @@ const DataQuery: React.FC = () => {
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); handleAddPlan(city.id); }}
                                                 disabled={hasPlan}
-                                                className={`transition-colors ${hasPlan ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700'}`}
+                                                className="transition-colors"
+                                                style={{ 
+                                                    color: hasPlan ? 'rgb(255 255 255 / 30%)' : '#17a2b8',
+                                                    cursor: hasPlan ? 'not-allowed' : 'pointer'
+                                                }}
                                                 title={hasPlan ? "Já está no planejamento" : "Iniciar Expansão"}
                                             >
                                                 <FiPlusCircle className="h-4 w-4" />

@@ -31,7 +31,8 @@ export const getAllPlannings = async (filters?: {
 }): Promise<CityPlan[]> => {
   try {
     const response = await api.get('/plannings', { params: filters });
-    return response.data.data;
+    const data = response.data.data || response.data || [];
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Erro ao buscar planejamentos:', error);
     return [];
@@ -44,7 +45,7 @@ export const getAllPlannings = async (filters?: {
 export const getPlanningById = async (id: string): Promise<CityPlan | null> => {
   try {
     const response = await api.get(`/plannings/${id}`);
-    return response.data.data;
+    return response.data.data || response.data || null;
   } catch (error) {
     console.error('Erro ao buscar planejamento:', error);
     return null;
@@ -57,7 +58,7 @@ export const getPlanningById = async (id: string): Promise<CityPlan | null> => {
 export const createPlanning = async (planningData: PlanningDTO): Promise<CityPlan | null> => {
   try {
     const response = await api.post('/plannings', planningData);
-    return response.data.data;
+    return response.data.data || response.data || null;
   } catch (error) {
     console.error('Erro ao criar planejamento:', error);
     return null;
@@ -73,7 +74,7 @@ export const updatePlanning = async (
 ): Promise<CityPlan | null> => {
   try {
     const response = await api.put(`/plannings/${id}`, planningData);
-    return response.data.data;
+    return response.data.data || response.data || null;
   } catch (error) {
     console.error('Erro ao atualizar planejamento:', error);
     return null;
@@ -104,7 +105,7 @@ export const addTask = async (planningId: string, taskData: {
 }): Promise<any> => {
   try {
     const response = await api.post(`/plannings/${planningId}/tasks`, taskData);
-    return response.data.data;
+    return response.data.data || response.data || null;
   } catch (error) {
     console.error('Erro ao adicionar tarefa:', error);
     return null;
@@ -122,7 +123,7 @@ export const updateTask = async (taskId: string, taskData: {
 }): Promise<any> => {
   try {
     const response = await api.put(`/plannings/tasks/${taskId}`, taskData);
-    return response.data.data;
+    return response.data.data || response.data || null;
   } catch (error) {
     console.error('Erro ao atualizar tarefa:', error);
     return null;

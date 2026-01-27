@@ -13,6 +13,7 @@ import PlanningDetails from './pages/PlanningDetails';
 import MarketIntelligence from './pages/MarketIntelligence';
 import CityMarketAnalysis from './pages/CityMarketAnalysis';
 import { DataProvider, DataContext } from './context/DataContext';
+import { ThemeProvider } from './context/ThemeContext';
 import LoadingIndicator from './components/ui/LoadingIndicator';
 import { SaveIndicator } from './components/ui/SaveIndicator';
 import {
@@ -79,9 +80,11 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <DataProvider>
-      <AppContent />
-    </DataProvider>
+    <ThemeProvider>
+      <DataProvider>
+        <AppContent />
+      </DataProvider>
+    </ThemeProvider>
   );
 };
 

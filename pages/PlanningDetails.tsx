@@ -1,9 +1,9 @@
-
 import React, { useState, useContext, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DataContext } from '../context/DataContext';
 import Card from '../components/ui/Card';
 import Modal from '../components/ui/Modal';
+import FinancialProjection from '../components/FinancialProjection';
 import { FiArrowLeft, FiClipboard, FiPlusCircle, FiChevronDown, FiChevronUp, FiEdit, FiTrash2, FiCheckSquare, FiSquare, FiSave, FiCalendar, FiClock, FiX, FiUsers, FiDollarSign, FiRefreshCw, FiLink, FiExternalLink, FiTrendingUp, FiTrendingDown, FiActivity, FiTarget, FiTag, FiUser, FiZap, FiAlertCircle, FiCheck } from 'react-icons/fi';
 import { getFinancialProjections, calculatePotentialRevenue, getMarketPotential, getGrowthRoadmap } from '../services/calculationService';
 import { PENETRATION_SCENARIOS, PHASE_COLORS, MONTHS } from '../constants';
@@ -11,6 +11,8 @@ import InfoTooltip from '../components/ui/InfoTooltip';
 import { Line, getElementAtEvent } from 'react-chartjs-2';
 import type { Chart as ChartJS } from 'chart.js';
 import { PlanningAction, PlanningPhase, MonthResult, CityStatus } from '../types';
+import CityRidesData from '../components/CityRidesData';
+import { getMonthlyRevenueData } from '../services/revenueService';
 
 // --- Components Helpers ---
 
@@ -403,20 +405,61 @@ const PlanningDetails: React.FC = () => {
     const { cityId } = useParams<{ cityId: string }>();
     const navigate = useNavigate();
     const chartRef = useRef<ChartJS<'line'>>(null);
-    const { cities, plans, addPlanForCity, updatePlanResults, updatePlanResultsBatch, updatePlanStartDate } = useContext(DataContext);
+    const { cities, plans, addPlanForCity, deletePlan, updatePlanResults, updatePlanResultsBatch, updatePlanStartDate, updateCityImplementationDate } = useContext(DataContext);
     const [isEditingResults, setIsEditingResults] = useState(false);
     const [localResults, setLocalResults] = useState<{ [key: string]: MonthResult }>({});
-    const [activeTab, setActiveTab] = useState<'overview' | 'projection'>('overview');
+    const [realRidesData, setRealRidesData] = useState<{ [key: string]: number }>({});
+    const [realRevenueData, setRealRevenueData] = useState<{ [key: string]: number }>({});
+    const [realMonthlyCosts, setRealMonthlyCosts] = useState<{ [key: string]: { marketingCost: number; operationalCost: number } }>({});
+    const [selectedChartMonth, setSelectedChartMonth] = useState<number | null>(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [isEditingMonthlyCosts, setIsEditingMonthlyCosts] = useState(false);
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+    const [zoomRange, setZoomRange] = useState<{min: number, max: number} | null>(null);
+    const [activeZoomPeriod, setActiveZoomPeriod] = useState<'3m' | '6m' | '1a' | 'all'>('all');
+    const [isEditingImplementationDate, setIsEditingImplementationDate] = useState(false);
+    const [editedImplementationDate, setEditedImplementationDate] = useState('');
+    const [activeTab, setActiveTab] = useState<'overview' | 'costs'>('overview');
 
     const parsedCityId = Number(cityId);
     const selectedCity = cities.find(c => c.id === parsedCityId);
     const selectedPlan = plans.find(p => p.cityId === parsedCityId);
     
-    const growthRoadmapMedia = useMemo(() => selectedCity ? getGrowthRoadmap(selectedCity, PENETRATION_SCENARIOS['Média']) : [], [selectedCity]);
-    const growthRoadmapMuitoBaixa = useMemo(() => selectedCity ? getGrowthRoadmap(selectedCity, PENETRATION_SCENARIOS['Muito Baixa']) : [], [selectedCity]);
-    const growthRoadmapMuitoAlta = useMemo(() => selectedCity ? getGrowthRoadmap(selectedCity, PENETRATION_SCENARIOS['Muito Alta']) : [], [selectedCity]);
+    const growthRoadmapMedia = useMemo(() => selectedCity ? getGrowthRoadmap(selectedCity, PENETRATION_SCENARIOS['Média']) : [], [selectedCity, selectedCity?.implementationStartDate]);
+    const growthRoadmapMuitoBaixa = useMemo(() => selectedCity ? getGrowthRoadmap(selectedCity, PENETRATION_SCENARIOS['Muito Baixa']) : [], [selectedCity, selectedCity?.implementationStartDate]);
+    const growthRoadmapMuitoAlta = useMemo(() => selectedCity ? getGrowthRoadmap(selectedCity, PENETRATION_SCENARIOS['Muito Alta']) : [], [selectedCity, selectedCity?.implementationStartDate]);
 
+    // Inicializar data de implementação quando a cidade for selecionada ou quando a data mudar
+    useEffect(() => {
+        if (selectedCity?.implementationStartDate) {
+            setEditedImplementationDate(selectedCity.implementationStartDate);
+            console.log(`📍 Data de implementação sincronizada: ${selectedCity.implementationStartDate}`);
+        } else {
+            setEditedImplementationDate('');
+        }
+    }, [selectedCity?.id, selectedCity?.implementationStartDate, selectedCity]);
+
+    useEffect(() => {
+        if (selectedPlan && selectedPlan.results) {
+            setLocalResults(selectedPlan.results);
+        } else if (growthRoadmapMedia.length > 0) {
+            const demoData: {[key: string]: MonthResult} = {};
+            growthRoadmapMedia.forEach((item, index) => {
+                if (index < 4) {
+                    const factor = 0.9 + (Math.random() * 0.3);
+                    const rides = Math.round(item.rides * factor);
+                    demoData[`Mes${item.month}`] = {
+                        rides,
+                        marketingCost: rides * (3 + Math.random() * 2),
+                        operationalCost: rides * (1.5 + Math.random() * 1)
+                    };
+                }
+            });
+            setLocalResults(demoData);
+        }
+    }, [selectedPlan, growthRoadmapMedia]);
+
+    // Auto-preencher rides dos dados reais se disponíveis
     useEffect(() => {
         if (selectedPlan && selectedPlan.results) {
             setLocalResults(selectedPlan.results);
@@ -452,128 +495,277 @@ const PlanningDetails: React.FC = () => {
 
     const marketPotential = useMemo(() => selectedCity ? getMarketPotential(selectedCity) : [], [selectedCity]);
 
+    const applyZoom = (period: '3m' | '6m' | '1a' | 'all') => {
+        setActiveZoomPeriod(period);
+        
+        if (period === 'all') {
+            setZoomRange(null);
+            return;
+        }
+        
+        const totalMonths = growthRoadmapMedia.length;
+        const periodMonths = period === '3m' ? 3 : period === '6m' ? 6 : 12;
+        
+        // Mostra os últimos N meses com dados
+        const max = totalMonths - 1;
+        const min = Math.max(0, max - periodMonths + 1);
+        
+        setZoomRange({ min, max });
+    };
+
     const growthChartData = useMemo(() => {
-        const labels = growthRoadmapMedia.map(d => `Mês ${d.month}`);
+        const labels = ['Mês 0', ...growthRoadmapMedia.map(d => `Mês ${d.month}`)];
+        
+        // Função para criar dados com crescimento gradual até mês 6, depois linha reta
+        const createGoalData = (roadmap: typeof growthRoadmapMedia) => {
+            const data = [0]; // Mês 0
+            for (let i = 0; i < roadmap.length; i++) {
+                if (i < 6) {
+                    // Primeiros 6 meses: crescimento gradual
+                    data.push(roadmap[i].rides);
+                } else {
+                    // Após mês 6: mantém o valor do mês 6 (linha reta)
+                    data.push(roadmap[5].rides);
+                }
+            }
+            return data;
+        };
+        
+        // Criar gradiente para o preenchimento
+        const ctx = chartRef.current?.ctx;
+        let gradient = undefined;
+        if (ctx) {
+            gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(34, 211, 238, 0.4)'); // Cyan claro
+            gradient.addColorStop(1, 'rgba(6, 182, 212, 0.05)'); // Cyan escuro com transparência
+        }
+        
         return {
           labels,
           datasets: [
             {
                 label: 'Meta - Muito Alta (20%)',
-                data: growthRoadmapMuitoAlta.map(d => d.rides),
-                borderColor: '#1f2937', // black
-                backgroundColor: 'rgba(31, 41, 55, 0.1)',
+                data: createGoalData(growthRoadmapMuitoAlta),
+                borderColor: '#64748b',
+                backgroundColor: 'rgba(100, 116, 139, 0.05)',
+                borderWidth: 2,
+                borderDash: [5, 5],
                 fill: false,
-                tension: 0.3,
+                tension: 0.4,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#64748b',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
             },
             { 
                 label: 'Meta - Média (10%)', 
-                data: growthRoadmapMedia.map(d => d.rides), 
-                borderColor: '#3b82f6', // blue
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                fill: false, 
-                tension: 0.3 
+                data: createGoalData(growthRoadmapMedia), 
+                borderColor: '#3b82f6',
+                backgroundColor: gradient || 'rgba(34, 211, 238, 0.15)',
+                borderWidth: 2.5,
+                fill: true, 
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#3b82f6',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
             },
             {
                 label: 'Meta - Muito Baixa (2%)',
-                data: growthRoadmapMuitoBaixa.map(d => d.rides),
-                borderColor: '#f59e0b', // yellow/amber
-                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                data: createGoalData(growthRoadmapMuitoBaixa),
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                borderWidth: 2,
+                borderDash: [5, 5],
                 fill: false,
-                tension: 0.3,
+                tension: 0.4,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#f59e0b',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
             },
             { 
                 label: 'Resultados Reais', 
-                data: labels.map((_, index) => localResults[`Mes${index + 1}`]?.rides ?? null), 
-                borderColor: '#10b981', // green for real results
-                backgroundColor: 'rgba(16, 185, 129, 0.1)', 
-                fill: false, 
-                tension: 0.3,
-                borderWidth: 3,
-                pointRadius: 4
+                data: [0, ...labels.slice(1).map((_, index) => localResults[`Mes${index + 1}`]?.rides ?? null)], 
+                borderColor: '#10b981',
+                backgroundColor: gradient || 'rgba(34, 211, 238, 0.2)', 
+                fill: true, 
+                tension: 0.4,
+                borderWidth: 3.5,
+                pointRadius: 5,
+                pointHoverRadius: 8,
+                pointBackgroundColor: '#10b981',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointStyle: 'circle',
             },
           ],
         };
     }, [growthRoadmapMedia, growthRoadmapMuitoAlta, growthRoadmapMuitoBaixa, localResults]);
 
-    const growthChartOptions = {
+    const growthChartOptions = useMemo(() => ({
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+            mode: 'index' as const,
+            intersect: false,
+        },
         plugins: {
-          legend: { display: true, position: 'top' as const },
+            legend: { 
+                display: true, 
+                position: 'bottom' as const,
+                labels: {
+                    usePointStyle: true,
+                    padding: 18,
+                    boxWidth: 12,
+                    boxHeight: 12,
+                    font: {
+                        size: 13,
+                        weight: 700 as any,
+                        family: "'Inter', sans-serif"
+                    },
+                    color: '#ffffff'
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(6, 32, 64, 0.98)',
+                padding: 16,
+                borderColor: 'rgba(34, 211, 238, 0.5)',
+                borderWidth: 2,
+                titleFont: {
+                    size: 14,
+                    weight: 700 as any,
+                    family: "'Inter', sans-serif"
+                },
+                bodyFont: {
+                    size: 13,
+                    family: "'Inter', sans-serif"
+                },
+                displayColors: true,
+                boxWidth: 10,
+                boxHeight: 10,
+                boxPadding: 6,
+                cornerRadius: 8,
+                callbacks: {
+                    title: function(context: any) {
+                        return `📊 ${context[0].label}`;
+                    },
+                    label: function(context: any) {
+                        let label = context.dataset.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        label += context.parsed.y;
+                        return label;
+                    }
+                }
+            }
         },
         scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { callback: (value: string | number) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(Number(value)) },
-            title: { display: true, text: 'Corridas Estimadas' }
-          }
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(255,255,255,0.1)',
+                    lineWidth: 1,
+                    drawBorder: false,
+                },
+                border: {
+                    display: false,
+                },
+                ticks: {
+                    callback: (value: string | number) => `${value}`,
+                    font: { size: 13, weight: 600 as any, family: 'Inter, sans-serif' },
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    padding: 8,
+                },
+                title: {
+                    display: false,
+                },
+            },
+            x: {
+                min: zoomRange?.min,
+                max: zoomRange?.max,
+                grid: {
+                    color: 'rgba(255,255,255,0.08)',
+                    lineWidth: 0.5,
+                    drawBorder: false,
+                },
+                border: {
+                    display: false,
+                },
+                ticks: {
+                    font: { size: 13, weight: 600 as any, family: 'Inter, sans-serif' },
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    padding: 8,
+                    maxRotation: 0,
+                    autoSkip: zoomRange ? false : true,
+                    autoSkipPadding: 10
+                },
+                title: {
+                    display: false,
+                },
+            },
         },
-    };
+        title: { 
+            display: true, 
+            text: '📊 Número de Corridas',
+            font: {
+                size: 13,
+                weight: 700 as any,
+                family: "'Inter', sans-serif"
+            },
+            color: '#ffffff',
+            padding: { top: 5, bottom: 10 }
+        }
+    } as any), [zoomRange, localResults, growthRoadmapMedia]);
 
-    const performanceMetrics = useMemo(() => {
-        const months = Object.keys(localResults).sort();
-        if (months.length === 0) return null;
-        
-        const latestKey = months[months.length - 1];
-        const latest = localResults[latestKey];
-        if (!latest || latest.rides === 0) return null;
-
-        const cpaMarketing = latest.marketingCost / latest.rides;
-        const costOps = latest.operationalCost / latest.rides;
-        const costTotal = cpaMarketing + costOps;
-
-        let insight = "Performance estável.";
-        if (cpaMarketing > 8) insight = "CPA de Marketing elevado. Recomenda-se otimizar criativos ou segmentação.";
-        else if (cpaMarketing < 3) insight = "Excelente eficiência de aquisição. Oportunidade de escalar investimento.";
-        
-        if (costOps > 5) insight += " Alerta: Custos operacionais por passageiro acima da média estadual.";
-
-        return { cpaMarketing, costOps, costTotal, insight };
-    }, [localResults]);
-
-    const mediumMonthlyTarget = useMemo(() => marketPotential.find(p => p.scenario === 'Média')?.rides || 0, [marketPotential]);
-    
-    // Identificar o último mês com dados preenchidos (baseado nos resultados reais)
-    const { currentRides, currentMonthLabel } = useMemo(() => {
-        if (!selectedPlan?.startDate) return { currentRides: 0, currentMonthLabel: 'Mês Atual' };
-
-        const start = new Date(selectedPlan.startDate + '-02');
-        
-        // Encontrar o último mês que tem dados de passageiros preenchidos
-        let latestMonthIndex = 0;
-        let latestRides = 0;
+    // Calcular latestMonthIndex e latestRides
+    const { latestMonthIndex, latestRides } = useMemo(() => {
+        let monthIndex = 0;
+        let rides = 0;
         
         Object.keys(localResults).forEach(key => {
             if (key.startsWith('Mes')) {
                 const index = parseInt(key.replace('Mes', ''));
                 const data = localResults[key];
-                // Verifica se tem dados relevantes (rides > 0)
-                if (data && data.rides > 0 && index > latestMonthIndex) {
-                    latestMonthIndex = index;
-                    latestRides = data.rides;
+                if (data && data.rides > 0 && index > monthIndex) {
+                    monthIndex = index;
+                    rides = data.rides;
                 }
             }
         });
+        
+        return { latestMonthIndex: monthIndex, latestRides: rides };
+    }, [localResults]);
 
-        // Se não tiver nenhum dado preenchido, usa o primeiro mês ou mês atual como fallback (mas mostra 0)
+    const mediumMonthlyTarget = useMemo(() => {
+        if (growthRoadmapMedia.length === 0) return 0;
+        // Use the target for month 1 (first month after start)
+        return growthRoadmapMedia[0]?.rides || 0;
+    }, [growthRoadmapMedia]);
+
+    const { currentRides, currentMonthLabel } = useMemo(() => {
+        const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate;
+        if (!startDate) return { currentRides: 0, currentMonthLabel: 'N/A' };
+        
+        const start = new Date(startDate.replace(/-/g, '/'));
+        if (isNaN(start.getTime())) return { currentRides: 0, currentMonthLabel: 'N/A' };
+        
         if (latestMonthIndex === 0) {
-             const now = new Date();
-             const diffMonths = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-             const monthIndex = Math.max(1, diffMonths + 1);
-             const monthName = MONTHS[(start.getMonth() + monthIndex - 1) % 12];
-             return { currentRides: 0, currentMonthLabel: monthName };
+            const now = new Date();
+            const diffMonths = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+            const monthIndex = Math.max(1, diffMonths + 1);
+            const monthName = MONTHS[(start.getMonth() + monthIndex - 1) % 12];
+            return { currentRides: 0, currentMonthLabel: monthName };
         }
-
-        // Calcula o label do mês encontrado
         const targetDate = new Date(start);
         targetDate.setMonth(start.getMonth() + (latestMonthIndex - 1));
         const monthName = MONTHS[targetDate.getMonth()];
-        
-        return { 
-            currentRides: latestRides, 
-            currentMonthLabel: monthName 
-        };
-    }, [selectedPlan?.startDate, localResults]);
+        return { currentRides: latestRides, currentMonthLabel: monthName };
+    }, [selectedPlan?.startDate, selectedCity?.implementationStartDate, localResults, latestMonthIndex, latestRides]);
 
     const overallProgress = mediumMonthlyTarget > 0 ? (currentRides / mediumMonthlyTarget) * 100 : 0;
 
@@ -606,6 +798,170 @@ const PlanningDetails: React.FC = () => {
         }
         setIsEditingResults(false);
     };
+
+    const handleDeletePlan = async () => {
+        if (selectedCity) {
+            await deletePlan(selectedCity.id);
+            navigate('/planejamento');
+        }
+    };
+
+    const handleSaveImplementationDate = async () => {
+        if (!selectedCity || !editedImplementationDate) return;
+        
+        // Garantir formato YYYY-MM-DD (adicionar dia 01 se necessário)
+        const dateToSave = editedImplementationDate.includes('-01') || editedImplementationDate.split('-').length === 3
+            ? editedImplementationDate
+            : `${editedImplementationDate}-01`;
+        
+        // Atualizar a data de implementação usando o contexto
+        updateCityImplementationDate(selectedCity.id, dateToSave);
+        
+        // Fechar modo edição e aguardar re-renderização
+        setIsEditingImplementationDate(false);
+        
+        console.log(`✅ Data de implementação salva: ${editedImplementationDate}`);
+        
+        // Forçar update visual aguardando um frame
+        setTimeout(() => {
+            // Isso garante que o React processou o update
+            console.log('✅ Card atualizado');
+        }, 100);
+    };
+
+    const handleMonthlyCostChange = (monthKey: string, field: 'marketingCost' | 'operationalCost', value: number, isReal?: boolean) => {
+        if (!selectedPlan?.startDate) return;
+        
+        // Se for custo real, salvar no estado separado
+        if (isReal) {
+            setRealMonthlyCosts(prev => ({
+                ...prev,
+                [monthKey]: {
+                    ...prev[monthKey] || { marketingCost: 0, operationalCost: 0 },
+                    [field]: value
+                }
+            }));
+            setHasUnsavedChanges(true);
+            return;
+        }
+        
+        // Convert monthKey (YYYY-MM) back to Mes1, Mes2, etc
+        const [targetYear, targetMonth] = monthKey.split('-').map(Number);
+        const [startYear, startMonth] = selectedPlan.startDate.split('-').map(Number);
+        
+        // Calculate month difference (Mes1 = month before start, so target - start + 2)
+        // Converter para 0-indexed antes de calcular
+        const targetTotalMonths = targetYear * 12 + (targetMonth - 1);
+        const startTotalMonths = startYear * 12 + (startMonth - 1);
+        const diffMonths = targetTotalMonths - startTotalMonths + 2;
+        
+        if (diffMonths >= 1 && diffMonths <= 36) {
+            const key = `Mes${diffMonths}`;
+            setLocalResults(prev => ({
+                ...prev,
+                [key]: {
+                    ...(prev[key] || { rides: 0, marketingCost: 0, operationalCost: 0 }),
+                    [field]: value
+                }
+            }));
+            setHasUnsavedChanges(true);
+        }
+    };
+
+    // Handler para quando dados reais forem carregados do componente CityRidesData
+    const handleRidesDataLoad = (data: { monthKey: string; rides: number; revenue: number }[]) => {
+        // Armazenar dados reais em estado separado (não sobrescrever as metas)
+        const realData: { [key: string]: number } = {};
+        const realRevenue: { [key: string]: number } = {};
+        
+        data.forEach(({ monthKey, rides, revenue }) => {
+            realData[monthKey] = rides;
+            realRevenue[monthKey] = revenue;
+        });
+        
+        setRealRidesData(realData);
+        setRealRevenueData(realRevenue);
+    };
+
+    // Handler para clique no gráfico
+    const handleChartClick = (event: React.MouseEvent<HTMLDivElement>) => {
+        if (!chartRef.current) return;
+        
+        try {
+            const points = getElementAtEvent(chartRef.current, event as any);
+            if (points.length > 0) {
+                const monthIndex = points[0].index;
+                setSelectedChartMonth(monthIndex);
+            }
+        } catch (err) {
+            console.log('Chart click error:', err);
+        }
+    };
+
+    // Usar receita real do banco (dashboard.transactions) - não recalcular
+    const calculatedActualRevenue = useMemo(() => {
+        // Retornar receita real diretamente do banco de dados
+        return realRevenueData;
+    }, [realRevenueData]);
+
+    // Calcular receita projetada baseada nas metas (para FinancialProjection)
+    const calculatedProjectedRevenue = useMemo(() => {
+        const PRICE_PER_RIDE = 2.50;
+        const revByDate: { [key: string]: number } = {};
+        const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate;
+        if (startDate && growthRoadmapMedia.length > 0) {
+            growthRoadmapMedia.forEach((roadmapItem) => {
+                const [startYear, startMonth] = startDate.split('-').map(Number);
+                const totalMonths = (startYear * 12 + startMonth - 1) + roadmapItem.month;
+                const targetYear = Math.floor(totalMonths / 12);
+                const targetMonth = (totalMonths % 12) + 1;
+                const dateKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+                revByDate[dateKey] = roadmapItem.rides * PRICE_PER_RIDE;
+            });
+        }
+        return revByDate;
+    }, [selectedCity?.implementationStartDate, selectedPlan?.startDate, growthRoadmapMedia]);
+
+    // Calcular metas de corridas (para FinancialProjection)
+    const calculatedExpectedRides = useMemo(() => {
+        const ridesByDate: { [key: string]: number } = {};
+        const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate;
+        if (startDate && growthRoadmapMedia.length > 0) {
+            growthRoadmapMedia.forEach((roadmapItem) => {
+                const [startYear, startMonth] = startDate.split('-').map(Number);
+                const totalMonths = (startYear * 12 + startMonth - 1) + roadmapItem.month;
+                const targetYear = Math.floor(totalMonths / 12);
+                const targetMonth = (totalMonths % 12) + 1;
+                const dateKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+                ridesByDate[dateKey] = roadmapItem.rides;
+            });
+        }
+        return ridesByDate;
+    }, [selectedCity?.implementationStartDate, selectedPlan?.startDate, growthRoadmapMedia]);
+
+    // Calcular custos mensais (para FinancialProjection)
+    const calculatedMonthlyCosts = useMemo(() => {
+        const costsByDate: { [key: string]: { marketingCost: number; operationalCost: number } } = {};
+        const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate;
+        if (startDate) {
+            Object.keys(localResults).forEach(key => {
+                if (key.startsWith('Mes')) {
+                    const monthNum = parseInt(key.replace('Mes', ''));
+                    const [startYear, startMonth] = startDate.split('-').map(Number);
+                    const totalMonths = (startYear * 12 + startMonth - 1) + (monthNum - 1);
+                    const targetYear = Math.floor(totalMonths / 12);
+                    const targetMonth = (totalMonths % 12) + 1;
+                    const dateKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+                    const result = localResults[key];
+                    costsByDate[dateKey] = {
+                        marketingCost: result?.marketingCost || 0,
+                        operationalCost: result?.operationalCost || 0
+                    };
+                }
+            });
+        }
+        return costsByDate;
+    }, [selectedCity?.implementationStartDate, selectedPlan?.startDate, localResults]);
 
     const getPhaseProgress = (phaseName: string) => {
         if (!selectedPlan) return 0;
@@ -664,227 +1020,355 @@ const PlanningDetails: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center space-x-4 mb-2">
-                <button onClick={() => navigate('/planejamento')} className="p-2 rounded-full hover:bg-base-200 dark:hover:bg-dark-100 transition"><FiArrowLeft className="w-6 h-6"/></button>
-                <h2 className="text-2xl font-bold">Planejamento Financeiro: {selectedCity.name}</h2>
-            </div>
-
-            <div className="flex space-x-6 border-b border-base-300 dark:border-dark-100 mb-6">
-                <button 
-                    onClick={() => setActiveTab('overview')}
-                    className={`pb-2 px-1 text-sm font-bold border-b-2 transition-all ${activeTab === 'overview' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-4">
+                    <button onClick={() => navigate('/planejamento')} className="p-2 rounded-full hover:bg-base-200 dark:hover:bg-dark-100 transition"><FiArrowLeft className="w-6 h-6"/></button>
+                    <h2 className="text-2xl font-bold">Planejamento Financeiro: {selectedCity.name}</h2>
+                </div>
+                <button
+                    onClick={() => setShowDeleteConfirmation(true)}
+                    className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition"
+                    title="Remover cidade do planejamento"
                 >
-                    Visão Geral
-                </button>
-                <button 
-                    onClick={() => setActiveTab('projection')}
-                    className={`pb-2 px-1 text-sm font-bold border-b-2 transition-all ${activeTab === 'projection' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
-                >
-                    Projeção de Despesas
+                    <FiTrash2 className="w-4 h-4" />
+                    <span>Remover Planejamento</span>
                 </button>
             </div>
 
-            {activeTab === 'overview' && (
-                <>
-                <Card className="mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <SummaryKpi icon={<FiUsers/>} label="População Alvo" value={selectedCity.population15to44.toLocaleString('pt-BR')} />
-                            <SummaryKpi icon={<FiDollarSign/>} label="Meta Receita" value={calculatePotentialRevenue(selectedCity, 'Média').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
-                        </div>
-
-                        <div className="mt-4 border-t border-base-300 dark:border-dark-100 pt-4 relative">
-                            <div className="flex justify-between items-center mb-4 sticky top-0 z-10 bg-base-100 dark:bg-dark-200 py-2 border-b border-transparent">
-                                <div className="flex items-center gap-2">
-                                    <h4 className="font-bold text-gray-700 dark:text-gray-200 uppercase text-xs tracking-wider">Lançamento de Resultados e Investimentos</h4>
-                                    {hasUnsavedChanges && (
-                                        <span className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
-                                            <FiClock size={12}/> Salvando...
-                                        </span>
-                                    )}
-                                    {!hasUnsavedChanges && isEditingResults && (
-                                        <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                                            <FiCheck size={12}/> Salvo
-                                        </span>
-                                    )}
-                                </div>
-                                {!isEditingResults ? (
-                                    <button onClick={() => setIsEditingResults(true)} className="text-sm font-bold text-primary flex items-center gap-1 hover:underline"><FiEdit size={14}/> Editar Dados</button>
-                                ) : (
-                                    <div className="flex gap-3">
-                                        <button onClick={() => setIsEditingResults(false)} className="text-sm text-gray-500 hover:underline">Cancelar</button>
-                                        <button onClick={handleSaveChanges} className="bg-primary text-white text-sm px-4 py-1 rounded-lg hover:bg-primary-600 flex items-center gap-1"><FiSave size={14}/> Salvar Todos</button>
-                                    </div>
-                                )}
+            {/* Card para Editar Data de Implementação */}
+            <Card className="mb-6" key={`impl-date-${selectedCity?.implementationStartDate}`}>
+                <div className="bg-gradient-to-br from-base-100 to-base-200 dark:from-dark-200 dark:to-dark-100 p-6 rounded-xl border border-base-300 dark:border-dark-100 shadow-lg">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <FiCalendar className="text-primary w-5 h-5" />
+                            <div>
+                                <h4 className="font-bold text-base text-gray-800 dark:text-gray-100">Data Inicial de Atividades</h4>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Define o ponto de início para contagem de metas graduais</p>
                             </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse min-w-[800px]">
-                                    <thead>
-                                        <tr className="text-[10px] text-gray-400 uppercase border-b border-base-300 dark:border-dark-100">
-                                            <th className="pb-2 font-bold">Período</th>
-                                            <th className="pb-2 font-bold">Passageiros (Rides)</th>
-                                            <th className="pb-2 font-bold">Invest. Marketing (R$)</th>
-                                            <th className="pb-2 font-bold">Gasto Operacional (R$)</th>
-                                            <th className="pb-2 font-bold">Eficiência Total (R$/Pass)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {growthRoadmapMedia.map(d => {
-                                            const res = localResults[`Mes${d.month}`] || { rides: 0, marketingCost: 0, operationalCost: 0 };
-                                            const efficiency = res.rides > 0 ? (res.marketingCost + res.operationalCost) / res.rides : 0;
-                                            
-                                            // Individual Efficiencies
-                                            const mktEfficiency = res.rides > 0 ? res.marketingCost / res.rides : 0;
-                                            const opsEfficiency = res.rides > 0 ? res.operationalCost / res.rides : 0;
-                                            
-                                            // Calculate Month Name & Value for Input
-                                            let monthDisplay = '';
-                                            let monthInputValue = '';
-                                            
-                                            if (selectedPlan?.startDate) {
-                                                const start = new Date(selectedPlan.startDate + '-02'); // Add day to avoid timezone issues
-                                                start.setMonth(start.getMonth() + d.month - 1);
-                                                monthDisplay = start.toLocaleString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '');
-                                                monthInputValue = start.toISOString().slice(0, 7); // YYYY-MM
-                                            }
-                                            
-                                            return (
-                                                <tr key={d.month} className="border-b border-base-200 dark:border-dark-200 last:border-0">
-                                                    <td className="py-4 font-bold text-gray-500">
-                                                        <div className="flex items-center">
-                                                            <span>Mês {d.month}</span>
-                                                            {isEditingResults ? (
-                                                                <input 
-                                                                    type="month"
-                                                                    value={monthInputValue}
-                                                                    onChange={(e) => handleMonthChange(d.month, e.target.value)}
-                                                                    className="ml-2 text-xs p-1 border rounded bg-base-100 dark:bg-dark-300 border-base-300 dark:border-dark-100 uppercase"
-                                                                />
-                                                            ) : (
-                                                                monthDisplay && <span className="text-gray-400 font-normal ml-1"> {monthDisplay}</span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-2">
-                                                        <input 
-                                                            type="number" 
-                                                            disabled={!isEditingResults} 
-                                                            value={res.rides || ''} 
-                                                            onChange={e => handleLocalChange(d.month, 'rides', e.target.value)}
-                                                            className="w-24 p-1.5 rounded-lg border border-base-300 dark:border-dark-100 bg-base-100 dark:bg-dark-300 disabled:bg-transparent disabled:border-transparent text-sm font-bold"
-                                                            placeholder="0"
-                                                        />
-                                                    </td>
-                                                    <td className="py-2">
-                                                        <div className="flex flex-col">
-                                                            <input 
-                                                                type="number" 
-                                                                disabled={!isEditingResults} 
-                                                                value={res.marketingCost || ''} 
-                                                                onChange={e => handleLocalChange(d.month, 'marketingCost', e.target.value)}
-                                                                className="w-24 p-1.5 rounded-lg border border-base-300 dark:border-dark-100 bg-base-100 dark:bg-dark-300 disabled:bg-transparent disabled:border-transparent text-sm"
-                                                                placeholder="R$ 0,00"
-                                                            />
-                                                            {mktEfficiency > 0 && (
-                                                                <span className="text-[10px] text-gray-400 mt-1 pl-1">
-                                                                    {mktEfficiency.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/pass
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-2">
-                                                        <div className="flex flex-col">
-                                                            <input 
-                                                                type="number" 
-                                                                disabled={!isEditingResults} 
-                                                                value={res.operationalCost || ''} 
-                                                                onChange={e => handleLocalChange(d.month, 'operationalCost', e.target.value)}
-                                                                className="w-24 p-1.5 rounded-lg border border-base-300 dark:border-dark-100 bg-base-100 dark:bg-dark-300 disabled:bg-transparent disabled:border-transparent text-sm"
-                                                                placeholder="R$ 0,00"
-                                                            />
-                                                            {opsEfficiency > 0 && (
-                                                                <span className="text-[10px] text-gray-400 mt-1 pl-1">
-                                                                    {opsEfficiency.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/pass
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-2">
-                                                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${efficiency > 10 ? 'bg-red-100 text-red-700' : efficiency > 0 ? 'bg-green-100 text-green-700' : 'text-gray-300'}`}>
-                                                            {efficiency > 0 ? efficiency.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '--'}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            {isEditingResults && (
-                                <div className="mt-4 flex justify-end gap-3 pt-4 border-t border-base-200 dark:border-dark-100">
-                                    <button onClick={() => setIsEditingResults(false)} className="text-sm text-gray-500 hover:underline">Cancelar</button>
-                                    <button onClick={handleSaveChanges} className="bg-primary text-white text-sm px-4 py-2 rounded-lg hover:bg-primary-600 flex items-center gap-2 shadow-sm"><FiSave size={16}/> Salvar Resultados</button>
-                                </div>
-                            )}
                         </div>
-
-                        {/* FINANCE PERFORMANCE SECTION */}
-                        {performanceMetrics && (
-                            <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-xl border border-primary/20">
-                                <h4 className="font-bold text-primary mb-4 flex items-center gap-2">
-                                    <FiZap /> Análise de Eficiência e CAC
-                                </h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                                    <div className="bg-white dark:bg-dark-300 p-3 rounded-lg shadow-sm border border-base-300 dark:border-dark-100">
-                                        <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">CPA Marketing</p>
-                                        <p className="text-lg font-bold text-secondary">{performanceMetrics.cpaMarketing.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                                        <p className="text-[9px] text-gray-400">por passageiro</p>
-                                    </div>
-                                    <div className="bg-white dark:bg-dark-300 p-3 rounded-lg shadow-sm border border-base-300 dark:border-dark-100">
-                                        <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Ops / Passageiro</p>
-                                        <p className="text-lg font-bold text-tertiary">{performanceMetrics.costOps.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                                        <p className="text-[9px] text-gray-400">eficiência local</p>
-                                    </div>
-                                    <div className="bg-white dark:bg-dark-300 p-3 rounded-lg shadow-sm border border-base-300 dark:border-dark-100">
-                                        <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Custo Total (CAC)</p>
-                                        <p className="text-lg font-bold text-primary">{performanceMetrics.costTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                                        <p className="text-[9px] text-gray-400">métrica combinada</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-3 bg-white/50 dark:bg-dark-200/50 p-3 rounded-lg border border-primary/10">
-                                    <FiAlertCircle className="text-primary flex-shrink-0 mt-0.5" />
-                                    <p className="text-xs italic text-gray-600 dark:text-gray-300">
-                                        <strong>Insights Urban AI:</strong> {performanceMetrics.insight}
+                        {!isEditingImplementationDate ? (
+                            <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                    <p className="text-lg font-bold text-gray-800 dark:text-gray-100">
+                                        {(() => {
+                                            console.log('🔍 Card render:', { 
+                                                cityName: selectedCity?.name, 
+                                                implDate: selectedCity?.implementationStartDate,
+                                                editedDate: editedImplementationDate
+                                            });
+                                            if (!selectedCity?.implementationStartDate) return 'Não definida';
+                                            
+                                            // Parse sem timezone issues
+                                            const parts = selectedCity.implementationStartDate.split('-').map(Number);
+                                            const year = parts[0];
+                                            const month = parts[1];
+                                            const day = parts[2] || 1; // Se não tiver dia, usar 1º do mês
+                                            const date = new Date(year, month - 1, day);
+                                            return date.toLocaleDateString('pt-BR');
+                                        })()}
                                     </p>
+                                    {selectedCity?.implementationStartDate && (
+                                        <p className="text-xs text-gray-500">
+                                            {(() => {
+                                                const [year, month] = selectedCity.implementationStartDate.split('-').map(Number);
+                                                const monthDiff = (new Date().getFullYear() - year) * 12 + (new Date().getMonth() + 1 - month) + 1;
+                                                return `Mês ${Math.min(monthDiff, 6)} de 6`;
+                                            })()}
+                                        </p>
+                                    )}
                                 </div>
+                                <button
+                                    onClick={() => setIsEditingImplementationDate(true)}
+                                    className="p-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition"
+                                    title="Editar data de implementação"
+                                >
+                                    <FiEdit className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="date"
+                                    value={editedImplementationDate}
+                                    onChange={(e) => setEditedImplementationDate(e.target.value)}
+                                    className="p-2 rounded-lg border border-base-300 dark:border-dark-100 bg-base-100 dark:bg-dark-300 text-gray-800 dark:text-gray-100"
+                                />
+                                <button
+                                    onClick={handleSaveImplementationDate}
+                                    className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+                                    title="Salvar data"
+                                >
+                                    <FiSave className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => setIsEditingImplementationDate(false)}
+                                    className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                                    title="Cancelar"
+                                >
+                                    <FiX className="w-4 h-4" />
+                                </button>
                             </div>
                         )}
                     </div>
+                </div>
+            </Card>
 
-                    <div className="bg-base-200 dark:bg-dark-100 p-6 rounded-xl border border-base-300 dark:border-dark-100">
-                         <h4 className="font-bold text-sm text-gray-700 dark:text-gray-300 flex items-center mb-4">
-                            <FiTarget className="mr-1.5 text-primary"/> Progresso de Metas ({currentMonthLabel})
+            {/* Tabs Navigation */}
+            <div className="flex gap-2 mb-6 border-b border-base-300 dark:border-dark-100 overflow-x-auto">
+                <button
+                    onClick={() => setActiveTab('overview')}
+                    className={`px-6 py-3 font-medium border-b-2 transition whitespace-nowrap ${
+                        activeTab === 'overview'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                    }`}
+                >
+                    <div className="flex items-center gap-2">
+                        <FiTrendingUp className="w-5 h-5" />
+                        Visão Geral
+                    </div>
+                </button>
+            </div>
+
+            {/* Tab Content: Overview */}
+            {activeTab === 'overview' && (
+                <>
+                {/* Dados Reais de Corridas */}
+                <CityRidesData 
+                cityName={selectedCity.name} 
+                population15to44={selectedCity.population15to44}
+                metaReceita={calculatePotentialRevenue(selectedCity, 'Média')}
+                monthlyCosts={(() => {
+                    // Converter localResults para formato de data YYYY-MM
+                    const costsByDate: { [key: string]: { marketingCost: number; operationalCost: number } } = {};
+                    if (selectedPlan?.startDate) {
+                        Object.keys(localResults).forEach(key => {
+                            if (key.startsWith('Mes')) {
+                                const monthNum = parseInt(key.replace('Mes', ''));
+                                // Parse start date components
+                                const [startYear, startMonth] = selectedPlan.startDate.split('-').map(Number);
+                                // Calculate target month (Mes1 = month before start, so startMonth + (monthNum - 2))
+                                // Converter startMonth de 1-indexed para 0-indexed antes de calcular
+                                const totalMonths = (startYear * 12 + (startMonth - 1)) + (monthNum - 2);
+                                const targetYear = Math.floor(totalMonths / 12);
+                                const targetMonth = (totalMonths % 12) + 1;
+                                const dateKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+                                const result = localResults[key];
+                                // SEMPRE incluir, mesmo sem dados
+                                costsByDate[dateKey] = {
+                                    marketingCost: result?.marketingCost || 0,
+                                    operationalCost: result?.operationalCost || 0
+                                };
+                            }
+                        });
+                    }
+                    return costsByDate;
+                })()}
+                planResults={(() => {
+                    // Usar growthRoadmapMedia (metas oficiais) para preencher os dados esperados
+                    const resultsByDate: { [key: string]: { rides: number; marketingCost: number; operationalCost: number } } = {};
+                    if (selectedPlan?.startDate && growthRoadmapMedia.length > 0) {
+                        growthRoadmapMedia.forEach((roadmapItem) => {
+                            const [startYear, startMonth] = selectedPlan.startDate.split('-').map(Number);
+                            const totalMonths = (startYear * 12 + (startMonth - 1)) + (roadmapItem.month - 1);
+                            const targetYear = Math.floor(totalMonths / 12);
+                            const targetMonth = (totalMonths % 12) + 1;
+                            const dateKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+                            
+                            // Pegar valores de custo de localResults se existir, senão usar 0
+                            let marketingCost = 0;
+                            let operationalCost = 0;
+                            const mesKey = `Mes${roadmapItem.month}`;
+                            if (localResults[mesKey]) {
+                                marketingCost = localResults[mesKey].marketingCost || 0;
+                                operationalCost = localResults[mesKey].operationalCost || 0;
+                            }
+                            
+                            resultsByDate[dateKey] = {
+                                rides: roadmapItem.rides,
+                                marketingCost,
+                                operationalCost
+                            };
+                        });
+                    }
+                    return resultsByDate;
+                })()}
+                onCostsChange={handleMonthlyCostChange}
+                isEditingCosts={isEditingMonthlyCosts}
+                onToggleEditCosts={() => {
+                    if (isEditingMonthlyCosts && hasUnsavedChanges) {
+                        handleSaveChanges();
+                    }
+                    setIsEditingMonthlyCosts(!isEditingMonthlyCosts);
+                }}
+                onRidesDataLoad={handleRidesDataLoad}
+            />
+
+            {/* Projeção vs Realidade Financeira */}
+            <FinancialProjection
+                key={selectedCity.name + '-' + (selectedPlan?.startDate || '')}
+                cityName={selectedCity.name}
+                monthlyCosts={calculatedMonthlyCosts}
+                monthlyRealCosts={realMonthlyCosts}
+                expectedRides={calculatedExpectedRides}
+                actualRides={realRidesData}
+                projectedRevenue={Object.fromEntries(Object.entries(calculatedProjectedRevenue).slice(0, 6))}
+                actualRevenue={calculatedActualRevenue}
+                onCostsChange={handleMonthlyCostChange}
+                isEditing={isEditingMonthlyCosts}
+                onToggleEdit={() => {
+                    if (isEditingMonthlyCosts && hasUnsavedChanges) {
+                        handleSaveChanges();
+                    }
+                    setIsEditingMonthlyCosts(!isEditingMonthlyCosts);
+                }}
+            />
+
+            <Card className="mb-6">
+                {/* GRÁFICO DE PROGRESSO DE METAS */}
+                <div className="bg-gradient-to-br from-base-100 to-base-200 dark:from-dark-200 dark:to-dark-100 p-6 rounded-xl border border-base-300 dark:border-dark-100 shadow-lg">
+                    <div className="flex items-center justify-between mb-6">
+                        <h4 className="font-bold text-base text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                            <FiTarget className="text-primary text-xl"/> 
+                            <span>Progresso de Metas - {currentMonthLabel}</span>
                         </h4>
-                        <div className="w-full bg-base-300 dark:bg-dark-300 rounded-full h-4 mb-2">
-                            <div className="bg-gradient-to-r from-blue-500 to-primary h-4 rounded-full transition-all duration-700 shadow-sm" style={{ width: `${Math.min(100, overallProgress)}%` }}></div>
-                        </div>
-                        <div className="flex justify-between text-xs font-bold text-gray-500 mb-6">
-                            <span>{currentRides} passageiros</span>
-                            <span className="text-primary">{overallProgress.toFixed(1)}% da meta atingida</span>
-                            <span>{Math.round(mediumMonthlyTarget)} passageiros</span>
-                        </div>
+                        <span className="text-2xl font-bold text-primary">{overallProgress.toFixed(1)}%</span>
+                    </div>
 
-                        <div className="h-64 mt-4">
-                            <h5 className="text-xs font-bold text-gray-500 mb-2 uppercase">Evolução Real vs Meta</h5>
+                    {/* Barra de Progresso */}
+                    <div className="mb-6">
+                        <div className="w-full bg-base-300 dark:bg-dark-300 rounded-full h-6 mb-3 shadow-inner">
+                            <div 
+                                className="bg-gradient-to-r from-blue-500 via-primary to-purple-500 h-6 rounded-full transition-all duration-700 shadow-lg flex items-center justify-end pr-3" 
+                                style={{ width: `${Math.min(100, overallProgress)}%` }}
+                            >
+                                {overallProgress > 10 && (
+                                    <span className="text-white text-xs font-bold">{overallProgress.toFixed(1)}%</span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex justify-between text-sm font-semibold">
+                            <div className="text-gray-600 dark:text-gray-400">
+                                <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">{currentRides}</span>
+                                <span className="text-xs ml-1">passageiros</span>
+                            </div>
+                            <div className="text-gray-600 dark:text-gray-400 text-right">
+                                <span className="text-xs mr-1">meta:</span>
+                                <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">{Math.round(mediumMonthlyTarget)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Gráfico de Evolução */}
+                    <div className="bg-gradient-to-br from-[#0f172a] via-[#1e3a5f] to-[#164e63] p-6 rounded-2xl border border-cyan-500/20 shadow-2xl">
+                        <div className="flex items-center justify-between mb-5">
+                            <h5 className="text-base font-bold text-white flex items-center gap-2.5">
+                                <div className="p-2 bg-cyan-400/20 rounded-lg border border-cyan-400/30">
+                                    <FiTrendingUp className="text-cyan-300 w-5 h-5"/>
+                                </div>
+                                Evolução Real vs Metas
+                            </h5>
+                            <div className="flex items-center gap-2">
+                                <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 rounded-full font-semibold text-xs">
+                                    {Object.keys(localResults).length} meses
+                                </span>
+                                <div className="flex items-center gap-1 bg-dark-100/50 border border-cyan-500/20 rounded-lg p-1">
+                                    <button
+                                        onClick={() => applyZoom('3m')}
+                                        className={`px-3 py-1.5 rounded-md font-semibold text-xs transition ${
+                                            activeZoomPeriod === '3m'
+                                                ? 'bg-cyan-500/40 text-white border border-cyan-400/50'
+                                                : 'text-gray-300 hover:bg-cyan-500/20 border border-transparent hover:border-cyan-400/30'
+                                        }`}
+                                    >
+                                        3M
+                                    </button>
+                                    <button
+                                        onClick={() => applyZoom('6m')}
+                                        className={`px-3 py-1.5 rounded-md font-semibold text-xs transition ${
+                                            activeZoomPeriod === '6m'
+                                                ? 'bg-cyan-500/40 text-white border border-cyan-400/50'
+                                                : 'text-gray-300 hover:bg-cyan-500/20 border border-transparent hover:border-cyan-400/30'
+                                        }`}
+                                    >
+                                        6M
+                                    </button>
+                                    <button
+                                        onClick={() => applyZoom('1a')}
+                                        className={`px-3 py-1.5 rounded-md font-semibold text-xs transition ${
+                                            activeZoomPeriod === '1a'
+                                                ? 'bg-cyan-500/40 text-white border border-cyan-400/50'
+                                                : 'text-gray-300 hover:bg-cyan-500/20 border border-transparent hover:border-cyan-400/30'
+                                        }`}
+                                    >
+                                        1A
+                                    </button>
+                                    <button
+                                        onClick={() => applyZoom('all')}
+                                        className={`px-3 py-1.5 rounded-md font-semibold text-xs transition ${
+                                            activeZoomPeriod === 'all'
+                                                ? 'bg-cyan-500/40 text-white border border-cyan-400/50'
+                                                : 'text-gray-300 hover:bg-cyan-500/20 border border-transparent hover:border-cyan-400/30'
+                                        }`}
+                                    >
+                                        Todos
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="h-80" onClick={handleChartClick} style={{ cursor: 'pointer' }}>
                             <Line 
                                 ref={chartRef}
                                 data={growthChartData} 
                                 options={growthChartOptions}
                             />
                         </div>
+                        
+                        {/* Informações do Mês Selecionado */}
+                        {selectedChartMonth !== null && (
+                            <div className="mt-6 pt-6 border-t border-cyan-500/20">
+                                <div className="grid grid-cols-4 gap-4">
+                                    <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
+                                        <p className="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-2">Mês Selecionado</p>
+                                        <p className="text-2xl font-bold text-cyan-300">Mês {selectedChartMonth}</p>
+                                    </div>
+                                    
+                                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                                        <p className="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-2">Resultado Real</p>
+                                        <p className="text-2xl font-bold text-blue-300">
+                                            {growthChartData.datasets[3].data[selectedChartMonth] !== null 
+                                                ? Math.round(growthChartData.datasets[3].data[selectedChartMonth] as number).toLocaleString('pt-BR') 
+                                                : '-'}
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                                        <p className="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-2">Meta Média (10%)</p>
+                                        <p className="text-2xl font-bold text-amber-300">
+                                            {growthChartData.datasets[1].data[selectedChartMonth] !== null && growthChartData.datasets[1].data[selectedChartMonth] !== undefined
+                                                ? Math.round(growthChartData.datasets[1].data[selectedChartMonth] as number).toLocaleString('pt-BR') 
+                                                : '-'}
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="bg-slate-500/10 border border-slate-500/30 rounded-lg p-4">
+                                        <p className="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-2">Variação %</p>
+                                        {(() => {
+                                            const real = growthChartData.datasets[3].data[selectedChartMonth];
+                                            const meta = growthChartData.datasets[1].data[selectedChartMonth];
+                                            if (real === null || meta === 0) return <p className="text-2xl font-bold text-slate-300">-</p>;
+                                            const variacaoPercent = ((real as number / (meta as number)) * 100).toFixed(1);
+                                            const isPositive = (real as number) >= (meta as number);
+                                            return (
+                                                <p className={`text-2xl font-bold ${isPositive ? 'text-green-300' : 'text-red-300'}`}>
+                                                    {variacaoPercent}%
+                                                </p>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -896,92 +1380,37 @@ const PlanningDetails: React.FC = () => {
                     {selectedPlan?.phases.map(phase => <PhaseAccordion key={phase.name} phase={phase} cityId={selectedCity.id} />)}
                 </div>
             </div>
+
             </>
             )}
 
-            {activeTab === 'projection' && (
-                <Card>
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="font-bold text-lg flex items-center gap-2"><FiTarget className="text-primary"/> Projeção de Despesas & Metas</h3>
-                         {!isEditingResults ? (
-                            <button onClick={() => setIsEditingResults(true)} className="text-sm font-bold text-primary flex items-center gap-1 hover:underline"><FiEdit size={14}/> Editar Projeções</button>
-                        ) : (
-                            <div className="flex gap-3">
-                                <button onClick={() => setIsEditingResults(false)} className="text-sm text-gray-500 hover:underline">Cancelar</button>
-                                <button onClick={handleSaveChanges} className="bg-primary text-white text-sm px-4 py-1 rounded-lg hover:bg-primary-600 flex items-center gap-1"><FiSave size={14}/> Salvar Projeção</button>
-                            </div>
-                        )}
+            {/* Modal de Confirmação de Exclusão */}
+            <Modal isOpen={showDeleteConfirmation} onClose={() => setShowDeleteConfirmation(false)}>
+                <div className="p-6">
+                    <div className="flex items-center space-x-3 mb-4">
+                        <FiAlertCircle className="w-6 h-6 text-red-500" />
+                        <h3 className="text-xl font-bold">Remover Planejamento</h3>
                     </div>
-
-                    <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg mb-6 border border-blue-100 dark:border-blue-900/20">
-                        <p className="text-sm text-blue-800 dark:text-blue-200">
-                            <strong>Como funciona:</strong> Defina o orçamento projetado para Marketing e Operacional. O sistema calculará automaticamente o Custo por Passageiro (CPP) estimado com base nas metas de passageiros estabelecidas para o Cenário Médio.
-                        </p>
+                    <p className="text-base-content/70 dark:text-dark-text-secondary mb-6">
+                        Tem certeza que deseja remover o planejamento de <strong>{selectedCity?.name}</strong>? 
+                        Esta ação não pode ser desfeita e todos os dados de planejamento e resultados serão excluídos.
+                    </p>
+                    <div className="flex justify-end space-x-3">
+                        <button
+                            onClick={() => setShowDeleteConfirmation(false)}
+                            className="px-4 py-2 rounded-lg bg-base-200 hover:bg-base-300 dark:bg-dark-100 dark:hover:bg-dark-200 transition"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleDeletePlan}
+                            className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition"
+                        >
+                            Remover
+                        </button>
                     </div>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse min-w-[800px]">
-                            <thead>
-                                <tr className="text-xs text-gray-500 uppercase border-b border-base-300 dark:border-dark-100 bg-base-200/50 dark:bg-dark-100/50">
-                                    <th className="py-3 px-4 font-bold rounded-tl-lg">Período</th>
-                                    <th className="py-3 px-4 font-bold">Meta (Passageiros)</th>
-                                    <th className="py-3 px-4 font-bold border-l border-base-300 dark:border-dark-100">Proj. Marketing (R$)</th>
-                                    <th className="py-3 px-4 font-bold">Proj. Operacional (R$)</th>
-                                    <th className="py-3 px-4 font-bold border-l border-base-300 dark:border-dark-100 text-right rounded-tr-lg">CPP Projetado</th>
-                                </tr>
-                            </thead>
-                             <tbody>
-                                {growthRoadmapMedia.map((d, idx) => {
-                                    const res = localResults[`Mes${d.month}`] || { rides: 0, marketingCost: 0, operationalCost: 0 };
-                                    const projMarketing = res.projectedMarketing || 0;
-                                    const projOp = res.projectedOperational || 0;
-                                    const totalProj = projMarketing + projOp;
-                                    const metaRides = d.rides; 
-                                    const cpa = metaRides > 0 ? totalProj / metaRides : 0;
-                                    
-                                    return (
-                                        <tr key={d.month} className="border-b border-base-200 dark:border-dark-200 hover:bg-base-100/50 dark:hover:bg-dark-200/50 transition">
-                                            <td className="py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">Mês {d.month}</td>
-                                            <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 font-mono tracking-tight">{metaRides.toLocaleString('pt-BR')}</td>
-                                            <td className="py-3 px-4 border-l border-base-200 dark:border-dark-200">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-gray-400">R$</span>
-                                                    <input 
-                                                        type="number"
-                                                        disabled={!isEditingResults}
-                                                        value={res.projectedMarketing || ''}
-                                                        onChange={e => handleLocalChange(d.month, 'projectedMarketing', e.target.value)}
-                                                        className="w-full max-w-[120px] p-1.5 rounded border border-base-300 dark:border-dark-100 bg-white dark:bg-dark-300 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition disabled:bg-transparent disabled:border-transparent"
-                                                        placeholder="0,00"
-                                                    />
-                                                </div>
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-gray-400">R$</span>
-                                                    <input 
-                                                        type="number"
-                                                        disabled={!isEditingResults}
-                                                        value={res.projectedOperational || ''}
-                                                        onChange={e => handleLocalChange(d.month, 'projectedOperational', e.target.value)}
-                                                        className="w-full max-w-[120px] p-1.5 rounded border border-base-300 dark:border-dark-100 bg-white dark:bg-dark-300 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition disabled:bg-transparent disabled:border-transparent"
-                                                        placeholder="0,00"
-                                                    />
-                                                </div>
-                                            </td>
-                                            <td className="py-3 px-4 border-l border-base-200 dark:border-dark-200 text-right">
-                                                <span className={`text-sm font-bold px-2 py-1 rounded-md ${cpa > 10 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : cpa > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'text-gray-400'}`}>
-                                                    {cpa > 0 ? cpa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '--'}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    )
-                                })}
-                             </tbody>
-                        </table>
-                    </div>
-                </Card>
-            )}
+                </div>
+            </Modal>
         </div>
     );
 };

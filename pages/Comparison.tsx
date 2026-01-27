@@ -219,12 +219,27 @@ const Comparison: React.FC = () => {
         <div className="space-y-6">
             <Card>
                 <div className="flex items-center justify-between">
-                     <button onClick={() => navigate('/consulta')} className="flex items-center text-sm font-semibold hover:text-primary transition">
+                     <button 
+                        onClick={() => navigate('/consulta')} 
+                        className="flex items-center text-sm font-semibold transition-colors"
+                        style={{ color: 'rgb(255 255 255 / 80%)' }}
+                    >
                         <FiArrowLeft className="mr-2" /> Voltar para Consulta
                     </button>
                     <div className="flex flex-wrap gap-2 items-center">
-                        <span className="font-bold">Comparando:</span>
-                        {cities.map(c => <span key={c.id} className="bg-primary/20 text-primary px-3 py-1 rounded-full text-sm">{c.name}</span>)}
+                        <span className="font-bold" style={{ color: '#ffffff' }}>Comparando:</span>
+                        {cities.map(c => (
+                            <span 
+                                key={c.id} 
+                                className="px-3 py-1 rounded-full text-sm"
+                                style={{
+                                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                    color: '#3b82f6'
+                                }}
+                            >
+                                {c.name}
+                            </span>
+                        ))}
                     </div>
                 </div>
             </Card>
@@ -244,22 +259,42 @@ const Comparison: React.FC = () => {
                 title="Dados Demográficos Básicos"
                 tooltipText="Tabela comparativa com dados demográficos chave obtidos do IBGE. 'Índice de Urbanização' representa a porcentagem da população que vive em áreas urbanas."
             >
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="border-b dark:border-dark-100">
-                                <th className="p-3">Métrica</th>
-                                {cities.map(c => <th key={c.id} className="p-3 text-center font-semibold">{c.name}</th>)}
+                <div className="overflow-x-auto dt-table-container">
+                    <table className="w-full text-left dt-table">
+                        <thead style={{ background: 'rgba(55, 65, 81, 0.9)', borderBottom: '2px solid rgba(59, 130, 246, 0.5)' }}>
+                            <tr>
+                                <th className="p-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgb(255 255 255 / 80%)' }}>Métrica</th>
+                                {cities.map(c => <th key={c.id} className="p-3 text-center text-xs font-semibold uppercase tracking-wider" style={{ color: '#ffffff' }}>{c.name}</th>)}
                             </tr>
                         </thead>
                         <tbody>
-                        <tr className="border-b dark:border-dark-100"><td className="p-3 font-semibold">População Total</td>{cities.map(c => <td key={c.id} className="p-3 text-center">{c.population.toLocaleString('pt-BR')}</td>)}</tr>
-                        <tr className="border-b dark:border-dark-100"><td className="p-3 font-semibold">População 15-44 anos</td>{cities.map(c => <td key={c.id} className="p-3 text-center">{c.population15to44.toLocaleString('pt-BR')}</td>)}</tr>
-                        <tr className="border-b dark:border-dark-100"><td className="p-3 font-semibold">Renda Média Familiar</td>{cities.map(c => <td key={c.id} className="p-3 text-center">{c.averageIncome.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</td>)}</tr>
-                        <tr className="border-b dark:border-dark-100"><td className="p-3 font-semibold">Empregos Formais</td>{cities.map(c => <td key={c.id} className="p-3 text-center">{c.formalJobs.toLocaleString('pt-BR')}</td>)}</tr>
-                        <tr className="border-b dark:border-dark-100"><td className="p-3 font-semibold">Índice de Urbanização</td>{cities.map(c => <td key={c.id} className="p-3 text-center">{(c.urbanizationIndex * 100).toFixed(0)}%</td>)}</tr>
-                            <tr>
-                                <td className="p-3 font-semibold">Fonte IBGE</td>
+                            {[
+                                { label: 'População Total', getValue: (c: any) => c.population.toLocaleString('pt-BR') },
+                                { label: 'População 15-44 anos', getValue: (c: any) => c.population15to44.toLocaleString('pt-BR') },
+                                { label: 'Renda Média Familiar', getValue: (c: any) => c.averageIncome.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}) },
+                                { label: 'Empregos Formais', getValue: (c: any) => c.formalJobs.toLocaleString('pt-BR') },
+                                { label: 'Índice de Urbanização', getValue: (c: any) => `${(c.urbanizationIndex * 100).toFixed(0)}%` },
+                            ].map((row, index) => (
+                                <tr 
+                                    key={row.label}
+                                    style={{ 
+                                        background: index % 2 === 0 ? 'rgba(55, 65, 81, 0.3)' : 'transparent',
+                                        borderBottom: '1px solid rgb(255 255 255 / 8%)'
+                                    }}
+                                    className="hover:bg-gray-700/40 transition-colors"
+                                >
+                                    <td className="p-3 font-semibold" style={{ color: 'rgb(255 255 255 / 80%)' }}>{row.label}</td>
+                                    {cities.map(c => <td key={c.id} className="p-3 text-center" style={{ color: 'rgb(255 255 255 / 80%)' }}>{row.getValue(c)}</td>)}
+                                </tr>
+                            ))}
+                            <tr 
+                                style={{ 
+                                    background: 'rgba(55, 65, 81, 0.3)',
+                                    borderBottom: '1px solid rgb(255 255 255 / 8%)'
+                                }}
+                                className="hover:bg-gray-700/40 transition-colors"
+                            >
+                                <td className="p-3 font-semibold" style={{ color: 'rgb(255 255 255 / 80%)' }}>Fonte IBGE</td>
                                 {cities.map(c => (
                                     <td key={c.id} className="p-3 text-center">
                                         <a 
@@ -267,7 +302,8 @@ const Comparison: React.FC = () => {
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             title={`Ver ${c.name} no IBGE Cidades`}
-                                            className="inline-block text-primary hover:text-primary-600"
+                                            className="inline-block hover:scale-110 transition-transform"
+                                            style={{ color: '#3b82f6' }}
                                         >
                                             <FiExternalLink className="h-5 w-5" />
                                         </a>
@@ -284,13 +320,39 @@ const Comparison: React.FC = () => {
                     title="Potencial de Mercado (Corridas/mês)"
                     tooltipText="Este gráfico compara o número estimado de corridas mensais para cada cidade, com base em diferentes cenários de penetração de mercado (de 2% a 20%) aplicados sobre a população de 15-44 anos."
                 >
-                    <Bar options={chartOptions('Corridas Mensais')} data={marketPotentialData} />
+                    <div className="h-80 dt-chart-glass" style={{ background: 'rgba(12,25,41,0.65)', borderRadius: 12, backdropFilter: 'blur(8px)' }}>
+                        <Bar options={{
+                            ...chartOptions('Corridas Mensais'),
+                            plugins: {
+                                ...chartOptions('Corridas Mensais').plugins,
+                                legend: { ...chartOptions('Corridas Mensais').plugins?.legend, labels: { color: '#fff' } },
+                            },
+                            scales: {
+                                ...chartOptions('Corridas Mensais').scales,
+                                x: { ...chartOptions('Corridas Mensais').scales?.x, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.08)' } },
+                                y: { ...chartOptions('Corridas Mensais').scales?.y, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.08)' } },
+                            }
+                        }} data={marketPotentialData} />
+                    </div>
                 </Card>
                 <Card
                     title="Projeções Financeiras (Receita/mês)"
                     tooltipText="Este gráfico compara a receita mensal estimada para cada cidade, calculada a partir do número de corridas (Potencial de Mercado) multiplicado pelo valor padrão por corrida (R$2,50)."
                 >
-                    <Bar options={chartOptions('Receita Mensal', true)} data={financialProjectionsData} />
+                    <div className="h-80 dt-chart-glass" style={{ background: 'rgba(12,25,41,0.65)', borderRadius: 12, backdropFilter: 'blur(8px)' }}>
+                        <Bar options={{
+                            ...chartOptions('Receita Mensal', true),
+                            plugins: {
+                                ...chartOptions('Receita Mensal', true).plugins,
+                                legend: { ...chartOptions('Receita Mensal', true).plugins?.legend, labels: { color: '#fff' } },
+                            },
+                            scales: {
+                                ...chartOptions('Receita Mensal', true).scales,
+                                x: { ...chartOptions('Receita Mensal', true).scales?.x, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.08)' } },
+                                y: { ...chartOptions('Receita Mensal', true).scales?.y, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.08)' } },
+                            }
+                        }} data={financialProjectionsData} />
+                    </div>
                 </Card>
             </div>
             
@@ -306,9 +368,25 @@ const Comparison: React.FC = () => {
                 tooltipText="Atalhos para ações comuns com base nas cidades selecionadas para comparação, como adicioná-las ao planejamento de expansão ou gerar relatórios."
             >
                 <div className="flex flex-wrap gap-4">
-                     <button className="flex items-center bg-primary text-white py-2 px-4 rounded-lg hover:bg-primary-600 transition"><FiPlusCircle className="mr-2"/>Adicionar todas ao roadmap</button>
-                     <button className="flex items-center bg-secondary text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition"><FiDownload className="mr-2"/>Gerar relatório executivo</button>
-                     <button onClick={() => navigate('/assistente')} className="flex items-center bg-tertiary text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition"><FiMessageSquare className="mr-2"/>Consultar assistente de IA</button>
+                     <button 
+                        className="flex items-center py-2 px-4 rounded-lg transition-colors"
+                        style={{ backgroundColor: '#3b82f6', color: '#ffffff' }}
+                    >
+                        <FiPlusCircle className="mr-2"/>Adicionar todas ao roadmap
+                    </button>
+                     <button 
+                        className="flex items-center py-2 px-4 rounded-lg transition-colors"
+                        style={{ backgroundColor: '#17a2b8', color: '#ffffff' }}
+                    >
+                        <FiDownload className="mr-2"/>Gerar relatório executivo
+                    </button>
+                     <button 
+                        onClick={() => navigate('/assistente')} 
+                        className="flex items-center py-2 px-4 rounded-lg transition-colors"
+                        style={{ backgroundColor: '#ffc107', color: '#000000' }}
+                    >
+                        <FiMessageSquare className="mr-2"/>Consultar assistente de IA
+                    </button>
                 </div>
             </Card>
         </div>

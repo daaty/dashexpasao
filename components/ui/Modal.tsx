@@ -13,27 +13,34 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }) => {
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4 transition-opacity duration-300"
+      className="fixed inset-0 z-50 flex justify-center items-center p-4 transition-opacity duration-300"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div 
-        className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-95 opacity-0 animate-scale-in"
+        className="rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-95 opacity-0 animate-scale-in"
         onClick={e => e.stopPropagation()}
-        style={{ animation: 'scale-in 0.2s ease-out forwards' }}
+        style={{ 
+          animation: 'scale-in 0.2s ease-out forwards',
+          backgroundColor: 'rgb(15 35 60 / 95%)',
+          backdropFilter: 'blur(15px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}
       >
-        <div className="flex justify-between items-center p-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800">{title || 'Detalhes'}</h2>
+        <div className="flex justify-between items-center p-4" style={{ borderBottom: '1px solid rgb(255 255 255 / 10%)' }}>
+          <h2 className="text-xl font-bold" style={{ color: '#ffffff' }}>{title || 'Detalhes'}</h2>
           <button 
             onClick={onClose} 
-            className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+            className="p-2 rounded-full transition-colors"
+            style={{ color: 'rgb(255 255 255 / 70%)', background: 'rgb(255 255 255 / 10%)' }}
             aria-label="Fechar modal"
           >
             <FiX className="h-6 w-6" />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto text-gray-800">
+        <div className="p-6 overflow-y-auto" style={{ color: 'rgb(255 255 255 / 85%)' }}>
           {children}
         </div>
       </div>

@@ -13,16 +13,23 @@ import Spinner from './ui/Spinner';
 import { useNavigate } from 'react-router-dom';
 
 const KpiCard = ({ icon, title, value, tooltipText }: { icon: React.ReactElement, title: string, value: string, tooltipText: string }) => (
-    <div className="bg-white p-3 rounded-lg flex items-center space-x-3 border border-gray-100 shadow-sm hover:border-indigo-500/30 transition-colors relative min-h-[80px]">
+    <div 
+        className="p-3 rounded-lg flex items-center space-x-3 shadow-sm transition-colors relative min-h-[80px]"
+        style={{
+            backgroundColor: 'rgb(0 0 0 / 30%)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgb(255 255 255 / 10%)'
+        }}
+    >
         <div className="absolute top-2 right-2">
             <InfoTooltip text={tooltipText} />
         </div>
-        <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+        <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full" style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6' }}>
              {React.cloneElement(icon, { className: "w-5 h-5" })}
         </div>
         <div className="pr-4">
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider leading-tight mb-0.5">{title}</p>
-            <p className="text-lg font-bold text-gray-900 leading-none">{value}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider leading-tight mb-0.5" style={{ color: 'rgb(255 255 255 / 70%)' }}>{title}</p>
+            <p className="text-lg font-bold leading-none" style={{ color: '#ffffff' }}>{value}</p>
         </div>
     </div>
 );
@@ -35,25 +42,25 @@ const ComparisonBar = ({ label, cityValue, stateValue, formatFn }: { label: stri
     return (
         <div>
             <div className="flex justify-between items-baseline mb-1">
-                <span className="text-sm font-semibold text-gray-700">{label}</span>
-                <span className={`text-xs font-bold ${isAboveAverage ? 'text-green-600' : 'text-orange-500'}`}>
+                <span className="text-sm font-semibold" style={{ color: 'rgb(255 255 255 / 80%)' }}>{label}</span>
+                <span className="text-xs font-bold" style={{ color: isAboveAverage ? '#08a50e' : '#ffc107' }}>
                     {isAboveAverage ? '▲' : '▼'} {percentageDiff.toFixed(1)}% {isAboveAverage ? 'acima da' : 'abaixo da'} média
                 </span>
             </div>
             <div className="space-y-1">
                  <div className="flex items-center">
-                    <span className="w-20 text-xs text-right mr-2 text-gray-500">Cidade:</span>
-                    <div className="w-full bg-gray-200 rounded-full h-4">
-                        <div className={`h-4 rounded-full ${isAboveAverage ? 'bg-primary' : 'bg-tertiary'}`} style={{ width: `${Math.min(100, (cityValue / (Math.max(cityValue, stateValue) * 1.2)) * 100)}%` }}></div>
+                    <span className="w-20 text-xs text-right mr-2" style={{ color: 'rgb(255 255 255 / 70%)' }}>Cidade:</span>
+                    <div className="w-full rounded-full h-4" style={{ backgroundColor: 'rgb(255 255 255 / 20%)' }}>
+                        <div className="h-4 rounded-full" style={{ width: `${Math.min(100, (cityValue / (Math.max(cityValue, stateValue) * 1.2)) * 100)}%`, backgroundColor: isAboveAverage ? '#3b82f6' : '#ffc107' }}></div>
                     </div>
-                    <span className="w-24 text-xs ml-2 font-bold text-gray-900">{formatFn(cityValue)}</span>
+                    <span className="w-24 text-xs ml-2 font-bold" style={{ color: '#ffffff' }}>{formatFn(cityValue)}</span>
                 </div>
                  <div className="flex items-center">
-                    <span className="w-20 text-xs text-right mr-2 text-gray-500">Média MT:</span>
-                    <div className="w-full bg-gray-200 rounded-full h-4">
-                        <div className="bg-gray-400 h-4 rounded-full" style={{ width: `${Math.min(100, (stateValue / (Math.max(cityValue, stateValue) * 1.2)) * 100)}%` }}></div>
+                    <span className="w-20 text-xs text-right mr-2" style={{ color: 'rgb(255 255 255 / 70%)' }}>Média MT:</span>
+                    <div className="w-full rounded-full h-4" style={{ backgroundColor: 'rgb(255 255 255 / 20%)' }}>
+                        <div className="h-4 rounded-full" style={{ width: `${Math.min(100, (stateValue / (Math.max(cityValue, stateValue) * 1.2)) * 100)}%`, backgroundColor: 'rgb(255 255 255 / 50%)' }}></div>
                     </div>
-                    <span className="w-24 text-xs ml-2 text-gray-700">{formatFn(stateValue)}</span>
+                    <span className="w-24 text-xs ml-2" style={{ color: 'rgb(255 255 255 / 80%)' }}>{formatFn(stateValue)}</span>
                 </div>
             </div>
         </div>
@@ -62,13 +69,20 @@ const ComparisonBar = ({ label, cityValue, stateValue, formatFn }: { label: stri
 
 
 const InfoItem = ({ icon, label, value }: { icon: React.ReactElement, label: string, value: string | number }) => (
-    <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-100 shadow-sm transition-colors hover:border-indigo-300">
-        <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 text-xl flex-shrink-0">
+    <div 
+        className="flex items-center space-x-3 p-3 rounded-lg shadow-sm transition-colors"
+        style={{
+            backgroundColor: 'rgb(0 0 0 / 30%)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgb(255 255 255 / 10%)'
+        }}
+    >
+        <div className="p-2 rounded-lg text-xl flex-shrink-0" style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6' }}>
             {icon}
         </div>
         <div className="min-w-0">
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5 truncate">{label}</p>
-            <p className="font-bold text-gray-900 text-sm truncate" title={String(value)}>{value}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 truncate" style={{ color: 'rgb(255 255 255 / 70%)' }}>{label}</p>
+            <p className="font-bold text-sm truncate" style={{ color: '#ffffff' }} title={String(value)}>{value}</p>
         </div>
     </div>
 );
@@ -179,7 +193,13 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
                 <FiExternalLink className="w-4 h-4" />
             </a>
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-lg">
+        <div 
+            className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-lg"
+            style={{
+                backgroundColor: 'rgb(0 0 0 / 30%)',
+                border: '1px solid rgb(255 255 255 / 10%)'
+            }}
+        >
             <InfoItem 
                 icon={<FiHash />} 
                 label="Código Município" 
@@ -218,22 +238,32 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
                 <h3 className="font-bold text-lg">Projeções de Receita</h3>
                 <InfoTooltip text="Receita mensal estimada com base em diferentes cenários de penetração de mercado (de 2% a 20%) sobre a população alvo."/>
             </div>
-            <div className="bg-gray-50 border border-gray-100 p-4 rounded-lg flex-grow">
+            <div 
+                className="p-4 rounded-lg flex-grow"
+                style={{
+                    backgroundColor: 'rgb(0 0 0 / 30%)',
+                    border: '1px solid rgb(255 255 255 / 10%)'
+                }}
+            >
                 <ul className="space-y-2">
                     {financialProjections.map((proj, index) => {
                         const details = scenarioDetails[proj.scenario as keyof typeof scenarioDetails];
                         const correspondingRides = marketPotential[index]?.rides || 0;
                         return (
-                            <li key={index} className="flex justify-between items-center text-sm p-2 rounded-md even:bg-white odd:bg-transparent">
+                            <li 
+                                key={index} 
+                                className="flex justify-between items-center text-sm p-2 rounded-md"
+                                style={{ backgroundColor: index % 2 === 0 ? 'transparent' : 'rgb(255 255 255 / 5%)' }}
+                            >
                                 <div className="flex items-center">
                                     <span className={`w-3 h-3 rounded-full mr-3 ${details?.color || 'bg-gray-400'}`}></span>
-                                    <span className="text-gray-700 w-32">
+                                    <span className="w-32" style={{ color: 'rgb(255 255 255 / 80%)' }}>
                                         ({details?.percentage}%) {proj.scenario}
                                     </span>
                                 </div>
                                 <div className="text-right">
-                                    <span className="font-bold text-base text-gray-900">{proj.revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                    <span className="text-xs text-gray-500 block">{Math.round(correspondingRides).toLocaleString('pt-BR')} corridas/mês</span>
+                                    <span className="font-bold text-base" style={{ color: '#ffffff' }}>{proj.revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    <span className="text-xs block" style={{ color: 'rgb(255 255 255 / 70%)' }}>{Math.round(correspondingRides).toLocaleString('pt-BR')} corridas/mês</span>
                                 </div>
                             </li>
                         );
@@ -243,8 +273,14 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
       </div>
 
        <div className="h-full flex flex-col">
-            <h3 className="font-bold text-lg mb-3">Comparativo (vs. Estado)</h3>
-            <div className="space-y-4 bg-gray-50 border border-gray-100 p-4 rounded-lg flex-grow">
+            <h3 className="font-bold text-lg mb-3" style={{ color: '#ffffff' }}>Comparativo (vs. Estado)</h3>
+            <div 
+                className="space-y-4 p-4 rounded-lg flex-grow"
+                style={{
+                    backgroundColor: 'rgb(0 0 0 / 30%)',
+                    border: '1px solid rgb(255 255 255 / 10%)'
+                }}
+            >
                 <ComparisonBar 
                     label="População Total"
                     cityValue={city.population}
@@ -269,12 +305,19 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
 
       <div className="w-full">
         <div className="flex justify-between items-center mb-2">
-            <h3 className="font-bold text-lg">Crescimento (6 Meses)</h3>
+            <h3 className="font-bold text-lg" style={{ color: '#ffffff' }}>Crescimento (6 Meses)</h3>
             <div className="flex items-center space-x-2">
               <InfoTooltip text="Projeção de crescimento de corridas para os primeiros 6 meses."/>
             </div>
         </div>
-        <div className="h-64 bg-white border border-gray-100 p-4 rounded-lg">
+        <div 
+            className="h-64 p-4 rounded-lg"
+            style={{
+                backgroundColor: 'rgb(0 0 0 / 30%)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgb(255 255 255 / 10%)'
+            }}
+        >
           <Line ref={chartRef} options={growthChartOptions} data={growthChartData} />
         </div>
       </div>
@@ -285,14 +328,22 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
           <button 
             onClick={handleAddPlan}
             disabled={planExists}
-            className="flex items-center bg-primary text-white py-2 px-4 rounded-lg hover:bg-primary-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="flex items-center py-2 px-4 rounded-lg transition disabled:cursor-not-allowed"
+            style={{
+                backgroundColor: planExists ? 'rgb(255 255 255 / 20%)' : '#3b82f6',
+                color: '#ffffff'
+            }}
           >
             <FiPlusCircle className="mr-2"/>
             {planExists ? 'Plano já Adicionado' : 'Adicionar ao Planejamento'}
           </button>
           <button
             onClick={handleAddToIntelligence}
-            className="flex items-center bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition"
+            className="flex items-center py-2 px-4 rounded-lg hover:shadow-lg hover:scale-105 transition-all"
+            style={{
+                background: 'linear-gradient(to right, #6f42c1, #3b82f6)',
+                color: '#ffffff'
+            }}
           >
             <FiBriefcase className="mr-2"/>
             Inteligência de Mercado
@@ -300,7 +351,11 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
           <button
             onClick={() => updateCity(city.id)}
             disabled={isUpdating === city.id}
-            className="flex items-center bg-secondary text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition disabled:bg-gray-400 disabled:cursor-wait"
+            className="flex items-center py-2 px-4 rounded-lg hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-wait disabled:hover:scale-100"
+            style={{
+                background: 'linear-gradient(to right, #3b82f6, #17a2b8)',
+                color: '#ffffff'
+            }}
             >
             {isUpdating === city.id ? (
                 <Spinner className="w-5 h-5 mr-2" />
@@ -309,11 +364,19 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
             )}
             {isUpdating === city.id ? 'Atualizando...' : 'Atualizar Dados'}
             </button>
-          <button className="flex items-center bg-tertiary text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition"><FiMessageSquare className="mr-2"/>Análise com IA</button>
+          <button 
+            className="flex items-center py-2 px-4 rounded-lg hover:shadow-lg hover:scale-105 transition-all"
+            style={{
+                background: 'linear-gradient(to right, #ffc107, #f62718)',
+                color: '#ffffff'
+            }}
+          >
+            <FiMessageSquare className="mr-2"/>Análise com IA
+          </button>
         </div>
       </div>
 
-      <div className="text-center pt-4 border-t border-gray-200">
+      <div className="text-center pt-4" style={{ borderTop: '1px solid rgb(255 255 255 / 10%)' }}>
         <a 
             href={`https://cidades.ibge.gov.br/brasil/mt/${slugify(city.name)}/panorama`}
             target="_blank"

@@ -86,6 +86,9 @@ export interface MonthResult {
     // New projected fields
     projectedMarketing?: number;
     projectedOperational?: number;
+    // Revenue fields (from recharges/credits sales)
+    projectedRevenue?: number;
+    actualRevenue?: number;
 }
 
 export interface CityPlan {

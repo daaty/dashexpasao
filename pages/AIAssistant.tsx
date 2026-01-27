@@ -16,7 +16,18 @@ interface QuickSuggestionProps {
 
 // FIX: Define QuickSuggestion as a React.FC to correctly handle props like 'key' in mapped lists.
 const QuickSuggestion: React.FC<QuickSuggestionProps> = ({ text, onSelect }) => (
-    <button onClick={() => onSelect(text)} className="bg-base-100 dark:bg-dark-100 border border-base-300 dark:border-dark-200 text-sm px-4 py-2 rounded-lg hover:bg-base-200 dark:hover:bg-dark-200 transition text-left">
+    <button 
+        onClick={() => onSelect(text)} 
+        className="backdrop-blur-sm text-sm px-4 py-2 rounded-lg transition text-left"
+        style={{ 
+            background: 'rgba(0, 0, 0, 0.2)', 
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            color: '#ffffff'
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)'}
+    >
         {text}
     </button>
 );
@@ -99,8 +110,14 @@ const AIAssistant: React.FC = () => {
                 <div className="flex-grow overflow-y-auto pr-4 space-y-6">
                     {messages.map((msg) => (
                         <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === ChatMessageSender.User ? 'justify-end' : ''}`}>
-                             {msg.sender === ChatMessageSender.AI && <div className="p-2 rounded-full bg-primary/20 text-primary"><FiCpu/></div>}
-                             <div className={`max-w-xl p-4 rounded-xl ${msg.sender === ChatMessageSender.User ? 'bg-primary text-white rounded-br-none' : 'bg-base-200 dark:bg-dark-100 rounded-bl-none'}`}>
+                             {msg.sender === ChatMessageSender.AI && <div className="p-2 rounded-full" style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6' }}><FiCpu/></div>}
+                             <div 
+                                className={`max-w-xl p-4 rounded-xl ${msg.sender === ChatMessageSender.User ? 'text-white rounded-br-none' : 'backdrop-blur-sm rounded-bl-none'}`}
+                                style={msg.sender === ChatMessageSender.User 
+                                    ? { backgroundColor: '#3b82f6' } 
+                                    : { background: 'rgba(0, 0, 0, 0.2)', backdropFilter: 'blur(10px)' }
+                                }
+                            >
                                 {msg.isLoading ? (
                                     <div className="flex items-center space-x-2">
                                         <Spinner className="w-4 h-4" /> <span>Analisando...</span>
@@ -109,7 +126,7 @@ const AIAssistant: React.FC = () => {
                                     <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none">{msg.text}</ReactMarkdown>
                                 )}
                             </div>
-                             {msg.sender === ChatMessageSender.User && <div className="p-2 rounded-full bg-secondary/20 text-secondary"><FiUser/></div>}
+                             {msg.sender === ChatMessageSender.User && <div className="p-2 rounded-full" style={{ backgroundColor: 'rgba(23, 162, 184, 0.2)', color: '#17a2b8' }}><FiUser/></div>}
                         </div>
                     ))}
                      <div ref={messagesEndRef} />
@@ -123,7 +140,7 @@ const AIAssistant: React.FC = () => {
                 </div>
 
                 {/* Input Area */}
-                <div className="mt-auto pt-4 border-t border-base-300 dark:border-dark-100">
+                <div className="mt-auto pt-4" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
                     <div className="relative">
                         <input
                             type="text"
@@ -131,10 +148,21 @@ const AIAssistant: React.FC = () => {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                             placeholder={isDataLoading ? "Aguardando dados do IBGE..." : "Pergunte algo ao assistente..."}
-                            className="w-full p-4 pr-12 rounded-lg bg-base-200 dark:bg-dark-100 border border-base-300 dark:border-dark-200 focus:ring-primary focus:border-primary"
+                            className="w-full p-4 pr-12 rounded-lg backdrop-blur-sm"
+                            style={{ 
+                                background: 'rgba(0, 0, 0, 0.2)', 
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                color: '#ffffff'
+                            }}
                             disabled={isLoading || isDataLoading}
                         />
-                        <button onClick={() => handleSend()} disabled={isLoading || isDataLoading} className="absolute top-1/2 right-4 -translate-y-1/2 p-2 rounded-full bg-primary text-white hover:bg-primary-600 disabled:bg-gray-400">
+                        <button 
+                            onClick={() => handleSend()} 
+                            disabled={isLoading || isDataLoading} 
+                            className="absolute top-1/2 right-4 -translate-y-1/2 p-2 rounded-full text-white"
+                            style={{ backgroundColor: isLoading || isDataLoading ? 'rgba(255, 255, 255, 0.1)' : '#3b82f6' }}
+                        >
                            <FiSend/>
                         </button>
                     </div>

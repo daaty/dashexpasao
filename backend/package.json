@@ -13,7 +13,8 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
     "lint": "eslint src --ext .ts",
-    "test": "jest"
+    "test": "jest",
+    "update:transactions": "tsx scripts/update-transactions-descriptions.ts transactions-updates.csv"
   },
   "keywords": [
     "api",
@@ -45,6 +46,7 @@
     "@types/express": "^5.0.0",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.14.0",
+    "@types/pg": "^8.16.0",
     "@typescript-eslint/eslint-plugin": "^8.21.0",
     "@typescript-eslint/parser": "^8.21.0",
     "eslint": "^9.19.0",

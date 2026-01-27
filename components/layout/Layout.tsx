@@ -12,10 +12,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-slate-950 overflow-hidden font-sans text-slate-900 dark:text-slate-100">
+    <div className="flex flex-col h-screen overflow-hidden font-sans" style={{ color: 'rgb(255 255 255 / 70%)' }}>
       <Header toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} />
       <Sidebar />
-      <main className="flex-1 overflow-x-hidden overflow-y-auto scroll-smooth p-6 lg:p-10 relative bg-slate-50 dark:bg-slate-950">
+      <main className="flex-1 overflow-x-hidden overflow-y-auto scroll-smooth p-6 lg:p-10 relative" style={{ backgroundColor: 'transparent' }}>
         <div className="max-w-[1920px] mx-auto w-full">
           {children}
         </div>

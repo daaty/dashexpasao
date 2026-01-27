@@ -14,6 +14,20 @@ const router = Router();
 router.get('/', planningController.getAllPlannings);
 
 /**
+ * @route   GET /api/plannings/revenue/:cityName
+ * @desc    Buscar receita de recargas por mês para uma cidade
+ * @access  Public
+ */
+router.get('/revenue/:cityName', planningController.getRechargeRevenue);
+
+/**
+ * @route   GET /api/plannings/results/:cityId
+ * @desc    Buscar resultados financeiros de planejamento
+ * @access  Public
+ */
+router.get('/results/:cityId', planningResultsController.getResults);
+
+/**
  * @route   GET /api/plannings/:id
  * @desc    Buscar planejamento por ID
  * @access  Public
@@ -68,13 +82,6 @@ router.delete('/tasks/:taskId', planningController.deleteTask);
  * @access  Private
  */
 router.post('/results/:cityId', planningResultsController.saveResults);
-
-/**
- * @route   GET /api/plannings/results/:cityId
- * @desc    Buscar resultados financeiros de planejamento
- * @access  Public
- */
-router.get('/results/:cityId', planningResultsController.getResults);
 
 /**
  * @route   PUT /api/plannings/start-date/:cityId

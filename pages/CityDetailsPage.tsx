@@ -17,10 +17,13 @@ const CityDetailsPage: React.FC = () => {
     if (!city) {
         return (
             <div className="flex flex-col items-center justify-center h-64">
-                <h2 className="text-xl font-bold text-gray-700 dark:text-gray-200">Cidade não encontrada</h2>
+                <h2 className="text-xl font-bold" style={{ color: '#ffffff' }}>Cidade não encontrada</h2>
                 <button 
                     onClick={() => navigate('/consulta')}
-                    className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition"
+                    className="mt-4 px-4 py-2 text-white rounded-lg transition"
+                    style={{ backgroundColor: '#3b82f6' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.8)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
                 >
                     Voltar para Consulta
                 </button>
@@ -33,17 +36,20 @@ const CityDetailsPage: React.FC = () => {
             <div className="flex items-center space-x-4">
                 <button 
                     onClick={() => navigate(-1)} 
-                    className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-dark-100 transition"
+                    className="p-2 rounded-full transition"
+                    style={{ backgroundColor: 'transparent' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     title="Voltar"
                 >
-                    <FiArrowLeft className="h-6 w-6 text-gray-600 dark:text-gray-300" />
+                    <FiArrowLeft className="h-6 w-6" style={{ color: 'rgba(255, 255, 255, 0.8)' }} />
                 </button>
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                <h1 className="text-2xl font-bold" style={{ color: '#ffffff' }}>
                     Detalhes de {city.name}
                 </h1>
             </div>
 
-            <Card className="bg-white">
+            <Card className="backdrop-blur-sm" style={{ background: 'rgba(0, 0, 0, 0.2)', backdropFilter: 'blur(10px)' }}>
                 <CityDetails city={city} />
             </Card>
         </div>

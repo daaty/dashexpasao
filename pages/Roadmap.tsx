@@ -84,15 +84,15 @@ const TagSummary: React.FC<{ actions: DailyActionItem[], allTags: Tag[] }> = ({ 
     if (activeTagIds.length === 0) return null;
 
     return (
-        <div className="flex flex-wrap gap-2 mb-4 px-1 pb-3 border-b border-slate-200 dark:border-slate-700">
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase self-center mr-1 tracking-wider">Resumo:</span>
+        <div className="flex flex-wrap gap-2 mb-4 px-1 pb-3" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+            <span className="text-[10px] font-bold uppercase self-center mr-1 tracking-wider" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Resumo:</span>
             {activeTagIds.map(id => {
                 const tag = allTags.find(t => t.id === id);
                 if (!tag) return null;
                 return (
                     <div key={id} className="text-[10px] pl-2.5 pr-1.5 py-1 rounded-full text-white font-semibold flex items-center shadow-md hover:shadow-lg transition-all" style={{ backgroundColor: tag.color }}>
                         <span className="mr-1.5">{tag.label}</span>
-                        <span className="bg-white/30 px-2 rounded-full text-[9px] min-w-[18px] text-center font-bold">{counts[id]}</span>
+                        <span className="px-2 rounded-full text-[9px] min-w-[18px] text-center font-bold" style={{ backgroundColor: 'rgba(255, 255, 255, 0.3)' }}>{counts[id]}</span>
                     </div>
                 );
             })}
@@ -466,38 +466,59 @@ const Roadmap: React.FC = () => {
     // --- RENDERERS ---
 
     const renderFilterBar = () => (
-        <div className={`bg-base-100 dark:bg-dark-200 border-b border-base-300 dark:border-dark-100 transition-all duration-300 overflow-hidden ${showFilters ? 'p-4 max-h-40 opacity-100' : 'max-h-0 p-0 opacity-0'}`}>
+        <div 
+            className={`transition-all duration-300 overflow-hidden ${showFilters ? 'p-4 max-h-40 opacity-100' : 'max-h-0 p-0 opacity-0'}`}
+            style={{ 
+                backgroundColor: '#151313', 
+                borderBottom: showFilters ? '1px solid rgba(255, 255, 255, 0.1)' : 'none' 
+            }}
+        >
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Buscar Cidade</label>
+                    <label className="text-xs font-bold uppercase mb-1 block" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Buscar Cidade</label>
                     <div className="relative">
-                        <FiSearch className="absolute left-3 top-2.5 text-gray-400" />
+                        <FiSearch className="absolute left-3 top-2.5" style={{ color: 'rgba(255, 255, 255, 0.7)' }} />
                         <input 
                             type="text" 
                             placeholder="Ex: Sinop" 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-9 p-2 rounded-lg bg-base-200 dark:bg-dark-300 border border-base-300 dark:border-dark-100 focus:ring-primary focus:border-primary text-sm"
+                            className="w-full pl-9 p-2 rounded-lg text-sm"
+                            style={{ 
+                                background: 'rgba(0, 0, 0, 0.2)', 
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                color: '#ffffff'
+                            }}
                         />
                     </div>
                 </div>
                 <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Status</label>
+                    <label className="text-xs font-bold uppercase mb-1 block" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Status</label>
                     <select 
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value as any)}
-                        className="w-full p-2 rounded-lg bg-base-200 dark:bg-dark-300 border border-base-300 dark:border-dark-100 focus:ring-primary focus:border-primary text-sm"
+                        className="w-full p-2 rounded-lg text-sm"
+                        style={{ 
+                            background: 'rgba(0, 0, 0, 0.2)', 
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            color: '#ffffff'
+                        }}
                     >
                         <option value="Todos">Todos os Status</option>
                         {Object.values(CityStatus).map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                 </div>
                 <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Região</label>
+                    <label className="text-xs font-bold uppercase mb-1 block" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Região</label>
                     <select 
                         value={filterRegion}
                         onChange={(e) => setFilterRegion(e.target.value as any)}
-                        className="w-full p-2 rounded-lg bg-base-200 dark:bg-dark-300 border border-base-300 dark:border-dark-100 focus:ring-primary focus:border-primary text-sm"
+                        className="w-full p-2 rounded-lg text-sm"
+                        style={{ 
+                            background: 'rgba(0, 0, 0, 0.2)', 
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            color: '#ffffff'
+                        }}
                     >
                         <option value="Todos">Todas as Regiões</option>
                         {Object.values(Mesorregion).map(r => <option key={r} value={r}>{r}</option>)}
@@ -506,7 +527,8 @@ const Roadmap: React.FC = () => {
                 <div className="flex items-center pb-2">
                     <button 
                         onClick={() => setHideEmptyRows(!hideEmptyRows)}
-                        className={`flex items-center text-sm font-medium transition-colors ${hideEmptyRows ? 'text-primary' : 'text-gray-500'}`}
+                        className="flex items-center text-sm font-medium transition-colors"
+                        style={{ color: hideEmptyRows ? '#3b82f6' : 'rgba(255, 255, 255, 0.7)' }}
                     >
                         {hideEmptyRows ? <FiEyeOff className="mr-2"/> : <FiEye className="mr-2"/>}
                         {hideEmptyRows ? 'Ocultando sem atividade' : 'Mostrando tudo'}
@@ -522,7 +544,23 @@ const Roadmap: React.FC = () => {
         const responsible = getResponsible(action.responsibleId);
 
         return (
-            <div key={action.id} className={`flex items-start p-3.5 mb-3 rounded-xl border-2 transition-all hover:shadow-lg hover:scale-[1.01] ${action.completed ? 'bg-slate-100/50 dark:bg-slate-900 border-slate-300 dark:border-slate-700 opacity-75' : isOverdue ? 'bg-gradient-to-r from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-300 dark:border-red-800 shadow-md' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm'}`}>
+            <div 
+                key={action.id} 
+                className={`flex items-start p-3.5 mb-3 rounded-xl border-2 transition-all hover:shadow-lg hover:scale-[1.01] ${action.completed ? 'opacity-75' : isOverdue ? 'shadow-md' : 'shadow-sm'}`}
+                style={{
+                    background: action.completed 
+                        ? 'rgba(255, 255, 255, 0.05)' 
+                        : isOverdue 
+                            ? 'linear-gradient(to right, rgba(246, 39, 24, 0.1), rgba(246, 39, 24, 0.05))' 
+                            : 'rgba(0, 0, 0, 0.2)',
+                    backdropFilter: 'blur(10px)',
+                    borderColor: action.completed 
+                        ? 'rgba(255, 255, 255, 0.1)' 
+                        : isOverdue 
+                            ? '#f62718' 
+                            : 'rgba(255, 255, 255, 0.1)'
+                }}
+            >
                 {/* Time Column (Simulated) */}
                 <div className={`flex flex-col items-center justify-center mr-4 w-14 pt-1 ${action.completed ? 'text-slate-400' : isOverdue ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
                     <span className="text-xs font-black">{action.simulatedTime}</span>
@@ -578,7 +616,23 @@ const Roadmap: React.FC = () => {
                         </div>
                         <button 
                             onClick={() => handleToggleAction(action)}
-                            className={`ml-3 p-1.5 rounded-lg transition-all flex-shrink-0 hover:scale-110 ${action.completed ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-100/50 dark:bg-blue-900/20' : 'text-slate-300 dark:text-slate-600 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                            className={`ml-3 p-1.5 rounded-lg transition-all flex-shrink-0 hover:scale-110`}
+                            style={{
+                                color: action.completed ? '#3b82f6' : 'rgba(255, 255, 255, 0.8)',
+                                backgroundColor: action.completed ? 'rgba(59, 130, 246, 0.2)' : 'transparent'
+                            }}
+                            onMouseEnter={(e) => {
+                                if (!action.completed) {
+                                    e.currentTarget.style.color = '#3b82f6';
+                                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!action.completed) {
+                                    e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                }
+                            }}
                         >
                             {action.completed ? <FiCheckSquare className="w-6 h-6" /> : <FiSquare className="w-6 h-6" />}
                         </button>
@@ -656,7 +710,14 @@ const Roadmap: React.FC = () => {
          const allWeeklyActions = weeklyActions.flatMap(d => d.actions);
 
          return (
-            <Card className="h-[500px] flex flex-col bg-white dark:bg-slate-900 border-l-2 border-slate-200 dark:border-slate-800 shadow-xl">
+            <Card 
+                className="h-[500px] flex flex-col border-l-2 shadow-xl"
+                style={{ 
+                    background: 'rgba(0, 0, 0, 0.2)', 
+                    backdropFilter: 'blur(10px)',
+                    borderLeftColor: 'rgba(255, 255, 255, 0.1)'
+                }}
+            >
                  <div className="flex items-center mb-4 border-b-2 border-slate-200 dark:border-slate-700 pb-4">
                     <div className="p-2.5 bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl mr-3 shadow-lg">
                         <FiCalendar className="w-5 h-5" />
@@ -687,7 +748,7 @@ const Roadmap: React.FC = () => {
                                 </h4>
 
                                 {dayGroup.actions.length === 0 ? (
-                                    <p className="text-[10px] text-gray-400 italic mb-4">--</p>
+                                    <p className="text-[10px] italic mb-4" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>--</p>
                                 ) : (
                                     <div className="space-y-2 mb-4">
                                         {dayGroup.actions.slice(0, 4).map(action => {
@@ -695,7 +756,17 @@ const Roadmap: React.FC = () => {
                                             const responsible = getResponsible(action.responsibleId);
                                             
                                             return (
-                                                <div key={action.id} className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border-2 border-slate-200 dark:border-slate-700 flex flex-col shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-200 hover:border-blue-400 dark:hover:border-blue-600">
+                                                <div 
+                                                    key={action.id} 
+                                                    className="p-2.5 rounded-lg border-2 flex flex-col shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
+                                                    style={{ 
+                                                        background: 'rgba(0, 0, 0, 0.2)', 
+                                                        backdropFilter: 'blur(10px)',
+                                                        borderColor: 'rgba(255, 255, 255, 0.1)'
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.borderColor = '#3b82f6'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
+                                                >
                                                     <div className="flex items-center">
                                                         <span className={`w-1 h-6 rounded-full mr-2.5 flex-shrink-0 shadow-md ${
                                                             action.cityStatus === 'Consolidada' ? 'bg-gradient-to-b from-green-400 to-green-600' : 
@@ -766,19 +837,32 @@ const Roadmap: React.FC = () => {
 
         if (filteredData.length === 0) {
             return (
-                <div className="text-center py-24 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950 rounded-xl border-2 border-slate-200 dark:border-slate-700 shadow-lg">
+                <div 
+                    className="text-center py-24 rounded-xl shadow-lg"
+                    style={{ 
+                        background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.2), rgba(255, 255, 255, 0.05))',
+                        border: '2px solid rgba(255, 255, 255, 0.1)'
+                    }}
+                >
                     <div className="relative inline-block">
-                        <div className="absolute inset-0 blur-2xl bg-blue-600/10 dark:bg-blue-500/20"></div>
-                        <FiCalendar className="relative mx-auto text-5xl text-slate-300 dark:text-slate-600 mb-6" />
+                        <div className="absolute inset-0 blur-2xl" style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)' }}></div>
+                        <FiCalendar className="relative mx-auto text-5xl mb-6" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
                     </div>
-                    <p className="text-slate-700 dark:text-slate-300 text-xl font-bold mb-2">Nenhuma atividade encontrada</p>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm">Tente ajustar os filtros ou selecionar outro mês.</p>
+                    <p className="text-xl font-bold mb-2" style={{ color: '#ffffff' }}>Nenhuma atividade encontrada</p>
+                    <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Tente ajustar os filtros ou selecionar outro mês.</p>
                 </div>
             );
         }
 
         return (
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border-2 border-slate-200 dark:border-slate-800 flex flex-col h-[600px] relative overflow-hidden">
+            <div 
+                className="rounded-xl shadow-xl flex flex-col h-[600px] relative overflow-hidden"
+                style={{ 
+                    background: 'rgba(0, 0, 0, 0.2)', 
+                    backdropFilter: 'blur(10px)',
+                    border: '2px solid rgba(255, 255, 255, 0.1)'
+                }}
+            >
                 <div className="overflow-auto flex-grow custom-scrollbar relative h-full">
                     <div className="min-w-max relative">
                         
@@ -818,7 +902,7 @@ const Roadmap: React.FC = () => {
                         <div className="relative">
                              {/* Red Line Overlay */}
                             {redLineLeft >= 0 && (
-                                <div className="absolute top-0 bottom-0 w-px bg-red-500 z-0 pointer-events-none" style={{ left: `${SIDEBAR_WIDTH + redLineLeft}px` }}></div>
+                                <div className="absolute top-0 bottom-0 w-px z-0 pointer-events-none" style={{ left: `${SIDEBAR_WIDTH + redLineLeft}px`, backgroundColor: '#f62718' }}></div>
                             )}
 
                             {filteredData.map(({ city, plan }) => {
@@ -867,7 +951,13 @@ const Roadmap: React.FC = () => {
                                     <div key={city.id} className="flex border-b border-slate-200 dark:border-slate-800 group relative hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors" style={{ height: `${totalHeight}px` }}>
                                         {/* Sidebar */}
                                         <div 
-                                            className="sticky left-0 w-[240px] flex-shrink-0 p-4 border-r border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 z-30 font-medium text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-[2px_0_8px_rgba(0,0,0,0.08)] dark:shadow-[2px_0_8px_rgba(0,0,0,0.3)] cursor-pointer group/city"
+                                            className="sticky left-0 w-[240px] flex-shrink-0 p-4 z-30 font-medium text-sm transition-all shadow-[2px_0_8px_rgba(0,0,0,0.08)] dark:shadow-[2px_0_8px_rgba(0,0,0,0.3)] cursor-pointer group/city"
+                                            style={{ 
+                                                backgroundColor: '#151313',
+                                                borderRight: '1px solid rgba(255, 255, 255, 0.1)'
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#151313'}
                                             onClick={() => toggleCityAllPhases(city.id, plan.phases.length)}
                                         >
                                             <div className="flex items-center justify-between h-10 w-full">
@@ -971,100 +1061,113 @@ const Roadmap: React.FC = () => {
                                                                                     draggable="true"
                                                                                     onDragStart={(e) => handleDragStart(e, action, city.id, phase.name)}
                                                                                     className={`absolute w-5 h-5 flex items-center justify-center transform rotate-45 border-2 shadow-md cursor-pointer hover:scale-110 transition-transform z-30
-                                                                                        ${action.completed ? 'bg-green-500 border-white' : isOverdue ? 'bg-red-500 border-white animate-pulse' : 'bg-blue-600 border-white'}
-                                                                                    `}
-                                                                                    style={{
-                                                                                        left: `${aLeft + (PIXELS_PER_DAY/2) - 10}px`, // Centered on day
-                                                                                        top: `${aIdx * ACTION_ROW_HEIGHT + 7}px`
-                                                                                    }}
-                                                                                    title={`${tagNames ? tagNames + ' ' : ''}MARCO: ${action.description} - ${new Date(action.estimatedCompletionDate).toLocaleDateString()}`}
-                                                                                 >
-                                                                                     <FiStar className="text-white transform -rotate-45 w-3 h-3" />
-                                                                                 </div>
-                                                                            );
-                                                                        }
+                                                                        ${isOverdue ? 'animate-pulse' : ''}
+                                                                    `}
+                                                                    style={{
+                                                                        left: `${aLeft + (PIXELS_PER_DAY/2) - 10}px`,
+                                                                        top: `${aIdx * ACTION_ROW_HEIGHT + 7}px`,
+                                                                        backgroundColor: action.completed ? '#08a50e' : isOverdue ? '#f62718' : '#3b82f6',
+                                                                        borderColor: '#ffffff'
+                                                                    }}
+                                                                    title={`${tagNames ? tagNames + ' ' : ''}MARCO: ${action.description} - ${new Date(action.estimatedCompletionDate).toLocaleDateString()}`}
+                                                                 >
+                                                                     <FiStar className="text-white transform -rotate-45 w-3 h-3" />
+                                                                 </div>
+                                                            );
+                                                        }
 
-                                                                        // Normal Bar
-                                                                        const aWidth = Math.max(20, aDuration * PIXELS_PER_DAY);
-                                                                        if ((aStartDiff + aDuration) < 0) return null;
+                                                        // Normal Bar
+                                                        const aWidth = Math.max(20, aDuration * PIXELS_PER_DAY);
+                                                        if ((aStartDiff + aDuration) < 0) return null;
+                                                        
+                                                        return (
+                                                            <div
+                                                                key={action.id}
+                                                                draggable="true"
+                                                                onDragStart={(e) => {
+                                                                    handleDragStart(e, action, city.id, phase.name, 'move');
+                                                                }}
+                                                                className={`absolute h-7 rounded-lg flex items-center px-2.5 text-[10px] shadow-md border-2 cursor-move transition-all overflow-visible hover:shadow-lg hover:scale-105 hover:z-40 group/action
+                                                                    ${action.completed ? 'bg-gradient-to-r from-green-100 to-green-200 border-green-400 text-green-900 dark:from-green-900/30 dark:to-green-800/30 dark:border-green-700 dark:text-green-300' : 
+                                                                    isOverdue ? 'bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/20 border-red-500 border-l-4 text-red-700 dark:text-red-400 animate-pulse' :
+                                                                    ''}
+                                                                    ${isDragging ? 'opacity-50 border-dashed border-blue-600 dark:border-blue-400 ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2' : 'hover:border-blue-500 dark:hover:border-blue-400'}
+                                                                `}
+                                                                style={{
+                                                                    left: `${aLeft}px`,
+                                                                    width: `${aWidth}px`,
+                                                                    top: `${aIdx * ACTION_ROW_HEIGHT + 4}px`,
+                                                                    ...((!action.completed && !isOverdue) && {
+                                                                        background: 'rgba(0, 0, 0, 0.2)',
+                                                                        backdropFilter: 'blur(10px)',
+                                                                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                                                                        color: 'rgba(255, 255, 255, 0.8)'
+                                                                    })
+                                                                }}
+                                                                title={`${tagNames ? tagNames + ' ' : ''}${action.description} ${isOverdue ? '(Atrasado)' : ''} ${responsible ? `- Resp: ${responsible.name}` : ''}`}
+                                                            >
+                                                                {/* Resize Handle - Left (Explicit) */}
+                                                                <div
+                                                                    draggable="true"
+                                                                    onDragStart={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDragStart(e, action, city.id, phase.name, 'resize-start');
+                                                                    }}
+                                                                    className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize transition-all z-50 group-hover/action:opacity-100 opacity-0"
+                                                                    style={{ backgroundColor: 'transparent' }}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.2)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                                    title="Arrastar para ajustar data inicial"
+                                                                />
+                                                                
+                                                                {/* Visuals */}
+                                                                <FiMove className="mr-1 text-slate-400 dark:text-slate-500 flex-shrink-0 cursor-move opacity-0 group-hover/action:opacity-100" size={10} />
+                                                                {action.completed ? <FiCheckCircle className="mr-1 text-green-600 dark:text-green-400 flex-shrink-0" /> : <FiActivity className="mr-1 text-slate-400 dark:text-slate-500 flex-shrink-0" />}
+                                                                <span className="truncate flex-grow flex items-center font-medium pointer-events-none">
+                                                                    {/* Show Tiny Dot for Tags in Timeline */}
+                                                                    {itemTags.length > 0 && (
+                                                                         <span className="flex mr-1.5 gap-0.5">
+                                                                             {itemTags.slice(0, 2).map(t => (
+                                                                                 <span key={t.id} className="w-1.5 h-1.5 rounded-full shadow-sm" style={{ backgroundColor: t.color }}></span>
+                                                                             ))}
+                                                                         </span>
+                                                                    )}
+                                                                     {/* Show Responsible Avatar in Timeline */}
+                                                                    {responsible && (
+                                                                         <span 
+                                                                            className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white shadow-md flex-shrink-0 mr-1.5 ring-1 ring-white dark:ring-slate-800"
+                                                                            style={{ backgroundColor: responsible.color }}
+                                                                        >
+                                                                            {responsible.initials}
+                                                                        </span>
+                                                                    )}
+                                                                    {action.description}
+                                                                </span>
 
-                                                                        return (
-                                                                            <div 
-                                                                                key={action.id}
-                                                                                draggable="true"
-                                                                                onDragStart={(e) => {
-                                                                                    // Default move drag start
-                                                                                    handleDragStart(e, action, city.id, phase.name, 'move');
-                                                                                }}
-                                                                                className={`absolute h-7 rounded-lg flex items-center px-2.5 text-[10px] shadow-md border-2 cursor-move transition-all overflow-visible hover:shadow-lg hover:scale-105 hover:z-40 group/action
-                                                                                    ${action.completed ? 'bg-gradient-to-r from-green-100 to-green-200 border-green-400 text-green-900 dark:from-green-900/30 dark:to-green-800/30 dark:border-green-700 dark:text-green-300' : 
-                                                                                    isOverdue ? 'bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/20 border-red-500 border-l-4 text-red-700 dark:text-red-400 animate-pulse' :
-                                                                                    'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300'}
-                                                                                    ${isDragging ? 'opacity-50 border-dashed border-blue-600 dark:border-blue-400 ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2' : 'hover:border-blue-500 dark:hover:border-blue-400'}
-                                                                                `}
-                                                                                style={{
-                                                                                    left: `${aLeft}px`,
-                                                                                    width: `${aWidth}px`,
-                                                                                    top: `${aIdx * ACTION_ROW_HEIGHT + 4}px`, 
-                                                                                }}
-                                                                                title={`${tagNames ? tagNames + ' ' : ''}${action.description} ${isOverdue ? '(Atrasado)' : ''} ${responsible ? `- Resp: ${responsible.name}` : ''}`}
-                                                                            >
-                                                                                {/* Resize Handle - Left (Explicit) */}
-                                                                                <div
-                                                                                    draggable="true"
-                                                                                    onDragStart={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        handleDragStart(e, action, city.id, phase.name, 'resize-start');
-                                                                                    }}
-                                                                                    className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize bg-blue-500/0 hover:bg-blue-500/20 transition-all z-50 group-hover/action:opacity-100 opacity-0"
-                                                                                    title="Arrastar para ajustar data inicial"
-                                                                                />
-                                                                                
-                                                                                {/* Visuals */}
-                                                                                <FiMove className="mr-1 text-slate-400 dark:text-slate-500 flex-shrink-0 cursor-move opacity-0 group-hover/action:opacity-100" size={10} />
-                                                                                {action.completed ? <FiCheckCircle className="mr-1 text-green-600 dark:text-green-400 flex-shrink-0" /> : <FiActivity className="mr-1 text-slate-400 dark:text-slate-500 flex-shrink-0" />}
-                                                                                <span className="truncate flex-grow flex items-center font-medium pointer-events-none">
-                                                                                    {/* Show Tiny Dot for Tags in Timeline */}
-                                                                                    {itemTags.length > 0 && (
-                                                                                         <span className="flex mr-1.5 gap-0.5">
-                                                                                             {itemTags.slice(0, 2).map(t => (
-                                                                                                 <span key={t.id} className="w-1.5 h-1.5 rounded-full shadow-sm" style={{ backgroundColor: t.color }}></span>
-                                                                                             ))}
-                                                                                         </span>
-                                                                                    )}
-                                                                                     {/* Show Responsible Avatar in Timeline */}
-                                                                                    {responsible && (
-                                                                                         <span 
-                                                                                            className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white shadow-md flex-shrink-0 mr-1.5 ring-1 ring-white dark:ring-slate-800"
-                                                                                            style={{ backgroundColor: responsible.color }}
-                                                                                        >
-                                                                                            {responsible.initials}
-                                                                                        </span>
-                                                                                    )}
-                                                                                    {action.description}
-                                                                                </span>
-
-                                                                                {/* Resize Handle - Right (Explicit) */}
-                                                                                <div
-                                                                                    draggable="true"
-                                                                                    onDragStart={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        handleDragStart(e, action, city.id, phase.name, 'resize-end');
-                                                                                    }}
-                                                                                    className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize bg-blue-500/0 hover:bg-blue-500/20 transition-all z-50 group-hover/action:opacity-100 opacity-0"
-                                                                                    title="Arrastar para ajustar data final"
-                                                                                />
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            )}
-                                                        </React.Fragment>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
+                                                                {/* Resize Handle - Right (Explicit) */}
+                                                                <div
+                                                                    draggable="true"
+                                                                    onDragStart={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDragStart(e, action, city.id, phase.name, 'resize-end');
+                                                                    }}
+                                                                    className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize transition-all z-50 group-hover/action:opacity-100 opacity-0"
+                                                                    style={{ backgroundColor: 'transparent' }}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.2)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                                    title="Arrastar para ajustar data final"
+                                                                />
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
                                 );
                             })}
                         </div>
@@ -1137,7 +1240,14 @@ const Roadmap: React.FC = () => {
             </Card>
 
              {/* Footer Legend */}
-            <div className="flex flex-col gap-4 text-xs mt-4 p-5 bg-white dark:bg-slate-900 rounded-xl border-2 border-slate-200 dark:border-slate-800 shadow-lg">
+            <div 
+                className="flex flex-col gap-4 text-xs mt-4 p-5 rounded-xl shadow-lg"
+                style={{ 
+                    background: 'rgba(0, 0, 0, 0.2)', 
+                    backdropFilter: 'blur(10px)',
+                    border: '2px solid rgba(255, 255, 255, 0.1)'
+                }}
+            >
                 <div className="flex flex-wrap gap-4 items-center">
                     <div className="flex items-center font-black text-slate-600 dark:text-slate-400 uppercase mr-4 tracking-wider">Legenda:</div>
                     {Object.entries(PHASE_COLORS).map(([name, colors]) => (
@@ -1146,8 +1256,8 @@ const Roadmap: React.FC = () => {
                             <span className="truncate">{name}</span>
                         </div>
                     ))}
-                    <div className="flex items-center ml-4 border-l-2 pl-4 border-slate-300 dark:border-slate-700 font-medium text-slate-700 dark:text-slate-300">
-                        <div className="w-3 h-3 transform rotate-45 bg-blue-600 border border-white shadow-md mr-2"></div>
+                    <div className="flex items-center ml-4 border-l-2 pl-4 font-medium" style={{ borderColor: 'rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.8)' }}>
+                        <div className="w-3 h-3 transform rotate-45 border border-white shadow-md mr-2" style={{ backgroundColor: '#3b82f6' }}></div>
                         <span>Marco Crítico (Inauguração/Evento)</span>
                     </div>
                 </div>
@@ -1157,17 +1267,20 @@ const Roadmap: React.FC = () => {
                     <div className="flex items-center font-black text-blue-600 dark:text-blue-400 uppercase mr-2 tracking-wider">
                         <FiMove className="mr-2 w-4 h-4" /> Interação:
                     </div>
-                    <div className="flex items-center font-medium text-slate-700 dark:text-slate-300">
-                        <div className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-lg mr-2 shadow-md font-bold text-[10px]">
+                    <div className="flex items-center font-medium" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                        <div 
+                            className="px-3 py-1.5 text-white rounded-lg mr-2 shadow-md font-bold text-[10px]"
+                            style={{ background: 'linear-gradient(to right, #3b82f6, #17a2b8)' }}
+                        >
                             CENTRO
                         </div>
                         <span>Arraste pelo <strong>centro</strong> para mover a ação</span>
                     </div>
-                    <div className="flex items-center font-medium text-slate-700 dark:text-slate-300">
+                    <div className="flex items-center font-medium" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
                         <div className="flex gap-1 mr-2 items-center">
-                            <div className="w-3 h-6 bg-blue-500/30 rounded-l-lg border-2 border-blue-500"></div>
-                            <span className="text-slate-400">...</span>
-                            <div className="w-3 h-6 bg-blue-500/30 rounded-r-lg border-2 border-blue-500"></div>
+                            <div className="w-3 h-6 rounded-l-lg border-2" style={{ backgroundColor: 'rgba(59, 130, 246, 0.3)', borderColor: '#3b82f6' }}></div>
+                            <span style={{ color: 'rgba(255, 255, 255, 0.3)' }}>...</span>
+                            <div className="w-3 h-6 rounded-r-lg border-2" style={{ backgroundColor: 'rgba(59, 130, 246, 0.3)', borderColor: '#3b82f6' }}></div>
                         </div>
                         <span>Clique nas <strong>extremidades</strong> (8px) para redimensionar</span>
                     </div>

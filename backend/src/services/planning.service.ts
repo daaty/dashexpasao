@@ -1,6 +1,7 @@
 import prisma from '../config/database';
 import logger from '../config/logger';
 import { CityStatus } from '@prisma/client';
+import { n8nDatabase } from '../config/n8nDatabase';
 
 /**
  * Cria um novo planejamento
@@ -174,4 +175,50 @@ export const deleteTask = async (taskId: string) => {
 
   await prisma.task.delete({ where: { id: taskId } });
   await updatePlanningProgress(task.planningId);
+};
+
+/**
+ * Busca receita de recargas por mês e cidade
+ * Retorna distribuição mensal de receita de créditos/recargas
+ */
+export const getMonthlyRechargeRevenue = async (cityName: string) => {
+  try {
+    // Criar variações do nome da cidade para buscar
+    const cityVariations = [
+      cityName.toLowerCase(),
+      cityName.toLowerCase().replace(/\s+/g, ' '),
+      cityName.toLowerCase().replace(/\s+/g, '_'),
+      cityName.toLowerCase().replace(/\s+/g, '-'),
+    ];
+
+    const placeholders = cityVariations.map((_, i) => `$${i + 1}`).join(', ');
+    
+    const query = `
+      SELECT 
+        TO_CHAR(DATE_TRUNC('month', t."timestamp"), 'YYYY-MM') as month,
+        COALESCE(SUM(CASE WHEN t.type = 'CREDIT' AND LOWER(t.description) LIKE '%recarga%' THEN t.amount ELSE 0 END), 0) as revenue,
+        COUNT(CASE WHEN t.type = 'CREDIT' AND LOWER(t.description) LIKE '%recarga%' THEN 1 ELSE NULL END) as transaction_count
+      FROM dashboard.transactions t
+      INNER JOIN dashboard.drivers d ON t."driverId" = d.id
+      WHERE LOWER(d.city) IN (${placeholders})
+        AND t.type = 'CREDIT'
+        AND LOWER(t.description) LIKE '%recarga%'
+      GROUP BY DATE_TRUNC('month', t."timestamp")
+      ORDER BY month DESC
+    `;
+
+    const result = await n8nDatabase.query(query, cityVariations);
+    
+    // Converter resultado em um objeto { "2025-01": 5000, "2025-02": 5500, ... }
+    const revenueByMonth: { [key: string]: number } = {};
+    result.rows.forEach((row: any) => {
+      revenueByMonth[row.month] = parseFloat(row.revenue) || 0;
+    });
+
+    logger.info(`Receita de recargas encontrada para ${cityName}: ${result.rows.length} meses`);
+    return revenueByMonth;
+  } catch (error: any) {
+    logger.error(`Erro ao buscar receita de recargas para ${cityName}:`, error.message);
+    return {};
+  }
 };

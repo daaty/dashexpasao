@@ -3,6 +3,7 @@ import React, { useContext, useState } from 'react';
 import { FiBell, FiMenu, FiUser, FiSun, FiMoon, FiSettings, FiTrash2, FiPlus, FiRefreshCw, FiSave, FiTag, FiCheck, FiX, FiUsers } from 'react-icons/fi';
 import Modal from '../ui/Modal';
 import { DataContext } from '../../context/DataContext';
+import { useTheme } from '../../context/ThemeContext';
 import { PhaseTemplate, Tag, Responsible } from '../../types';
 import InfoTooltip from '../ui/InfoTooltip';
 
@@ -24,7 +25,7 @@ const COLORS = [
 ];
 
 const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
-    const [isDarkMode, setIsDarkMode] = React.useState(false);
+    const { isDarkMode, toggleDarkMode } = useTheme();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { 
         phaseTemplates, updatePhaseTemplate, resetPhaseTemplates, 
@@ -53,11 +54,6 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
     const [editingRespName, setEditingRespName] = useState('');
     const [editingRespColor, setEditingRespColor] = useState('');
 
-
-    const toggleDarkMode = () => {
-        setIsDarkMode(!isDarkMode);
-        document.documentElement.classList.toggle('dark');
-    }
     
     const selectedTemplate = phaseTemplates.find(t => t.name === selectedPhaseName);
 
@@ -145,51 +141,56 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   
   return (
     <>
-        <header className="sticky top-0 z-10 flex items-center justify-between px-6 lg:px-10 py-4 bg-white dark:bg-slate-900 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800 shadow-sm">
+        <header className="sticky top-0 z-10 flex items-center justify-between px-6 lg:px-10 py-4 backdrop-blur-lg shadow-sm" style={{ 
+            background: 'rgb(255 255 255 / 5%)', 
+            borderBottom: '1px solid rgb(255 255 255 / 8%)' 
+        }}>
             <div className="flex items-center gap-4">
-                <h1 className="font-black text-2xl bg-gradient-to-r from-blue-800 to-blue-600 dark:from-blue-500 dark:to-blue-400 bg-clip-text text-transparent">
-                    Urban<span className="font-light">Passageiro</span>
+                <h1 className="font-black text-2xl text-white">
+                    Urban<span className="font-light text-white/70">Passageiro</span>
                 </h1>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
                  <button 
                     onClick={toggleDarkMode} 
-                    className="p-2.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 hover:scale-105"
+                    className="p-2.5 rounded-full transition-all duration-200 hover:scale-105"
+                    style={{ color: '#ffffff', background: 'rgb(255 255 255 / 10%)' }}
                     title={isDarkMode ? "Modo Claro" : "Modo Escuro"}
                 >
                     {isDarkMode ? <FiSun className="h-5 w-5"/> : <FiMoon className="h-5 w-5"/>}
                 </button>
 
-                <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
+                <div className="h-6 w-px mx-1 hidden sm:block" style={{ background: 'rgb(255 255 255 / 10%)' }}></div>
 
                 <button 
                     onClick={() => setIsSettingsOpen(true)}
-                    className="p-2.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 hover:scale-105"
+                    className="p-2.5 rounded-full transition-all duration-200 hover:scale-105"
+                    style={{ color: '#ffffff', background: 'rgb(255 255 255 / 10%)' }}
                     title="Configurações"
                 >
                     <FiSettings className="h-5 w-5" />
                 </button>
                 
-                <button className="relative p-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 hover:scale-105 group">
-                    <FiBell className="h-5 w-5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
+                <button className="relative p-2.5 rounded-full transition-all duration-200 hover:scale-105 group" style={{ color: '#ffffff', background: 'rgb(255 255 255 / 10%)' }}>
+                    <FiBell className="h-5 w-5 group-hover:text-blue-400 transition-colors" />
                     <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500 border-2 border-white dark:border-slate-900"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" style={{ border: '2px solid rgb(0 20 45 / 50%)' }}></span>
                     </span>
                 </button>
                 
-                <div className="border-l border-slate-200 dark:border-slate-800 h-8 mx-2 hidden sm:block"></div>
+                <div className="h-8 mx-2 hidden sm:block" style={{ borderLeft: '1px solid rgb(255 255 255 / 10%)' }}></div>
 
-                <div className="flex items-center gap-3 pl-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 py-1 px-3 rounded-xl transition-all duration-200">
-                    <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-blue-600 to-blue-400 p-[2px]">
-                        <div className="h-full w-full rounded-full bg-white dark:bg-slate-900 flex items-center justify-center">
-                             <FiUser className="h-5 w-5 text-slate-900 dark:text-slate-100" />
+                <div className="flex items-center gap-3 pl-2 cursor-pointer py-1 px-3 rounded-xl transition-all duration-200" style={{ background: 'rgb(255 255 255 / 8%)' }}>
+                    <div className="h-9 w-9 rounded-full p-[2px]" style={{ background: 'linear-gradient(45deg, #1565C0, #1E88E5)' }}>
+                        <div className="h-full w-full rounded-full flex items-center justify-center" style={{ background: 'rgb(15 35 60 / 70%)' }}>
+                             <FiUser className="h-5 w-5 text-white" />
                         </div>
                     </div>
                     <div className="hidden sm:block text-left">
-                         <p className="text-sm font-bold text-gray-700 dark:text-gray-200 leading-none">Admin</p>
-                         <p className="text-xs text-gray-700 font-medium mt-1 leading-none">Gestor de Expansão</p>
+                         <p className="text-sm font-bold text-white leading-none">Admin</p>
+                         <p className="text-xs mt-1 leading-none" style={{ color: 'rgb(255 255 255 / 64%)' }}>Gestor de Expansão</p>
                     </div>
                 </div>
             </div>
@@ -203,22 +204,34 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
         >
             <div className="flex h-[60vh]">
                 {/* Sidebar Navigation */}
-                <div className="w-48 border-r border-base-300 dark:border-dark-100 pr-4 flex flex-col space-y-2">
+                <div className="w-48 pr-4 flex flex-col space-y-2" style={{ borderRight: '1px solid rgb(255 255 255 / 15%)' }}>
                      <button
                         onClick={() => setActiveTab('phases')}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center ${activeTab === 'phases' ? 'bg-primary text-white font-medium' : 'hover:bg-base-200 dark:hover:bg-dark-100 text-gray-700 dark:text-gray-300'}`}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center`}
+                        style={{ 
+                            background: activeTab === 'phases' ? '#3b82f6' : 'transparent',
+                            color: activeTab === 'phases' ? '#fff' : 'rgb(255 255 255 / 85%)'
+                        }}
                     >
                        <FiRefreshCw className="mr-2" /> Fases & Processos
                     </button>
                     <button
                         onClick={() => setActiveTab('tags')}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center ${activeTab === 'tags' ? 'bg-primary text-white font-medium' : 'hover:bg-base-200 dark:hover:bg-dark-100 text-gray-700 dark:text-gray-300'}`}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center`}
+                        style={{ 
+                            background: activeTab === 'tags' ? '#3b82f6' : 'transparent',
+                            color: activeTab === 'tags' ? '#fff' : 'rgb(255 255 255 / 85%)'
+                        }}
                     >
                        <FiTag className="mr-2" /> Etiquetas
                     </button>
                     <button
                         onClick={() => setActiveTab('responsibles')}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center ${activeTab === 'responsibles' ? 'bg-primary text-white font-medium' : 'hover:bg-base-200 dark:hover:bg-dark-100 text-gray-700 dark:text-gray-300'}`}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center`}
+                        style={{ 
+                            background: activeTab === 'responsibles' ? '#3b82f6' : 'transparent',
+                            color: activeTab === 'responsibles' ? '#fff' : 'rgb(255 255 255 / 85%)'
+                        }}
                     >
                        <FiUsers className="mr-2" /> Responsáveis
                     </button>
@@ -231,23 +244,29 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                     {activeTab === 'phases' && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
                             {/* Inner Sidebar: Phase List */}
-                            <div className="md:col-span-1 border-r border-base-300 dark:border-dark-100 pr-4 flex flex-col h-full overflow-hidden">
-                                <h4 className="text-xs font-bold text-gray-900 uppercase mb-3">Fases do Roadmap</h4>
+                            <div className="md:col-span-1 pr-4 flex flex-col h-full overflow-hidden" style={{ borderRight: '1px solid rgb(255 255 255 / 15%)' }}>
+                                <h4 className="text-xs font-bold text-white uppercase mb-3">Fases do Roadmap</h4>
                                 <div className="space-y-1 flex-grow overflow-y-auto">
                                     {phaseTemplates.map(template => (
                                         <button
                                             key={template.name}
                                             onClick={() => setSelectedPhaseName(template.name)}
-                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedPhaseName === template.name ? 'bg-base-200 dark:bg-dark-100 font-medium text-primary' : 'hover:bg-base-200 dark:hover:bg-dark-100 text-gray-700 dark:text-gray-300'}`}
+                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors`}
+                                            style={{
+                                                background: selectedPhaseName === template.name ? 'rgb(255 255 255 / 12%)' : 'transparent',
+                                                color: selectedPhaseName === template.name ? '#3b82f6' : 'rgb(255 255 255 / 85%)',
+                                                fontWeight: selectedPhaseName === template.name ? '500' : 'normal'
+                                            }}
                                         >
                                             {template.name}
                                         </button>
                                     ))}
                                 </div>
-                                <div className="pt-4 border-t border-base-300 dark:border-dark-100 mt-2">
+                                <div className="pt-4 mt-2" style={{ borderTop: '1px solid rgb(255 255 255 / 15%)' }}>
                                      <button 
                                         onClick={handleReset}
-                                        className="w-full flex items-center justify-center text-xs text-red-500 hover:text-red-700 py-2 border border-red-200 hover:bg-red-50 rounded-lg transition"
+                                        className="w-full flex items-center justify-center text-xs py-2 rounded-lg transition"
+                                        style={{ color: '#f62718', border: '1px solid rgba(246, 39, 24, 0.3)', background: 'rgba(246, 39, 24, 0.1)' }}
                                     >
                                         <FiRefreshCw className="mr-2" /> Restaurar Padrões
                                     </button>
