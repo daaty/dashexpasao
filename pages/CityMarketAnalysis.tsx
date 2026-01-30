@@ -1117,7 +1117,6 @@ const CityMarketAnalysis: React.FC = () => {
                                             <tr>
                                                 <th className="p-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgb(255 255 255 / 80%)' }}>Mês</th>
                                                 <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'rgb(255 255 255 / 80%)' }}>Meta Corridas</th>
-                                                <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'rgb(255 255 255 / 80%)' }}>Receita Esperada</th>
                                                 <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: '#10b981' }}>Projeção Receita</th>
                                                 <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: '#22c55e' }}>Valor Líquido</th>
                                                 <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: '#8b5cf6', borderLeft: '1px solid rgba(139, 92, 246, 0.3)' }}>
@@ -1174,9 +1173,6 @@ const CityMarketAnalysis: React.FC = () => {
                                                         </td>
                                                         <td className="p-3 text-center" style={{ color: '#3b82f6' }}>
                                                             {month.expectedRides.toLocaleString('pt-BR')}
-                                                        </td>
-                                                        <td className="p-3 text-center" style={{ color: '#10b981' }}>
-                                                            {expectedRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                         </td>
                                                         <td className="p-3 text-center" style={{ color: '#10b981' }}>
                                                             {expectedRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -1328,9 +1324,6 @@ const CityMarketAnalysis: React.FC = () => {
                                                 <td className="p-3 font-bold" style={{ color: '#ffffff' }}>TOTAL</td>
                                                 <td className="p-3 text-center font-bold" style={{ color: '#3b82f6' }}>
                                                     {getProjectionMonths().reduce((sum, m) => sum + m.expectedRides, 0).toLocaleString('pt-BR')}
-                                                </td>
-                                                <td className="p-3 text-center font-bold" style={{ color: '#10b981' }}>
-                                                    {(getProjectionMonths().reduce((sum, m) => sum + m.expectedRides, 0) * PRICE_PER_RIDE).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
                                                 <td className="p-3 text-center font-bold" style={{ color: '#10b981' }}>
                                                     {(getProjectionMonths().reduce((sum, m) => sum + m.expectedRides, 0) * PRICE_PER_RIDE).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}

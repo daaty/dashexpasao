@@ -983,7 +983,7 @@ const BlockSection: React.FC<{
             
             const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0];
             const targetPenetration = 0.10;
-            const revenuePerRide = 8; // R$ 8 por corrida
+            const revenuePerRide = 2.5; // R$ 2.50 por corrida
             const marketingCostPerRide = 0.15; // R$ 0.15 custo marketing por corrida
             const operationalCostPerRide = 0.20; // R$ 0.20 custo operacional por corrida
 
@@ -1516,7 +1516,7 @@ const BlockSection: React.FC<{
                 
                 const marketingCost = goal * adjustedCPA;
                 const operationalCost = goal * adjustedOPS;
-                const revenue = goal * 8; // R$8 por corrida
+                const revenue = goal * 2.5; // R$2.50 por corrida
 
                 monthTotalGoal += goal;
                 monthTotalMarketingCost += marketingCost;
@@ -2098,7 +2098,7 @@ const BlockSection: React.FC<{
                 <div class="stat-card" style="background: linear-gradient(135deg, #ecfdf5 0%, white 100%); border-color: #10b981;">
                     <div class="icon-circle" style="background: #d1fae5;">🎯</div>
                     <div class="stat-label" style="color: #059669;">Receita Mensal (10%)</div>
-                    <div class="stat-value" style="color: #047857;">${formatCurrency(Math.round(targetPop * 0.10) * 8)}</div>
+                    <div class="stat-value" style="color: #047857;">${formatCurrency(Math.round(targetPop * 0.10) * 2.5)}</div>
                     <div style="font-size: 10px; color: #059669; margin-top: 4px;">${Math.round(targetPop * 0.10).toLocaleString('pt-BR')} corridas/mês</div>
                 </div>
             </div>
@@ -2463,7 +2463,7 @@ const BlockSection: React.FC<{
                                     const totalCosts6M = planningData.reduce((sum, m) => sum + m.totalMarketingCost + m.totalOperationalCost, 0);
                                     const margin6M = totalRevenue6M - totalCosts6M;
                                     const targetPop = cities.reduce((sum, c) => sum + c.population15to44, 0);
-                                    const monthlyRevenue10Percent = Math.round(targetPop * 0.10) * 8; // 10% penetração x R$8/corrida
+                                    const monthlyRevenue10Percent = Math.round(targetPop * 0.10) * 2.5; // 10% penetração x R$2.50/corrida
                                     
                                     return (
                                         <>
@@ -2571,7 +2571,7 @@ const BlockSection: React.FC<{
                                                                     <span className="text-lg font-bold text-emerald-400">
                                                                         {formatCurrency(month.totalRevenue)}
                                                                     </span>
-                                                                    <div className="text-xs text-slate-500">R$8.00/corrida</div>
+                                                                    <div className="text-xs text-slate-500">R$2.50/corrida</div>
                                                                 </td>
                                                                 <td className="p-4 text-center">
                                                                     <span className={`text-sm font-bold ${margin >= 0 ? 'text-green-400' : 'text-red-400'}`}>
