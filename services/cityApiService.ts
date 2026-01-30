@@ -1,4 +1,4 @@
-import api from './api';
+import { api } from './api';
 import { City, CityStatus } from '../types';
 
 const mapBackendStatusToFrontend = (backendStatus: string): CityStatus => {

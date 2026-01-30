@@ -212,25 +212,25 @@ class RidesService {
         ),
         monthly_revenue AS (
           SELECT 
-            DATE_TRUNC('month', t."timestamp") as month_start,
+            DATE_TRUNC('month', t.timestamp) as month_start,
             COALESCE(SUM(t.quantity), 0) as revenue
           FROM dashboard.transactions t
           WHERE t.type = 'CREDIT'
             AND LOWER(t.description) LIKE '%recarga%'
             AND LOWER(t.city) IN (${cityVariations.map((_, i) => `$${i + 1}`).join(', ')})
-          GROUP BY DATE_TRUNC('month', t."timestamp")
+          GROUP BY DATE_TRUNC('month', t.timestamp)
         )
         SELECT 
-          mr.month,
-          mr.year,
-          mr.month_number,
-          mr.rides,
+          COALESCE(mr.month, TO_CHAR(rev.month_start, 'YYYY-MM')) as month,
+          COALESCE(mr.year, EXTRACT(YEAR FROM rev.month_start)) as year,
+          COALESCE(mr.month_number, EXTRACT(MONTH FROM rev.month_start)) as month_number,
+          COALESCE(mr.rides, 0) as rides,
           COALESCE(rev.revenue, 0) as revenue,
-          mr.average_value,
-          mr.unique_days
+          COALESCE(mr.average_value, 0) as average_value,
+          COALESCE(mr.unique_days, 0) as unique_days
         FROM monthly_rides mr
-        LEFT JOIN monthly_revenue rev ON mr.month_start = rev.month_start
-        ORDER BY mr.month DESC
+        FULL OUTER JOIN monthly_revenue rev ON mr.month_start = rev.month_start
+        ORDER BY COALESCE(mr.month, TO_CHAR(rev.month_start, 'YYYY-MM')) DESC
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
       `;
 

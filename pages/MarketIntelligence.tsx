@@ -8,6 +8,7 @@ import { CityStatus, MarketBlock, City, CityPlan } from '../types';
 import Modal from '../components/ui/Modal';
 import { calculatePotentialRevenue, getMarketPotential, getGradualMonthlyGoal, getGradualMonthlyGoalForBlock } from '../services/calculationService';
 import { getRideStatsByCity, getMonthlyRidesByCity } from '../services/ridesApiService';
+import { getMonthlyRevenueData } from '../services/revenueService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -986,7 +987,7 @@ const BlockSection: React.FC<{
             const marketingCostPerRide = 0.15; // R$ 0.15 custo marketing por corrida
             const operationalCostPerRide = 0.20; // R$ 0.20 custo operacional por corrida
 
-            // Buscar dados reais de cada cidade
+            // Buscar dados de receita projetada do planejamento para cada cidade
             for (const city of cities) {
                 try {
                     if (!city.implementationStartDate) continue;
@@ -1002,31 +1003,55 @@ const BlockSection: React.FC<{
                     
                     // Calcular meta acumulativa (soma de todas as metas graduais desde o início)
                     let cityAccumulatedGoal = 0;
-                    for (let m = 1; m <= Math.min(monthsSinceStart, 6); m++) {
-                        const factor = curveFactors[m - 1];
-                        cityAccumulatedGoal += Math.round(cityBaseGoal * factor);
-                    }
-                    // Se passou de 6 meses, adicionar meses extras com fator 1.0
-                    if (monthsSinceStart > 6) {
-                        cityAccumulatedGoal += cityBaseGoal * (monthsSinceStart - 6);
+                    
+                    // Iterar por cada mês desde o início da implementação até o mês atual
+                    let tempYear = impYear;
+                    let tempMonth = impMonth;
+                    for (let m = 1; m <= monthsSinceStart; m++) {
+                        const monthKey = `${tempYear}-${String(tempMonth).padStart(2, '0')}`;
+                        const monthGoal = getGradualMonthlyGoal(city, monthKey, city.implementationStartDate);
+                        cityAccumulatedGoal += monthGoal;
+                        
+                        // Avançar para próximo mês
+                        tempMonth++;
+                        if (tempMonth > 12) {
+                            tempMonth = 1;
+                            tempYear++;
+                        }
                     }
                     
                     globalAccumulatedGoal += cityAccumulatedGoal;
                     globalAccumulatedRevenueGoal += cityAccumulatedGoal * revenuePerRide;
                     
-                    // Meta do mês atual (com graduação)
-                    const currentMonthFactor = monthsSinceStart <= 6 ? curveFactors[monthsSinceStart - 1] : 1.0;
-                    const cityCurrentMonthGoal = Math.round(cityBaseGoal * currentMonthFactor);
+                    // Meta do mês atual (com graduação correta)
+                    const cityCurrentMonthGoal = getGradualMonthlyGoal(city, currentMonthKey, city.implementationStartDate);
                     currentMonthGoal += cityCurrentMonthGoal;
-                    currentMonthRevenueGoal += cityCurrentMonthGoal * revenuePerRide;
                     
-                    // Meta do mês passado (com graduação)
+                    // Buscar receita projetada do planejamento para este mês
+                    try {
+                        const revenueData = await getMonthlyRevenueData(city.name);
+                        const currentMonthProjectedRevenue = revenueData[currentMonthKey] || 0;
+                        currentMonthRevenueGoal += currentMonthProjectedRevenue;
+                    } catch (error) {
+                        console.warn(`Erro ao buscar receita projetada para ${city.name}, usando cálculo padrão:`, error);
+                        currentMonthRevenueGoal += cityCurrentMonthGoal * revenuePerRide;
+                    }
+                    
+                    // Meta do mês passado (com graduação correta)
                     const lastMonthsSinceStart = monthsSinceStart > 0 ? monthsSinceStart - 1 : 0;
                     if (lastMonthsSinceStart > 0) {
-                        const lastMonthFactor = lastMonthsSinceStart <= 6 ? curveFactors[lastMonthsSinceStart - 1] : 1.0;
-                        const cityLastMonthGoal = Math.round(cityBaseGoal * lastMonthFactor);
+                        const cityLastMonthGoal = getGradualMonthlyGoal(city, lastMonthKey, city.implementationStartDate);
                         lastMonthGoal += cityLastMonthGoal;
-                        lastMonthRevenueGoal += cityLastMonthGoal * revenuePerRide;
+                        
+                        // Buscar receita projetada do planejamento para o mês passado
+                        try {
+                            const revenueData = await getMonthlyRevenueData(city.name);
+                            const lastMonthProjectedRevenue = revenueData[lastMonthKey] || 0;
+                            lastMonthRevenueGoal += lastMonthProjectedRevenue;
+                        } catch (error) {
+                            console.warn(`Erro ao buscar receita projetada do mês passado para ${city.name}, usando cálculo padrão:`, error);
+                            lastMonthRevenueGoal += cityLastMonthGoal * revenuePerRide;
+                        }
                         
                         // Custos projetados do mês passado
                         lastMonthProjectedMarketingCost += cityLastMonthGoal * marketingCostPerRide;
@@ -1040,9 +1065,8 @@ const BlockSection: React.FC<{
                     for (let m = 1; m <= monthsSinceStart; m++) {
                         const currentIterMonthKey = `${monthlyIterYear}-${String(monthlyIterMonth).padStart(2, '0')}`;
                         
-                        // Meta graduada para este mês específico
-                        const monthFactor = m <= 6 ? curveFactors[m - 1] : 1.0;
-                        const monthGoal = Math.round(cityBaseGoal * monthFactor);
+                        // Meta graduada para este mês específico (usando função correta)
+                        const monthGoal = getGradualMonthlyGoal(city, currentIterMonthKey, city.implementationStartDate);
                         
                         // Custo projetado para este mês = meta do mês * custo por corrida
                         projectedMarketingCost += monthGoal * marketingCostPerRide;

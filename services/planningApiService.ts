@@ -1,4 +1,4 @@
-import api from './api';
+import { api } from './api';
 import { CityPlan } from '../types';
 
 export interface PlanningDTO {

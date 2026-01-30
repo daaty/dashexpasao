@@ -8,13 +8,13 @@ datasource db {
 }
 
 model PlanningResults {
-  id                  String   @id @default(uuid())
-  cityId              Int      @unique
-  results             Json
-  realMonthlyCosts    Json?
-  startDate           String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id               String   @id @default(uuid())
+  cityId           Int      @unique
+  results          Json
+  startDate        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  realMonthlyCosts Json?
 
   @@index([cityId])
 }
@@ -58,65 +58,64 @@ model MarketBlock {
 }
 
 model City {
-  id        Int      @id
-  name      String
-  status    String
-  mesorregion String?
+  id                      Int        @id
+  name                    String
+  population              Int?       @default(0)
+  population15to44        Int?       @default(0)
+  averageIncome           Float?     @default(0)
+  urbanizationIndex       Float?     @default(0)
+  gentilic                String?
+  anniversary             String?
+  mayor                   String?
   implementationStartDate String?
-  population Int? @default(0)
-  population15to44 Int? @default(0)
-  averageIncome Float? @default(0)
-  urbanizationIndex Float? @default(0)
-  gentilic String?
-  anniversary String?
-  mayor String?
-  averageFormalSalary Float? @default(0)
-  formalJobs Int? @default(0)
-  urbanizedAreaKm2 Float? @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  plannings Planning[]
+  averageFormalSalary     Float?     @default(0)
+  formalJobs              Int?       @default(0)
+  urbanizedAreaKm2        Float?     @default(0)
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+  status                  String
+  mesorregion             String?
+  plannings               Planning[]
 
   @@index([status])
+  @@index([status], map: "idx_city_status")
 }
 
-
 model Planning {
-  id                String   @id @default(uuid())
-  cityId            Int
-  title             String
-  description       String
-  startDate         DateTime
-  endDate           DateTime?
-  status            String?
-  priority          String?
-  tags              String?
-  estimatedBudget   Decimal? @db.Decimal(10, 2)
-  actualBudget      Decimal? @db.Decimal(10, 2)
-  progressPercentage Int?    @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  city City @relation(fields: [cityId], references: [id])
-  tasks Task[]
+  id                 String    @id @default(uuid())
+  cityId             Int
+  title              String
+  description        String
+  startDate          DateTime
+  endDate            DateTime?
+  status             String?
+  priority           String?
+  tags               String?
+  estimatedBudget    Decimal?  @db.Decimal(10, 2)
+  actualBudget       Decimal?  @db.Decimal(10, 2)
+  progressPercentage Int?      @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  city               City      @relation(fields: [cityId], references: [id])
+  tasks              Task[]
 
   @@index([cityId])
+  @@index([cityId], map: "idx_planning_cityId")
 }
 
 model Task {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   planningId  String
   title       String
   description String?
-  completed   Boolean  @default(false)
+  completed   Boolean   @default(false)
   dueDate     DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  planning Planning @relation(fields: [planningId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  planning    Planning  @relation(fields: [planningId], references: [id])
 
   @@index([planningId])
+  @@index([planningId], map: "idx_task_planningId")
 }
 
 model rides {
@@ -272,23 +271,23 @@ model rides {
 }
 
 model Autorecarga {
-  id                    String    @id @default(uuid())
-  valido                Boolean?  @default(false)
-  agendado              Boolean?  @default(false)
-  tipo                  String?   @db.VarChar(50)
-  id_transacao          String?   @db.VarChar(255)
-  data                  DateTime?
-  hora                  String?   @db.VarChar(8)
-  valor_extraido        Decimal?  @db.Decimal(12, 2)
-  pagador               String?   @db.VarChar(255)
-  recebedor             String?   @db.VarChar(255)
-  cnpj_recebedor        String?   @db.VarChar(18)
-  cnpj_valido           Boolean?  @default(false)
-  status_recebedor      String?   @db.VarChar(50)
-  creditos_calculados   Decimal?  @db.Decimal(12, 2)
-  remetente_whatsapp    String?   @db.VarChar(20)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  id                  String    @id @default(uuid())
+  valido              Boolean?  @default(false)
+  agendado            Boolean?  @default(false)
+  tipo                String?   @db.VarChar(50)
+  id_transacao        String?   @db.VarChar(255)
+  data                DateTime?
+  hora                String?   @db.VarChar(8)
+  valor_extraido      Decimal?  @db.Decimal(12, 2)
+  pagador             String?   @db.VarChar(255)
+  recebedor           String?   @db.VarChar(255)
+  cnpj_recebedor      String?   @db.VarChar(18)
+  cnpj_valido         Boolean?  @default(false)
+  status_recebedor    String?   @db.VarChar(50)
+  creditos_calculados Decimal?  @db.Decimal(12, 2)
+  remetente_whatsapp  String?   @db.VarChar(20)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([id_transacao], map: "idx_autorecarga_id_transacao")
   @@index([data], map: "idx_autorecarga_data")

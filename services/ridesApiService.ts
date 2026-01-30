@@ -1,4 +1,4 @@
-import api from './api';
+import { api } from './api';
 
 /**
  * Tipos para dados de corridas
@@ -123,9 +123,8 @@ export const getRideStatsByCity = async (
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);
 
-    const response = await api.get(
-      `/rides/city/${encodeURIComponent(cityName)}/stats?${params.toString()}`
-    );
+    const url = `/rides/city/${encodeURIComponent(cityName)}/stats?${params.toString()}`;
+    const response = await api.get(url);
     
     return {
       ...response.data,
@@ -164,7 +163,11 @@ export const getMonthlyRidesByCity = async (
     );
     
     return response.data.data || [];
-  } catch (error) {
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      // Cidade sem dados de corridas - retorna array vazio
+      return [];
+    }
     console.error('Erro ao buscar dados mensais de corridas:', error);
     return [];
   }
