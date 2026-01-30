@@ -43,13 +43,19 @@ class Server {
       })
     );
 
-    // Rate limiting
+    // Rate limiting - mais permissivo para permitir operações em lote
     const limiter = rateLimit({
       windowMs: config.rateLimitWindowMs,
-      max: config.nodeEnv === 'development' ? 1000 : config.rateLimitMaxRequests, // Muito mais permissivo em dev
+      max: config.nodeEnv === 'development' ? 10000 : 5000, // Aumentado para 5000 em produção
       message: 'Muitas requisições deste IP, tente novamente mais tarde.',
       standardHeaders: true,
       legacyHeaders: false,
+      skip: (req) => {
+        // Pular rate limit para IPs locais/internos (Docker, localhost)
+        const ip = req.ip || req.socket.remoteAddress || '';
+        const trustedIPs = ['127.0.0.1', '::1', '::ffff:127.0.0.1', 'localhost', '172.17.', '172.18.', '10.'];
+        return trustedIPs.some(trusted => ip.includes(trusted));
+      }
     });
     this.app.use('/api/', limiter);
 
