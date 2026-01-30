@@ -1118,6 +1118,8 @@ const CityMarketAnalysis: React.FC = () => {
                                                 <th className="p-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgb(255 255 255 / 80%)' }}>Mês</th>
                                                 <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'rgb(255 255 255 / 80%)' }}>Meta Corridas</th>
                                                 <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'rgb(255 255 255 / 80%)' }}>Receita Esperada</th>
+                                                <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: '#10b981' }}>Projeção Receita</th>
+                                                <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: '#22c55e' }}>Valor Líquido</th>
                                                 <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: '#8b5cf6', borderLeft: '1px solid rgba(139, 92, 246, 0.3)' }}>
                                                     CPA (R$/Corrida)
                                                 </th>
@@ -1175,6 +1177,14 @@ const CityMarketAnalysis: React.FC = () => {
                                                         </td>
                                                         <td className="p-3 text-center" style={{ color: '#10b981' }}>
                                                             {expectedRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        </td>
+                                                        <td className="p-3 text-center" style={{ color: '#10b981' }}>
+                                                            {expectedRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        </td>
+                                                        <td className="p-3 text-center font-semibold" style={{ 
+                                                            color: (expectedRevenue - totalCost) >= 0 ? '#22c55e' : '#ef4444' 
+                                                        }}>
+                                                            {(expectedRevenue - totalCost).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                         </td>
                                                         
                                                         {/* Novo campo CPA */}
@@ -1321,6 +1331,23 @@ const CityMarketAnalysis: React.FC = () => {
                                                 </td>
                                                 <td className="p-3 text-center font-bold" style={{ color: '#10b981' }}>
                                                     {(getProjectionMonths().reduce((sum, m) => sum + m.expectedRides, 0) * PRICE_PER_RIDE).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="p-3 text-center font-bold" style={{ color: '#10b981' }}>
+                                                    {(getProjectionMonths().reduce((sum, m) => sum + m.expectedRides, 0) * PRICE_PER_RIDE).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="p-3 text-center font-bold" style={{ 
+                                                    color: (() => {
+                                                        const totalRevenue = getProjectionMonths().reduce((sum, m) => sum + m.expectedRides, 0) * PRICE_PER_RIDE;
+                                                        const totalCostSum = Object.values(projectedCosts).reduce((sum, c) => sum + (c.marketingCost || 0) + (c.operationalCost || 0), 0);
+                                                        return (totalRevenue - totalCostSum) >= 0 ? '#22c55e' : '#ef4444';
+                                                    })()
+                                                }}>
+                                                    {(() => {
+                                                        const totalRevenue = getProjectionMonths().reduce((sum, m) => sum + m.expectedRides, 0) * PRICE_PER_RIDE;
+                                                        const totalCostSum = Object.values(projectedCosts).reduce((sum, c) => sum + (c.marketingCost || 0) + (c.operationalCost || 0), 0);
+                                                        return (totalRevenue - totalCostSum).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                                                    })()
+                                                    }
                                                 </td>
                                                 <td className="p-3 text-center font-bold" style={{ color: '#8b5cf6', borderLeft: '1px solid rgba(139, 92, 246, 0.3)' }}>
                                                     CPA Médio
