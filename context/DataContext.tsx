@@ -914,7 +914,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       } : p);
     } else {
       // Criar novo plano para a cidade
-      const startDate = city?.implementationStartDate || new Date().toISOString().slice(0, 7);
+      const startDate = city?.implementationStartDate || new Date().toISOString();
       const newPlan: CityPlan = {
         cityId,
         startDate,
