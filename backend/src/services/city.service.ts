@@ -115,11 +115,38 @@ export const updateCityFromIBGE = async (id: number) => {
 };
 
 /**
+ * Mapeia valores de mesorregion para o enum correto
+ */
+const mapMesorregion = (mesorregion: string): string => {
+  if (!mesorregion) return mesorregion;
+  
+  const mapping: { [key: string]: string } = {
+    'NORTE': 'NORTE_MATOGROSSENSE',
+    'NORDESTE': 'NORDESTE_MATOGROSSENSE',
+    'CENTRO_SUL': 'CENTRO_SUL_MATOGROSSENSE',
+    'SUDESTE': 'SUDESTE_MATOGROSSENSE',
+    'SUDOESTE': 'SUDOESTE_MATOGROSSENSE',
+    'NORTE_MATOGROSSENSE': 'NORTE_MATOGROSSENSE',
+    'NORDESTE_MATOGROSSENSE': 'NORDESTE_MATOGROSSENSE',
+    'CENTRO_SUL_MATOGROSSENSE': 'CENTRO_SUL_MATOGROSSENSE',
+    'SUDESTE_MATOGROSSENSE': 'SUDESTE_MATOGROSSENSE',
+    'SUDOESTE_MATOGROSSENSE': 'SUDOESTE_MATOGROSSENSE',
+  };
+  
+  return mapping[mesorregion.toUpperCase()] || mesorregion;
+};
+
+/**
  * Cria ou atualiza uma cidade
  */
 export const upsertCity = async (cityData: any) => {
   // Remover campos que não existem no modelo Prisma City
   const { monthlyRevenue, ...cleanData } = cityData;
+  
+  // Mapear mesorregion se existir
+  if (cleanData.mesorregion) {
+    cleanData.mesorregion = mapMesorregion(cleanData.mesorregion);
+  }
   
   return await prisma.city.upsert({
     where: { id: cleanData.id },
