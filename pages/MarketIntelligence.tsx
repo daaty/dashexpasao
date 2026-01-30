@@ -2653,9 +2653,17 @@ const BlockSection: React.FC<{
                                     <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
                                         <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">Custo Total CPA/OPS</div>
                                         <div className="flex items-baseline gap-1">
-                                            <span className="text-xs font-semibold text-slate-400">R${(blockStats.custoTotalProj / 1000).toFixed(1)}k</span>
+                                            <span className="text-xs font-semibold text-slate-400">
+                                                R${blockStats.custoTotalProj < 1000 
+                                                    ? blockStats.custoTotalProj.toFixed(2)
+                                                    : (blockStats.custoTotalProj / 1000).toFixed(1) + 'k'
+                                                }
+                                            </span>
                                             <span className={`text-xs font-bold ${blockStats.custoTotalReal <= blockStats.custoTotalProj ? 'text-green-400' : 'text-amber-400'}`}>
-                                                R${(blockStats.custoTotalReal / 1000).toFixed(1)}k
+                                                R${blockStats.custoTotalReal < 1000 
+                                                    ? blockStats.custoTotalReal.toFixed(2)
+                                                    : (blockStats.custoTotalReal / 1000).toFixed(1) + 'k'
+                                                }
                                             </span>
                                             <span className={`text-[10px] ${blockStats.custoTotalReal <= blockStats.custoTotalProj ? 'text-green-400' : 'text-amber-400'}`}>
                                                 {blockStats.custoTotalReal <= blockStats.custoTotalProj ? '✓' : '✗'}
