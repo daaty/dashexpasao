@@ -4,11 +4,10 @@ import { DataContext } from '../context/DataContext';
 import Card from '../components/ui/Card';
 import { FiBriefcase, FiMapPin, FiSearch, FiArrowRight, FiActivity, FiPlus, FiGrid, FiMoreHorizontal, FiTrash2, FiEdit2, FiX, FiCheck, FiMove, FiMinusCircle, FiDownload, FiClipboard, FiChevronDown } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { CityStatus, MarketBlock, City, CityPlan, MonthResult } from '../types';
+import { CityStatus, MarketBlock, City, CityPlan } from '../types';
 import Modal from '../components/ui/Modal';
 import { calculatePotentialRevenue, getMarketPotential, getGradualMonthlyGoal, getGradualMonthlyGoalForBlock } from '../services/calculationService';
 import { getRideStatsByCity, getMonthlyRidesByCity } from '../services/ridesApiService';
-import * as planResultsService from '../services/planResultsService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -886,39 +885,6 @@ const BlockSection: React.FC<{
     const [editName, setEditName] = useState(block.name);
     const [isOver, setIsOver] = useState(false);
     const [showPlanningView, setShowPlanningView] = useState(false); // Novo estado para controlar visão do planejamento
-    
-    // Estado para armazenar resultados carregados do backend para todas as cidades
-    const [cityResults, setCityResults] = useState<{ [cityId: number]: { [key: string]: MonthResult } }>({});
-    
-    // Carregar resultados do backend para todas as cidades do bloco
-    React.useEffect(() => {
-        const loadCityResults = async () => {
-            const results: { [cityId: number]: { [key: string]: MonthResult } } = {};
-            
-            for (const city of cities) {
-                // Primeiro tenta usar do plano local
-                const localPlan = plans.find(p => p.cityId === city.id);
-                if (localPlan?.results && Object.keys(localPlan.results).length > 0) {
-                    results[city.id] = localPlan.results;
-                } else {
-                    // Se não tiver local, busca do backend
-                    try {
-                        const backendData = await planResultsService.getPlanResults(city.id);
-                        if (backendData?.results) {
-                            results[city.id] = backendData.results;
-                        }
-                    } catch (error) {
-                        // Ignora erros de cidades sem dados
-                    }
-                }
-            }
-            
-            setCityResults(results);
-        };
-        
-        loadCityResults();
-    }, [cities, plans]);
-    
     const [blockStats, setBlockStats] = useState({
         // Meta Global Acumulativa (soma de todas as metas desde início de cada cidade)
         globalAccumulatedGoal: 0,
@@ -1441,29 +1407,17 @@ const BlockSection: React.FC<{
                 const factor = curveFactors[monthIndex];
                 const goal = Math.round(city.population15to44 * factor * targetPenetration);
                 
-                // Buscar valores de CPA/OPS dos resultados carregados (local ou backend)
-                const mesKey = `Mes${monthIndex + 1}`;
-                const savedResult = cityResults[city.id]?.[mesKey];
+                // Custos baseados em valores padrão escalonados por cidade
+                // CPA e OPS reduzem ao longo dos meses e variam por tamanho da cidade
+                let baseCPA = city.population > 100000 ? 10 : city.population > 50000 ? 8 : 6;
+                let baseOPS = city.population > 100000 ? 4 : city.population > 50000 ? 3.5 : 3;
                 
-                let adjustedCPA: number;
-                let adjustedOPS: number;
+                // Redução gradual nos custos ao longo dos meses
+                const cpaReductionFactor = 1 - (monthIndex * 0.1); // Reduz 10% por mês
+                const opsReductionFactor = 1 - (monthIndex * 0.08); // Reduz 8% por mês
                 
-                if (savedResult?.cpaPerRide !== undefined && savedResult.cpaPerRide > 0) {
-                    // Usar valores salvos do plano
-                    adjustedCPA = savedResult.cpaPerRide;
-                    adjustedOPS = savedResult.opsPerRide ?? 0;
-                } else {
-                    // Valores padrão baseados no tamanho da cidade
-                    let baseCPA = city.population > 100000 ? 10 : city.population > 50000 ? 8 : 6;
-                    let baseOPS = city.population > 100000 ? 4 : city.population > 50000 ? 3.5 : 3;
-                    
-                    // Redução gradual nos custos ao longo dos meses
-                    const cpaReductionFactor = 1 - (monthIndex * 0.1);
-                    const opsReductionFactor = 1 - (monthIndex * 0.08);
-                    
-                    adjustedCPA = baseCPA * cpaReductionFactor;
-                    adjustedOPS = baseOPS * opsReductionFactor;
-                }
+                const adjustedCPA = baseCPA * cpaReductionFactor;
+                const adjustedOPS = baseOPS * opsReductionFactor;
                 
                 const marketingCost = goal * adjustedCPA;
                 const operationalCost = goal * adjustedOPS;
@@ -1547,62 +1501,34 @@ const BlockSection: React.FC<{
             margin: 0 auto;
         }
         
-        /* Header (gray -> black gradient) */
+        /* Header */
         .header {
-            background: linear-gradient(180deg, #6b7280 0%, #111827 100%);
+            background: linear-gradient(135deg, #312e81 0%, #4c1d95 100%);
             border-radius: 24px;
             padding: 32px;
             margin-bottom: 24px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
-
-        /* Header typography and layout */
-        .header .header-row {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .header .logo-square {
-            width: 46px;
-            height: 46px;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.12);
-            box-shadow: 0 6px 18px rgba(0,0,0,0.25) inset;
-            flex: 0 0 46px;
-        }
-
-        .header .brand {
-            font-family: 'Lufga', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            font-size: 44px;
+        
+        .header h1 {
+            font-size: 28px;
             font-weight: 800;
-            color: #f8fafc;
-            line-height: 1;
-            margin-bottom: 6px;
-            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #fff, #c4b5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
         }
-
-        .header .header-details {
-            display: flex;
-            flex-direction: column;
+        
+        .header .subtitle {
+            color: #a5b4fc;
+            font-size: 14px;
         }
-
-        .header .plan-name {
-            color: #e6edf3;
-            font-size: 15px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .header .projections {
-            color: #cbd5e1;
-            font-size: 13px;
-            margin-bottom: 2px;
-        }
-
+        
         .header .date {
             color: #94a3b8;
             font-size: 12px;
+            margin-top: 4px;
         }
         
         /* KPI Cards Row */
@@ -1619,9 +1545,8 @@ const BlockSection: React.FC<{
         }
         
         .kpi-card-pastel.purple {
-            /* replace purple pastel with neutral gray pastel */
-            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-            border: 1px solid #d1d5db;
+            background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+            border: 1px solid #c4b5fd;
         }
         
         .kpi-card-pastel.green {
@@ -1636,7 +1561,7 @@ const BlockSection: React.FC<{
             letter-spacing: 0.5px;
         }
         
-        .kpi-card-pastel.purple .label { color: #374151; }
+        .kpi-card-pastel.purple .label { color: #5b21b6; }
         .kpi-card-pastel.green .label { color: #166534; }
         
         .kpi-card-pastel .value {
@@ -1645,7 +1570,7 @@ const BlockSection: React.FC<{
             margin-top: 8px;
         }
         
-        .kpi-card-pastel.purple .value { color: #0f172a; }
+        .kpi-card-pastel.purple .value { color: #4c1d95; }
         .kpi-card-pastel.green .value { color: #15803d; }
         
         /* Goals Box */
@@ -1694,7 +1619,7 @@ const BlockSection: React.FC<{
         .goal-dot.orange { background: #f97316; }
         .goal-dot.amber { background: #f59e0b; }
         .goal-dot.blue { background: #3b82f6; }
-        .goal-dot.purple { background: #6b7280; }
+        .goal-dot.purple { background: #8b5cf6; }
         
         .goal-percent {
             color: #94a3b8;
@@ -1785,7 +1710,7 @@ const BlockSection: React.FC<{
             content: '';
             width: 4px;
             height: 20px;
-            background: linear-gradient(to bottom, #9ca3af, #6b7280);
+            background: linear-gradient(to bottom, #8b5cf6, #6366f1);
             border-radius: 2px;
         }
         
@@ -1801,7 +1726,7 @@ const BlockSection: React.FC<{
         }
         
         thead th {
-            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+            background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
             color: white;
             padding: 8px 4px;
             text-align: center;
@@ -1809,7 +1734,7 @@ const BlockSection: React.FC<{
             font-size: 8px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
-            border: 1px solid rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
             white-space: nowrap;
         }
         
@@ -1832,7 +1757,7 @@ const BlockSection: React.FC<{
         }
         
         tbody tr:hover {
-            background: rgba(148, 163, 184, 0.04);
+            background: rgba(99, 102, 241, 0.1);
         }
         
         tbody td {
@@ -1850,7 +1775,7 @@ const BlockSection: React.FC<{
         }
         
         tfoot tr {
-            background: linear-gradient(135deg, #111827 0%, #374151 100%);
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
         }
         
         tfoot td {
@@ -1910,7 +1835,7 @@ const BlockSection: React.FC<{
             }
             
             .header {
-                background: linear-gradient(180deg, #6b7280 0%, #0f172a 100%) !important;
+                background: #4f46e5 !important;
                 -webkit-print-color-adjust: exact;
             }
             
@@ -1952,8 +1877,8 @@ const BlockSection: React.FC<{
             }
             
             thead th {
-                background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%) !important;
-                border: 1px solid #374151 !important;
+                background: #7c3aed !important;
+                border: 1px solid #6d28d9 !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
@@ -1972,13 +1897,13 @@ const BlockSection: React.FC<{
             }
             
             tfoot tr {
-                background: linear-gradient(180deg, #111827 0%, #374151 100%) !important;
+                background: #4f46e5 !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
             
             tfoot td {
-                border: 1px solid #374151 !important;
+                border: 1px solid #4338ca !important;
                 color: white !important;
             }
             
@@ -2006,17 +1931,9 @@ const BlockSection: React.FC<{
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <div class="header-row">
-                <div class="logo-square" aria-hidden="true"></div>
-                <div class="header-text">
-                    <h1 class="brand">Urban Passageiro</h1>
-                    <div class="header-details">
-                        <div class="plan-name">Planejamento Estratégico: ${block.name}</div>
-                        <div class="projections">Projeções de 6 Meses</div>
-                        <div class="date">Gerado em: ${date}</div>
-                    </div>
-                </div>
-            </div>
+            <h1>📊 Planejamento Estratégico: ${block.name}</h1>
+            <p class="subtitle">Urban Passageiro - Projeções de 6 Meses</p>
+            <p class="date">Gerado em: ${date}</p>
         </div>
         
         <!-- KPI Cards -->

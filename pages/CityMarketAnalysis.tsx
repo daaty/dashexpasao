@@ -7,7 +7,6 @@ import { FiArrowLeft, FiSave, FiTrendingUp, FiUsers, FiTarget, FiShield, FiPlus,
 import { CityMarketData, MarketCompetitor, StakeholderContact, MonthResult } from '../types';
 import { getGradualMonthlyGoal } from '../services/calculationService';
 import { PRICE_PER_RIDE } from '../constants';
-import * as planResultsService from '../services/planResultsService';
 
 const CityMarketAnalysis: React.FC = () => {
     const { cityId } = useParams<{ cityId: string }>();
@@ -28,7 +27,6 @@ const CityMarketAnalysis: React.FC = () => {
     // Estados para CPA e OPS - novos campos por mês
     const [cpaValues, setCpaValues] = useState<{ [monthKey: string]: number }>({});
     const [opsValues, setOpsValues] = useState<{ [monthKey: string]: number }>({});
-    const [cpaOpsLoadedFromBackend, setCpaOpsLoadedFromBackend] = useState(false);
 
     // Initial Load
     useEffect(() => {
@@ -38,70 +36,51 @@ const CityMarketAnalysis: React.FC = () => {
         }
     }, [cityId, getCityMarketData]);
     
-    // Carregar custos projetados do plano quando disponível (ou buscar diretamente do backend)
+    // Carregar custos projetados do plano quando disponível
     useEffect(() => {
-        const loadResultsFromBackend = async () => {
-            // Primeiro tenta usar dados do cityPlan local
-            let resultsToUse = cityPlan?.results;
+        if (cityPlan?.results) {
+            const costs: { [key: string]: { marketingCost: number; operationalCost: number } } = {};
+            const loadedCPA: { [key: string]: number } = {};
+            const loadedOPS: { [key: string]: number } = {};
+            let hasSavedCpaOps = false;
             
-            // Se não tiver no plano local, busca diretamente do backend
-            if (!resultsToUse && city) {
-                console.log(`🔍 Buscando resultados de ${city.name} diretamente do backend...`);
-                const backendData = await planResultsService.getPlanResults(city.id);
-                if (backendData?.results) {
-                    resultsToUse = backendData.results;
-                    console.log(`✅ Resultados encontrados no backend para ${city.name}`);
+            Object.entries(cityPlan.results).forEach(([key, result]) => {
+                // Os dados são salvos com chave Mes1, Mes2, etc.
+                costs[key] = {
+                    marketingCost: result.marketingCost || 0,
+                    operationalCost: result.operationalCost || 0
+                };
+                
+                // Carregar CPA/OPS salvos se existirem
+                if (result.cpaPerRide !== undefined && result.cpaPerRide !== 0) {
+                    loadedCPA[key] = result.cpaPerRide;
+                    hasSavedCpaOps = true;
                 }
-            }
+                if (result.opsPerRide !== undefined && result.opsPerRide !== 0) {
+                    loadedOPS[key] = result.opsPerRide;
+                    hasSavedCpaOps = true;
+                }
+            });
             
-            if (resultsToUse) {
-                const costs: { [key: string]: { marketingCost: number; operationalCost: number } } = {};
-                const loadedCPA: { [key: string]: number } = {};
-                const loadedOPS: { [key: string]: number } = {};
-                let hasSavedCpaOps = false;
-                
-                Object.entries(resultsToUse).forEach(([key, result]) => {
-                    // Os dados são salvos com chave Mes1, Mes2, etc.
-                    costs[key] = {
-                        marketingCost: result.marketingCost || 0,
-                        operationalCost: result.operationalCost || 0
-                    };
-                    // Carregar CPA/OPS salvos se existirem (aceita zero como valor válido)
-                    if (result.cpaPerRide !== undefined) {
-                        loadedCPA[key] = result.cpaPerRide;
-                        hasSavedCpaOps = true;
-                    }
-                    if (result.opsPerRide !== undefined) {
-                        loadedOPS[key] = result.opsPerRide;
-                        hasSavedCpaOps = true;
-                    }
-                });
-                
-                setProjectedCosts(costs);
-                
-                // Se existem valores CPA/OPS salvos, usá-los
-                if (hasSavedCpaOps) {
-                    console.log('📥 Carregando CPA/OPS do backend:', { loadedCPA, loadedOPS });
-                    setCpaValues(loadedCPA);
-                    setOpsValues(loadedOPS);
-                    setCpaOpsLoadedFromBackend(true);
-                }
+            setProjectedCosts(costs);
+            
+            // Se existem valores CPA/OPS salvos, usá-los
+            if (hasSavedCpaOps) {
+                setCpaValues(loadedCPA);
+                setOpsValues(loadedOPS);
             }
-        };
-        
-        loadResultsFromBackend();
-    }, [cityPlan, city]);
+        }
+    }, [cityPlan]);
 
     // Inicializar dados CPA/OPS para cidades específicas (apenas se não houver dados salvos)
     useEffect(() => {
-        // Não inicializar se já foram carregados do backend
-        if (cpaOpsLoadedFromBackend) {
-            console.log('⏭️ CPA/OPS já carregados do backend, não sobrescrever');
-            return;
-        }
+        // Verificar se há dados CPA/OPS já salvos no cityPlan
+        const hasSavedCpaOps = cityPlan?.results && Object.values(cityPlan.results).some(
+            result => result.cpaPerRide !== undefined && result.cpaPerRide !== 0
+        );
         
-        // Só inicializar com dados padrão se os estados estiverem vazios
-        if (city && !Object.keys(cpaValues).length && !Object.keys(opsValues).length) {
+        // Só inicializar com dados padrão se NÃO houver dados salvos E os estados estiverem vazios
+        if (city && !hasSavedCpaOps && !Object.keys(cpaValues).length && !Object.keys(opsValues).length) {
             // Lista das 7 cidades mencionadas com valores CPA/OPS baseados na população e características econômicas
             const cityProjectionData = {
                 // Cuiabá (população: 650,912, alta renda)
@@ -169,10 +148,9 @@ const CityMarketAnalysis: React.FC = () => {
                     };
                 }
                 setProjectedCosts(initialCosts);
-                console.log('📝 Inicializando CPA/OPS com valores padrão da cidade');
             }
         }
-    }, [city, cpaOpsLoadedFromBackend, cpaValues, opsValues]);
+    }, [city, cityPlan, cpaValues, opsValues]);
 
     // Função auxiliar para calcular meses de projeção (sem dependência circular)
     const getProjectionMonthsForCalculation = () => {
@@ -244,9 +222,6 @@ const CityMarketAnalysis: React.FC = () => {
         const results: { [key: string]: MonthResult } = {};
         const projectionMonths = getProjectionMonths();
         
-        console.log('💾 Salvando projeções - CPA Values:', cpaValues);
-        console.log('💾 Salvando projeções - OPS Values:', opsValues);
-        
         projectionMonths.forEach((month, index) => {
             const mesKey = `Mes${index + 1}`;
             const costs = projectedCosts[month.key] || { marketingCost: 0, operationalCost: 0 };
@@ -264,8 +239,6 @@ const CityMarketAnalysis: React.FC = () => {
                 opsPerRide: ops
             };
         });
-        
-        console.log('💾 Results a serem salvos:', results);
         
         await updatePlanResultsBatch(city.id, results);
         
