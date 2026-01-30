@@ -2,51 +2,50 @@
 
 ## 📦 Visão Geral
 
-O sistema agora possui **persistência completa** de todos os dados usando `localStorage`. Todas as informações inseridas são automaticamente salvas e permanecerão disponíveis mesmo após:
+O sistema utiliza **PostgreSQL como única fonte de dados**. Todos os dados são salvos e carregados diretamente do banco de dados, garantindo consistência e persistência real.
 
-- ✅ Atualizar a página (F5)
-- ✅ Fechar e reabrir o navegador
-- ✅ Fazer login em outro dispositivo (usando o mesmo navegador e perfil)
-- ✅ Navegação entre páginas do sistema
+### ⚠️ ATUALIZAÇÃO IMPORTANTE (v12.0)
 
-## 🔐 Dados Persistidos
+O localStorage foi **completamente removido** do sistema. Agora:
 
-### 1. **Planejamentos de Cidades**
-- **Chave**: `urban_plans`
-- **Conteúdo**: Todos os planejamentos criados com suas fases e ações
-- **Salvamento automático**: Ao criar, editar ou excluir ações/fases
+- ✅ Todos os dados vêm do PostgreSQL
+- ✅ Não há mais cache local que possa causar inconsistências
+- ✅ Dados persistem mesmo em diferentes navegadores/dispositivos
+- ✅ Sincronização em tempo real
 
-### 2. **Status das Cidades**
-- **Chave**: `urban_cities_status`
-- **Conteúdo**: Status atual de cada cidade (Não Atendida, Planejamento, Implementação, Consolidada)
-- **Salvamento automático**: Mudanças manuais ou automáticas (baseadas em progresso)
+## 🔐 Dados Persistidos no PostgreSQL
 
-### 3. **Dados de Mercado**
-- **Chave**: `urban_market_data`
-- **Conteúdo**: Análises de mercado, SWOT, stakeholders, competidores
-- **Salvamento automático**: Ao salvar formulários de análise
+### 1. **Cidades**
+- **Tabela**: `City`
+- **Conteúdo**: Todas as cidades com seus dados e status
+- **Salvamento**: Direto no banco via API
 
-### 4. **Blocos de Mercado**
-- **Chave**: `urban_market_blocks`
-- **Conteúdo**: Blocos criados e cidades atribuídas a cada bloco
-- **Salvamento automático**: Ao criar, renomear ou mover cidades entre blocos
+### 2. **Planejamentos**
+- **Tabela**: `Planning`
+- **Conteúdo**: Planejamentos criados para cada cidade
+- **Salvamento**: Direto no banco via API
 
-### 5. **Templates de Fase**
-- **Chave**: `urban_phase_templates`
-- **Conteúdo**: Templates personalizados de fases de planejamento
-- **Salvamento automático**: Ao editar ou resetar templates
+### 3. **Detalhes do Planejamento**
+- **Tabela**: `PlanDetails`
+- **Conteúdo**: Fases, ações e configurações de cada planejamento
+- **Salvamento**: Direto no banco via API
 
-### 6. **Tags de Planejamento**
-- **Chave**: `urban_planning_tags`
-- **Conteúdo**: Tags customizadas com cores para organização
-- **Salvamento automático**: Ao criar, editar ou excluir tags
+### 4. **Resultados do Planejamento**
+- **Tabela**: `PlanningResults`
+- **Conteúdo**: Projeções financeiras, custos reais, metas
+- **Salvamento**: Direto no banco via API
 
-### 7. **Responsáveis**
-- **Chave**: `urban_planning_responsibles`
-- **Conteúdo**: Lista de responsáveis com cores e iniciais
-- **Salvamento automático**: Ao criar, editar ou excluir responsáveis
+### 5. **Blocos de Mercado**
+- **Tabela**: `MarketBlock`
+- **Conteúdo**: Blocos de inteligência e cidades associadas
+- **Salvamento**: Direto no banco via API
 
-## 🔄 Sincronização com Backend
+### 6. **Tarefas**
+- **Tabela**: `Task`
+- **Conteúdo**: Tarefas associadas a planejamentos
+- **Salvamento**: Direto no banco via API
+
+## 🔄 Arquitetura de Dados
 
 O sistema possui uma **estratégia híbrida**:
 

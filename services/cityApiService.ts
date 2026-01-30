@@ -20,9 +20,21 @@ const mapBackendStatusToFrontend = (backendStatus: string): CityStatus => {
   }
 };
 
+const mapBackendMesorregionToFrontend = (backendMeso: string): string => {
+  const mesoMap: { [key: string]: string } = {
+    'NORTE': 'NORTE_MATOGROSSENSE',
+    'NORDESTE': 'NORDESTE_MATOGROSSENSE',
+    'CENTRO_SUL': 'CENTRO_SUL_MATOGROSSENSE',
+    'SUDESTE': 'SUDESTE_MATOGROSSENSE',
+    'SUDOESTE': 'SUDOESTE_MATOGROSSENSE',
+  };
+  return mesoMap[backendMeso] || backendMeso;
+};
+
 const mapBackendCityToFrontend = (city: any): City => ({
   ...city,
-  status: mapBackendStatusToFrontend(city.status)
+  status: mapBackendStatusToFrontend(city.status),
+  mesorregion: mapBackendMesorregionToFrontend(city.mesorregion)
 });
 
 /**
@@ -86,10 +98,48 @@ export const updateCityFromIBGE = async (cityId: number): Promise<City | null> =
 
 /**
  * Criar ou atualizar cidade
+ * Mapeia os enums do frontend para o formato do backend
  */
 export const upsertCity = async (cityData: City): Promise<City | null> => {
   try {
-    const response = await api.post('/cities', cityData);
+    // Mapear status do frontend para backend
+    const statusMap: { [key: string]: string } = {
+      'Consolidada': 'CONSOLIDATED',
+      'Em expansão': 'EXPANSION',
+      'Não atendida': 'NOT_SERVED',
+      'Planejamento': 'PLANNING',
+    };
+    
+    // Mapear mesorregion do frontend para backend
+    const mesoMap: { [key: string]: string } = {
+      'NORTE_MATOGROSSENSE': 'NORTE',
+      'NORDESTE_MATOGROSSENSE': 'NORDESTE',
+      'CENTRO_SUL_MATOGROSSENSE': 'CENTRO_SUL',
+      'SUDESTE_MATOGROSSENSE': 'SUDESTE',
+      'SUDOESTE_MATOGROSSENSE': 'SUDOESTE',
+    };
+    
+    // Sanitize implementationStartDate: backend expects a valid date or null/absent
+    const safeCity: any = { ...cityData };
+    if (safeCity.implementationStartDate) {
+      const d = new Date(safeCity.implementationStartDate);
+      if (isNaN(d.getTime())) {
+        delete safeCity.implementationStartDate;
+      } else {
+        // Send ISO-8601 date string (backend validation expects valid date)
+        safeCity.implementationStartDate = d.toISOString();
+      }
+    } else {
+      delete safeCity.implementationStartDate;
+    }
+
+    const backendData = {
+      ...safeCity,
+      status: statusMap[cityData.status] || 'NOT_SERVED',
+      mesorregion: mesoMap[cityData.mesorregion] || cityData.mesorregion,
+    };
+    
+    const response = await api.post('/cities', backendData);
     return response.data.data || response.data || null;
   } catch (error) {
     console.error('Erro ao salvar cidade:', error);
@@ -109,4 +159,30 @@ export const getCitiesByViability = async (limit?: number): Promise<City[]> => {
     console.error('Erro ao buscar cidades por viabilidade:', error);
     return [];
   }
+};
+
+/**
+ * Atualiza o status de uma cidade no backend
+ * IMPORTANTE: Lança erro se falhar - não retorna null silenciosamente
+ */
+export const updateCityStatus = async (cityId: number, status: CityStatus): Promise<City> => {
+  const statusMap: { [key in CityStatus]: string } = {
+    [CityStatus.Planning]: 'PLANNING',
+    [CityStatus.Expansion]: 'EXPANSION',
+    [CityStatus.Consolidated]: 'CONSOLIDATED',
+    [CityStatus.NotServed]: 'NOT_SERVED',
+  };
+
+  const response = await api.patch(`/cities/${cityId}/status`, { 
+    status: statusMap[status] 
+  });
+  
+  const cityData = response.data.data || response.data;
+  
+  if (!cityData) {
+    throw new Error(`Backend não retornou dados para cidade ${cityId}`);
+  }
+  
+  console.log(`✅ Status persistido no PostgreSQL para ${cityId}: ${status}`);
+  return mapBackendCityToFrontend(cityData);
 };

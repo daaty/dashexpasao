@@ -1,9 +1,10 @@
 import axios from 'axios';
 
-// Forçar URL do backend em desenvolvimento
+// Em desenvolvimento, usar caminho relativo para o proxy do Vite funcionar
+// Em produção, usar URL absoluta do backend
 const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const API_BASE_URL = isDevelopment 
-  ? 'http://localhost:3001/api'
+  ? '/api'  // Proxy do Vite redirecionará para localhost:3001
   : (import.meta.env.VITE_API_URL || 'http://backend.148.230.73.27.nip.io/api');
 
 console.log('🔧 API Configuration:');

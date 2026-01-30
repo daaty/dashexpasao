@@ -1,0 +1,89 @@
+{
+  "titulo": "N8N UUID - Expressões Prontas para Copiar",
+  "problema": "invalid input syntax for type uuid: \"E3187249520260127212683250UQKArJ\"",
+  "solucoes": [
+    {
+      "numero": 1,
+      "nome": "NÃO ENVIAR ID (Melhor Solução)",
+      "descricao": "PostgreSQL gera automaticamente via @default(uuid())",
+      "passos": [
+        "1. Abra o PostgreSQL node em n8n",
+        "2. Vá para 'Mapping'",
+        "3. REMOVA qualquer linha com a coluna 'id'",
+        "4. Deixe vazio - PostgreSQL gera automaticamente"
+      ],
+      "beneficios": [
+        "✅ Simples",
+        "✅ Sem erros",
+        "✅ UUIDs sempre válidos"
+      ]
+    },
+    {
+      "numero": 2,
+      "nome": "Gerar UUID Válido em Expressão",
+      "descricao": "Converta strings inválidas para UUID válido",
+      "expressao": "{{ (($json.id || '').length < 36 ? (function() { let h=0; const s=String($json.id||''); for(let i=0;i<s.length;i++){ h=((h<<5)-h)+s.charCodeAt(i); h=h&h; } const x=Math.abs(h).toString(16).padStart(8,'0'); return `${x}0000-4000-8000-${Date.now().toString(16).padStart(12,'0')}`; })() : $json.id) }}",
+      "explicacao": "Verifica se a string é < 36 caracteres (não é UUID). Se não for, gera um UUID determinístico a partir do hash da string.",
+      "exemplo_entrada": "E3187249520260127212683250UQKArJ",
+      "exemplo_saida": "a1b2c3d40000-4000-8000-00000067a8c1"
+    },
+    {
+      "numero": 3,
+      "nome": "Function Node com Validação Completa",
+      "descricao": "Use o código atualizado do N8N_FUNCTION_NODE_CONVERTER.js",
+      "passos": [
+        "1. Adicione um nó 'Function' ANTES do PostgreSQL node",
+        "2. Cole o código do N8N_FUNCTION_NODE_CONVERTER.js",
+        "3. A função gerarUUIDValido() será chamada automaticamente",
+        "4. Execute"
+      ],
+      "codigo_resumido": "resultado.id = gerarUUIDValido(data.id);",
+      "beneficios": [
+        "✅ Todas as conversões de tipo",
+        "✅ Validação UUID completa",
+        "✅ Tratamento de null/undefined"
+      ]
+    },
+    {
+      "numero": 4,
+      "nome": "SQL Direto - Gerar UUID no PostgreSQL",
+      "descricao": "Se o valor vem como string, o PostgreSQL gera UUID",
+      "sql": "INSERT INTO \"Autorecarga\" (id, valido, agendado, ...) VALUES (gen_random_uuid(), true, false, ...);",
+      "explicacao": "Use gen_random_uuid() no lugar de passar o id",
+      "como_usar": "Ao invés de enviar 'id' do n8n, deixe a coluna fora e PostgreSQL gera automaticamente"
+    }
+  ],
+  "teste_rapido": {
+    "passo1": "SELECT gen_random_uuid();",
+    "resultado": "Exemplo: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'",
+    "seu_uuid_invalido": "E3187249520260127212683250UQKArJ ❌",
+    "uuid_gerado_valido": "a1b2c3d40000-4000-8000-00000067a8c1 ✅"
+  },
+  "configuracao_n8n_postgresql": {
+    "nome": "Como configurar no PostgreSQL Node",
+    "opcoes": [
+      {
+        "opcao": "Opção A: Sem ID (Recomendado)",
+        "mapping": "Remova a linha 'id' completamente",
+        "resultado": "PostgreSQL gera via @default(uuid())"
+      },
+      {
+        "opcao": "Opção B: Com ID Convertido",
+        "mapping_id": "{{ gerarUUIDValido($json.id) }}",
+        "requer": "Function node ANTES deste node"
+      },
+      {
+        "opcao": "Opção C: Com Expressão Inline",
+        "mapping_id": "{{ (($json.id || '').length < 36 ? (function(){...})() : $json.id) }}",
+        "complexidade": "Alta - use apenas se não puder adicionar Function node"
+      }
+    ]
+  },
+  "checklist": [
+    "□ Identifique se PRECISA enviar o 'id' (geralmente não precisa)",
+    "□ Se não precisa: Remova do mapping",
+    "□ Se precisa: Adicione Function node com validação",
+    "□ Teste com 1 registro primeiro",
+    "□ Verifique em PostgreSQL: SELECT id FROM \"Autorecarga\" LIMIT 1;"
+  ]
+}

@@ -40,4 +40,11 @@ router.post('/', validateRequest(cityBodySchema, 'body'), cityController.upsertC
  */
 router.put('/:id/update-ibge', cityController.updateCityFromIBGE);
 
+/**
+ * @route   PATCH /api/cities/:id/status
+ * @desc    Atualizar status da cidade
+ * @access  Private
+ */
+router.patch('/:id/status', cityController.updateCityStatus);
+
 export default router;

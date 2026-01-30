@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { FiDollarSign, FiTrendingUp, FiDollarSign as FiCost, FiTarget, FiBarChart2, FiZap } from 'react-icons/fi';
+import { FiDollarSign, FiTrendingUp, FiDollarSign as FiCost, FiTarget, FiBarChart2, FiZap, FiPrinter } from 'react-icons/fi';
 import Card from './ui/Card';
 
 // ========================================
@@ -80,6 +80,7 @@ const formatMonthDisplay = (monthKey: string): { monthName: string; monthYear: s
 // ========================================
 
 const FinancialProjection: React.FC<FinancialProjectionProps> = ({
+    cityName,
     monthlyCosts,
     monthlyRealCosts = {},
     expectedRides,
@@ -94,11 +95,152 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
     const [editValue, setEditValue] = useState<number>(0);
 
     // ========================================
+    // FUNÇÃO DE EXPORTAÇÃO PARA IMPRESSÃO
+    // ========================================
+
+    const handleExportForPrint = () => {
+        // Calcular totais para o relatório
+        const months = Object.keys(monthlyCosts).sort();
+        let totalExpectedRides = 0, totalActualRides = 0;
+        let totalMarketingProj = 0, totalMarketingReal = 0;
+        let totalOperationalProj = 0, totalOperationalReal = 0;
+        let totalProjRevenue = 0, totalActualRevenue = 0;
+
+        const tableRows = months.map(monthKey => {
+            const costs = monthlyCosts[monthKey] || { marketingCost: 0, operationalCost: 0 };
+            const realCosts = monthlyRealCosts[monthKey] || { marketingCost: 0, operationalCost: 0 };
+            const rides = expectedRides[monthKey] || 0;
+            const realRides = actualRides[monthKey] || 0;
+            const projRev = projectedRevenue[monthKey] || 0;
+            const actRev = actualRevenue[monthKey] || 0;
+            const totalCostProj = costs.marketingCost + costs.operationalCost;
+            const totalCostReal = realCosts.marketingCost + realCosts.operationalCost;
+            const costPerRideProj = rides > 0 ? totalCostProj / rides : 0;
+            const costPerRideReal = realRides > 0 ? totalCostReal / realRides : 0;
+
+            totalExpectedRides += rides;
+            totalActualRides += realRides;
+            totalMarketingProj += costs.marketingCost;
+            totalMarketingReal += realCosts.marketingCost;
+            totalOperationalProj += costs.operationalCost;
+            totalOperationalReal += realCosts.operationalCost;
+            totalProjRevenue += projRev;
+            totalActualRevenue += actRev;
+
+            const { monthYear } = formatMonthDisplay(monthKey);
+            const ridesPercent = rides > 0 ? ((realRides / rides) * 100).toFixed(0) : '-';
+            const marketingVar = costs.marketingCost > 0 ? (((realCosts.marketingCost - costs.marketingCost) / costs.marketingCost) * 100).toFixed(0) : '-';
+            const operationalVar = costs.operationalCost > 0 ? (((realCosts.operationalCost - costs.operationalCost) / costs.operationalCost) * 100).toFixed(0) : '-';
+
+            return `<tr>
+                <td>${Math.round(rides)}</td>
+                <td>${realRides ? Math.round(realRides) : '-'}</td>
+                <td>${ridesPercent}%</td>
+                <td>${costs.marketingCost > 0 ? 'R$ ' + Math.round(costs.marketingCost).toLocaleString('pt-BR') : '-'}</td>
+                <td>${realCosts.marketingCost > 0 ? 'R$ ' + Math.round(realCosts.marketingCost).toLocaleString('pt-BR') : '-'}</td>
+                <td>${marketingVar}%</td>
+                <td>${costs.operationalCost > 0 ? 'R$ ' + Math.round(costs.operationalCost).toLocaleString('pt-BR') : '-'}</td>
+                <td>${realCosts.operationalCost > 0 ? 'R$ ' + Math.round(realCosts.operationalCost).toLocaleString('pt-BR') : '-'}</td>
+                <td>${operationalVar}%</td>
+                <td>R$${costPerRideProj.toFixed(1)}</td>
+                <td>${costPerRideReal > 0 ? 'R$' + costPerRideReal.toFixed(1) : '-'}</td>
+            </tr>`;
+        }).join('');
+
+        const avgCostProj = totalExpectedRides > 0 ? (totalMarketingProj + totalOperationalProj) / totalExpectedRides : 0;
+        const avgCostReal = totalActualRides > 0 ? (totalMarketingReal + totalOperationalReal) / totalActualRides : 0;
+        const totalMarketingVar = totalMarketingProj > 0 ? (((totalMarketingReal - totalMarketingProj) / totalMarketingProj) * 100).toFixed(0) : '-';
+        const totalOperationalVar = totalOperationalProj > 0 ? (((totalOperationalReal - totalOperationalProj) / totalOperationalProj) * 100).toFixed(0) : '-';
+
+        const printContent = `<!DOCTYPE html><html><head>
+            <title>Relatório - ${cityName}</title>
+            <meta charset="UTF-8">
+            <style>
+                @page { size: A4 portrait; margin: 5mm; }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: Arial, sans-serif; font-size: 8px; padding: 8px; color: #333; }
+                .header { text-align: center; margin-bottom: 8px; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; }
+                .header h1 { font-size: 14px; color: #1e40af; margin-bottom: 2px; }
+                .header p { font-size: 8px; color: #666; }
+                .kpis { display: flex; justify-content: space-between; margin-bottom: 8px; gap: 4px; }
+                .kpi { background: #f1f5f9; padding: 6px 8px; border-radius: 4px; text-align: center; flex: 1; }
+                .kpi-label { font-size: 6px; color: #64748b; text-transform: uppercase; font-weight: 600; }
+                .kpi-value { font-size: 12px; font-weight: bold; color: #1e40af; }
+                .kpi-sub { font-size: 6px; color: #94a3b8; }
+                table { width: 100%; border-collapse: collapse; font-size: 7px; }
+                th { background: #1e40af; color: white; padding: 3px 2px; font-size: 6px; font-weight: 600; }
+                th.grp { background: #3b82f6; font-size: 7px; }
+                td { padding: 2px; border: 1px solid #e2e8f0; text-align: center; }
+                tr:nth-child(even) { background: #f8fafc; }
+                .total { background: #1e40af !important; color: white; font-weight: bold; }
+                .total td { border-color: #1e40af; }
+                .footer { margin-top: 6px; text-align: center; font-size: 6px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 4px; }
+                @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+            </style>
+        </head><body>
+            <div class="header">
+                <h1>📊 ${cityName} - Projeção vs Realidade</h1>
+                <p>${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+            </div>
+            <div class="kpis">
+                <div class="kpi"><div class="kpi-label">Corridas</div><div class="kpi-value">${totalActualRides}</div><div class="kpi-sub">Meta: ${totalExpectedRides} (${totalExpectedRides > 0 ? ((totalActualRides / totalExpectedRides) * 100).toFixed(0) : 0}%)</div></div>
+                <div class="kpi"><div class="kpi-label">Custo Total</div><div class="kpi-value">R$${((totalMarketingProj + totalOperationalProj)/1000).toFixed(1)}k</div><div class="kpi-sub">Real: R$${((totalMarketingReal + totalOperationalReal)/1000).toFixed(1)}k</div></div>
+                <div class="kpi"><div class="kpi-label">Receita</div><div class="kpi-value">R$${(totalProjRevenue/1000).toFixed(1)}k</div><div class="kpi-sub">Real: R$${(totalActualRevenue/1000).toFixed(1)}k</div></div>
+                <div class="kpi"><div class="kpi-label">Custo/Corrida</div><div class="kpi-value">R$${avgCostProj.toFixed(2)}</div><div class="kpi-sub">Real: R$${avgCostReal.toFixed(2)}</div></div>
+                <div class="kpi"><div class="kpi-label">CPA Mkt</div><div class="kpi-value">R$${totalExpectedRides > 0 ? (totalMarketingProj / totalExpectedRides).toFixed(2) : '0'}</div><div class="kpi-sub">por pax</div></div>
+                <div class="kpi"><div class="kpi-label">CAC</div><div class="kpi-value">R$${totalExpectedRides > 0 ? ((totalMarketingProj + totalOperationalProj) / totalExpectedRides).toFixed(2) : '0'}</div><div class="kpi-sub">total</div></div>
+            </div>
+            <table>
+                <thead>
+                    <tr><th rowspan="2">Mês</th><th colspan="3" class="grp">Corridas</th><th colspan="3" class="grp">Marketing</th><th colspan="3" class="grp">Operacional</th><th colspan="2" class="grp">Custo/Corrida</th></tr>
+                    <tr><th>Meta</th><th>Real</th><th>%</th><th>Proj</th><th>Real</th><th>Var</th><th>Proj</th><th>Real</th><th>Var</th><th>Proj</th><th>Real</th></tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                    <tr class="total">
+                        <td>TOTAL</td>
+                        <td>${totalExpectedRides}</td>
+                        <td>${totalActualRides}</td>
+                        <td>${totalExpectedRides > 0 ? ((totalActualRides / totalExpectedRides) * 100).toFixed(0) : 0}%</td>
+                        <td>R$ ${Math.round(totalMarketingProj).toLocaleString('pt-BR')}</td>
+                        <td>R$ ${Math.round(totalMarketingReal).toLocaleString('pt-BR')}</td>
+                        <td>${totalMarketingVar}%</td>
+                        <td>R$ ${Math.round(totalOperationalProj).toLocaleString('pt-BR')}</td>
+                        <td>R$ ${Math.round(totalOperationalReal).toLocaleString('pt-BR')}</td>
+                        <td>${totalOperationalVar}%</td>
+                        <td>R$${avgCostProj.toFixed(1)}</td>
+                        <td>R$${avgCostReal.toFixed(1)}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="footer">📈 DashTrans - Relatório Financeiro</div>
+        </body></html>`;
+
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.onload = () => { printWindow.print(); };
+        }
+    };
+
+    // DEBUG: Log dos dados recebidos
+    React.useEffect(() => {
+        console.log('💰 FinancialProjection - Dados recebidos:', {
+            monthlyCosts: Object.keys(monthlyCosts).length,
+            monthlyRealCosts: Object.keys(monthlyRealCosts).length,
+            expectedRides: Object.keys(expectedRides).length,
+            actualRides: Object.keys(actualRides).length,
+        });
+    }, [monthlyCosts, monthlyRealCosts, expectedRides, actualRides, projectedRevenue, actualRevenue]);
+
+    // ========================================
     // PROCESSAMENTO DE DADOS
     // ========================================
 
     const monthsData = useMemo<MonthData[]>(() => {
         const months = Object.keys(monthlyCosts).sort();
+        console.log('📊 FinancialProjection - Meses a processar:', months);
         
         return months.map(monthKey => {
             const costs = monthlyCosts[monthKey] || { marketingCost: 0, operationalCost: 0 };
@@ -165,15 +307,24 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
     // ========================================
 
     const handleStartEdit = (month: string, field: string, currentValue: number) => {
-        if (!isEditing) return;
+        if (!isEditing) {
+            console.warn('⚠️ Tentativa de editar sem modo edição ativo');
+            return;
+        }
+        console.log(`✏️ Iniciando edição - Mês: ${month}, Campo: ${field}, Valor atual: ${currentValue}`);
         setEditingCell({ month, field });
         setEditValue(currentValue);
     };
 
     const handleSaveEdit = () => {
         if (editingCell) {
+            console.log(`💾 Salvando edição - Mês: ${editingCell.month}, Campo: ${editingCell.field}, Novo valor: ${editValue}`);
+            // Chamar onCostsChange para atualizar o estado no componente pai
             onCostsChange(editingCell.month, editingCell.field as 'marketingCost' | 'operationalCost', editValue, true);
+            console.log(`✅ onCostsChange chamado com isReal=true`);
             setEditingCell(null);
+        } else {
+            console.warn('⚠️ handleSaveEdit chamado sem célula em edição');
         }
     };
 
@@ -182,8 +333,14 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') handleSaveEdit();
-        if (e.key === 'Escape') handleCancelEdit();
+        console.log(`⌨️ Tecla pressionada: ${e.key}, Valor atual: ${editValue}`);
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSaveEdit();
+        }
+        if (e.key === 'Escape') {
+            handleCancelEdit();
+        }
     };
 
     // ========================================
@@ -228,9 +385,16 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
                 <input
                     type="number"
                     value={editValue}
-                    onChange={(e) => setEditValue(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                        const newValue = parseFloat(e.target.value) || 0;
+                        console.log(`📝 Valor digitado: ${e.target.value} → Convertido: ${newValue}`);
+                        setEditValue(newValue);
+                    }}
                     onKeyDown={handleKeyDown}
-                    onBlur={handleSaveEdit}
+                    onBlur={(e) => {
+                        console.log('👆 onBlur disparado, salvando...');
+                        handleSaveEdit();
+                    }}
                     className="w-20 px-2 py-1 text-right text-sm rounded border border-green-400 dark:border-green-600 bg-white dark:bg-dark-300 focus:outline-none focus:ring-2 focus:ring-green-500"
                     autoFocus
                 />
@@ -272,16 +436,26 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={onToggleEdit}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all shadow-md ${
-                            isEditing
-                                ? 'bg-red-500 text-white hover:bg-red-600'
-                                : 'bg-blue-500 text-white hover:bg-blue-600'
-                        }`}
-                    >
-                        {isEditing ? 'Finalizar Edição' : 'Editar Custos Reais'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleExportForPrint}
+                            className="px-4 py-2 rounded-lg font-medium transition-all shadow-md bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 flex items-center gap-2"
+                            title="Exportar para Impressão"
+                        >
+                            <FiPrinter className="w-4 h-4" />
+                            Exportar
+                        </button>
+                        <button
+                            onClick={onToggleEdit}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all shadow-md ${
+                                isEditing
+                                    ? 'bg-red-500 text-white hover:bg-red-600'
+                                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                            }`}
+                        >
+                            {isEditing ? 'Finalizar Edição' : 'Editar Custos Reais'}
+                        </button>
+                    </div>
                 </div>
 
                 {/* KPIs Resumo */}
@@ -577,7 +751,17 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
                                                 className="bg-dark-700 text-white rounded px-2 py-1 w-20 border border-cyan-400 outline-none"
                                                 value={editValue}
                                                 onChange={e => setEditValue(Number(e.target.value))}
-                                                onKeyDown={handleKeyDown}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        onCostsChange(row.month, 'marketingCost', editValue, false);
+                                                        setEditingCell(null);
+                                                    }
+                                                    if (e.key === 'Escape') handleCancelEdit();
+                                                }}
+                                                onBlur={() => {
+                                                    onCostsChange(row.month, 'marketingCost', editValue, false);
+                                                    setEditingCell(null);
+                                                }}
                                                 autoFocus
                                             />
                                         ) : (
@@ -619,7 +803,17 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
                                                 className="bg-dark-700 text-white rounded px-2 py-1 w-20 border border-cyan-400 outline-none"
                                                 value={editValue}
                                                 onChange={e => setEditValue(Number(e.target.value))}
-                                                onKeyDown={handleKeyDown}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        onCostsChange(row.month, 'operationalCost', editValue, false);
+                                                        setEditingCell(null);
+                                                    }
+                                                    if (e.key === 'Escape') handleCancelEdit();
+                                                }}
+                                                onBlur={() => {
+                                                    onCostsChange(row.month, 'operationalCost', editValue, false);
+                                                    setEditingCell(null);
+                                                }}
                                                 autoFocus
                                             />
                                         ) : (

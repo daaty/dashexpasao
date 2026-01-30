@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,72 +7,101 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum CityStatus {
-  CONSOLIDATED
-  EXPANSION
-  NOT_SERVED
-  PLANNING
+model PlanningResults {
+  id                  String   @id @default(uuid())
+  cityId              Int      @unique
+  results             Json
+  realMonthlyCosts    Json?
+  startDate           String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([cityId])
 }
 
-enum Mesorregion {
-  NORTE_MATOGROSSENSE
-  NORDESTE_MATOGROSSENSE
-  CENTRO_SUL_MATOGROSSENSE
-  SUDESTE_MATOGROSSENSE
-  SUDOESTE_MATOGROSSENSE
+model PlanDetails {
+  id        String   @id @default(uuid())
+  cityId    Int      @unique
+  phases    Json
+  startDate String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cityId])
+}
+
+model Passenger {
+  id                 String   @id @default(uuid())
+  cityName           String   @unique @db.VarChar(255)
+  totalPassengers    Int      @default(0)
+  dailyAverage       Float    @default(0)
+  peakHourPassengers Int      @default(0)
+  offPeakPassengers  Int      @default(0)
+  retentionRate      Float    @default(0)
+  repurchaseRate     Float    @default(0)
+  churnRate          Float    @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([cityName])
+  @@index([createdAt])
+}
+
+model MarketBlock {
+  id        String   @id
+  name      String
+  cityIds   Int[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model City {
-  id                      Int          @id
-  name                    String
-  population              Int
-  population15to44        Int
-  averageIncome           Float
-  urbanizationIndex       Float
-  status                  CityStatus
-  mesorregion             Mesorregion
-  gentilic                String
-  anniversary             String
-  mayor                   String
-  monthlyRevenue          Float?
-  implementationStartDate DateTime?
-  averageFormalSalary     Float
-  formalJobs              Int
-  urbanizedAreaKm2        Float
-  
-  createdAt               DateTime     @default(now())
-  updatedAt               DateTime     @updatedAt
-  
-  plannings               Planning[]
-  comparisons             Comparison[]
-  
+  id        Int      @id
+  name      String
+  status    String
+  mesorregion String?
+  implementationStartDate String?
+  population Int? @default(0)
+  population15to44 Int? @default(0)
+  averageIncome Float? @default(0)
+  urbanizationIndex Float? @default(0)
+  gentilic String?
+  anniversary String?
+  mayor String?
+  averageFormalSalary Float? @default(0)
+  formalJobs Int? @default(0)
+  urbanizedAreaKm2 Float? @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  plannings Planning[]
+
   @@index([status])
-  @@index([mesorregion])
-  @@index([population])
 }
 
+
 model Planning {
-  id                  String   @id @default(uuid())
-  cityId              Int
-  title               String
-  description         String
-  startDate           DateTime
-  endDate             DateTime?
-  status              String   @default("active")
-  priority            String   @default("medium")
-  tags                String?  // JSON string for SQLite compatibility
-  estimatedBudget     Float?
-  actualBudget        Float?
-  progressPercentage  Int      @default(0)
-  
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
-  city                City     @relation(fields: [cityId], references: [id])
-  tasks               Task[]
-  
+  id                String   @id @default(uuid())
+  cityId            Int
+  title             String
+  description       String
+  startDate         DateTime
+  endDate           DateTime?
+  status            String?
+  priority          String?
+  tags              String?
+  estimatedBudget   Decimal? @db.Decimal(10, 2)
+  actualBudget      Decimal? @db.Decimal(10, 2)
+  progressPercentage Int?    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  city City @relation(fields: [cityId], references: [id])
+  tasks Task[]
+
   @@index([cityId])
-  @@index([status])
 }
 
 model Task {
@@ -85,72 +111,187 @@ model Task {
   description String?
   completed   Boolean  @default(false)
   dueDate     DateTime?
-  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  planning    Planning @relation(fields: [planningId], references: [id], onDelete: Cascade)
-  
+
+  planning Planning @relation(fields: [planningId], references: [id])
+
   @@index([planningId])
 }
 
-model Comparison {
-  id          String   @id @default(uuid())
-  cityId      Int
-  comparedAt  DateTime @default(now())
-  metrics     Json
-  
-  city        City     @relation(fields: [cityId], references: [id])
-  
-  @@index([cityId])
+model rides {
+  id                                         Int       @id @default(autoincrement())
+  driver_app_versioncode                     Int?
+  driver_id                                  BigInt?
+  driver_name                                String?   @db.VarChar(255)
+  driver_car_no                              String?   @db.VarChar(255)
+  user_email                                 String?   @db.VarChar(255)
+  driver_city                                String?   @db.VarChar(255)
+  driver_phone                               String?   @db.VarChar(50)
+  device_type                                Int?
+  user_id                                    BigInt?
+  referral_code                              String?   @db.VarChar(50)
+  phone_no                                   String?   @db.VarChar(50)
+  user_name                                  String?   @db.VarChar(255)
+  eng_id                                     BigInt?
+  ride_distance_from_google                  Decimal?  @db.Decimal(10, 5)
+  distance_travelled                         Decimal?  @db.Decimal(10, 5)
+  drop_time                                  String?   @db.VarChar(50)
+  drop_latitude                              Decimal?  @db.Decimal(10, 6)
+  drop_longitude                             Decimal?  @db.Decimal(10, 6)
+  pickup_latitude                            Decimal?  @db.Decimal(10, 6)
+  pickup_longitude                           Decimal?  @db.Decimal(10, 6)
+  accept_time                                String?   @db.VarChar(50)
+  vehicle_type                               Int?
+  ride_time                                  Int?
+  paid_using_stripe                          Int?      @default(0)
+  wait_time                                  Int?
+  pickup_time                                String?   @db.VarChar(50)
+  cancelled_on                               String?   @db.VarChar(50)
+  paid_using_wallet                          Int?      @default(0)
+  paid_using_paytm                           Int?      @default(0)
+  paid_using_mobikwik                        Int?      @default(0)
+  accept_distance                            Decimal?  @db.Decimal(10, 2)
+  convenience_charge                         Decimal?  @default(0) @db.Decimal(10, 2)
+  convenience_charge_waiver                  Decimal?  @default(0) @db.Decimal(10, 2)
+  actual_fare                                Decimal?  @db.Decimal(10, 2)
+  eng_debt_added                             Decimal?  @default(0) @db.Decimal(10, 2)
+  customer_total_fare                        Decimal?  @db.Decimal(10, 2)
+  discount                                   Decimal?  @default(0) @db.Decimal(10, 2)
+  ride_type_status                           Int?      @default(0)
+  accept_distance_subsidy                    Decimal?  @default(0) @db.Decimal(10, 2)
+  fare_fixed                                 Decimal?  @db.Decimal(10, 2)
+  pickup_location_address                    String?
+  pickup_location_address_ln                 Json?
+  drop_location_address                      String?
+  drop_location_address_ln                   Json?
+  paid_by_customer                           Decimal?  @db.Decimal(10, 2)
+  engagement_date                            String?   @db.VarChar(50)
+  images_links                               String?
+  engagement_data_id                         BigInt?
+  engagement_id                              BigInt?
+  customer_night_fare_applicable             Int?      @default(0)
+  customer_fare_fixed                        Decimal?  @db.Decimal(10, 2)
+  customer_fare_per_km                       Decimal?  @db.Decimal(10, 2)
+  customer_fare_threshold_distance           Decimal?  @db.Decimal(10, 2)
+  customer_fare_per_min                      Decimal?  @db.Decimal(10, 2)
+  customer_fare_threshold_time               Int?
+  customer_fare_per_waiting_min              Decimal?  @db.Decimal(10, 2)
+  customer_fare_threshold_waiting_time       Int?
+  customer_fare_per_baggage                  Decimal?  @default(0) @db.Decimal(10, 2)
+  driver_night_fare_applicable               Int?      @default(0)
+  driver_fare_fixed                          Decimal?  @db.Decimal(10, 2)
+  driver_fare_per_km                         Decimal?  @db.Decimal(10, 2)
+  driver_fare_threshold_distance             Decimal?  @db.Decimal(10, 2)
+  driver_fare_per_min                        Decimal?  @db.Decimal(10, 2)
+  driver_fare_threshold_time                 Int?
+  driver_fare_per_waiting_min                Decimal?  @db.Decimal(10, 2)
+  driver_fare_threshold_waiting_time         Int?
+  driver_per_ride_driver_subsidy             Decimal?  @default(0) @db.Decimal(10, 2)
+  driver_accept_subsidy_threshold_distance   Decimal?  @default(0) @db.Decimal(10, 2)
+  driver_accept_subsidy_before_threshold     Decimal?  @default(0) @db.Decimal(10, 2)
+  driver_accept_subsidy_after_threshold      Decimal?  @default(0) @db.Decimal(10, 2)
+  ride_time_google                           Int?
+  vehicle_tax                                Decimal?  @db.Decimal(10, 2)
+  customer_tax_percentage                    Decimal?  @default(0) @db.Decimal(5, 2)
+  toll_charge                                Decimal?  @default(0) @db.Decimal(10, 2)
+  customer_fare_per_km_threshold_distance    Decimal?  @db.Decimal(10, 2)
+  customer_fare_per_km_after_threshold       Decimal?  @db.Decimal(10, 2)
+  customer_fare_per_km_before_threshold      Decimal?  @db.Decimal(10, 2)
+  driver_fare_per_km_threshold_distance      Decimal?  @db.Decimal(10, 2)
+  driver_fare_per_km_after_threshold         Decimal?  @db.Decimal(10, 2)
+  driver_fare_per_km_before_threshold        Decimal?  @db.Decimal(10, 2)
+  driver_fare_per_baggage                    Decimal?  @default(0) @db.Decimal(10, 2)
+  captive_ride_type                          Int?      @default(0)
+  jugnoo_commission_deducted                 Int?      @default(1)
+  customer_no_of_xmin                        Int?
+  customer_fare_per_xmin                     Decimal?  @default(0) @db.Decimal(10, 2)
+  customer_scheduled_ride_fare               Decimal?  @default(0) @db.Decimal(10, 2)
+  driver_scheduled_ride_fare                 Decimal?  @default(0) @db.Decimal(10, 2)
+  customer_accept_charges_threshold_distance Decimal?  @default(0) @db.Decimal(10, 2)
+  customer_accept_charges_before_threshold   Decimal?  @default(0) @db.Decimal(10, 2)
+  customer_accept_charges_after_threshold    Decimal?  @default(0) @db.Decimal(10, 2)
+  customer_fare_per_kg                       Decimal?  @default(0) @db.Decimal(10, 2)
+  driver_fare_per_kg                         Decimal?  @default(0) @db.Decimal(10, 2)
+  created_at                                 DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                                 DateTime? @default(now()) @db.Timestamp(6)
+  engagement_status                          Int?
+  driver_accept_longitude                    Decimal?  @db.Decimal(10, 6)
+  driver_accept_latitude                     Decimal?  @db.Decimal(10, 6)
+  engagement_addn_info                       Json?
+  city                                       String?   @db.VarChar(255)
+  preferred_payment_mode                     Int?
+  driver_fare_factor                         Decimal?  @default(1) @db.Decimal(5, 2)
+  customer_fare_factor                       Decimal?  @default(1) @db.Decimal(5, 2)
+  paid_using_freecharge                      Int?      @default(0)
+  cancellation_charges                       Decimal?  @default(0) @db.Decimal(10, 2)
+  coupon_title                               String?   @db.VarChar(255)
+  master_coupon                              Int?      @default(0)
+  pool_fare_id                               BigInt?
+  integratedpromotitle                       String?   @db.VarChar(255)
+  cashback_percentage                        Decimal?  @db.Decimal(5, 2)
+  cashback_maximum                           Decimal?  @db.Decimal(10, 2)
+  coupon_id                                  BigInt?
+  coupon_type                                String?   @db.VarChar(50)
+  coupon_benefit_type                        String?   @db.VarChar(50)
+  tip_amount                                 Decimal?  @default(0) @db.Decimal(10, 2)
+  meter_fare_applicable                      Int?      @default(2)
+  luggage_count                              Int?      @default(0)
+  region_name                                String?   @db.VarChar(255)
+  type                                       String?   @db.VarChar(100)
+  toll_to_add                                Decimal?  @db.Decimal(10, 2)
+  ride_source                                String?   @db.VarChar(100)
+  ride_type                                  String?   @db.VarChar(100)
+  end_ride                                   Int?      @default(0)
+  start_end                                  Int?      @default(0)
+  start_end_reversed                         Int?
+  start_end_automated                        Int?
+  debt_amount                                Decimal?  @default(0) @db.Decimal(10, 2)
+  debt_engagement_id                         BigInt?   @default(0)
+  waiting_charges_applicable                 Int?      @default(0)
+  distance_unit                              String?   @db.VarChar(10)
+  jul_enabled                                Int?      @default(0)
+  session_addn_info                          Json?
+  return_trip                                Int?
+  engagement_title                           Int?
+  engagement_title_string                    String?   @db.VarChar(100)
+  estimated_distance                         Decimal?  @db.Decimal(10, 5)
+  estimated_ride_time                        Int?
+  custom_geofence_fares                      Json?
+
+  @@index([accept_time], map: "idx_rides_accept_time")
+  @@index([city], map: "idx_rides_city")
+  @@index([created_at], map: "idx_rides_created_at")
+  @@index([driver_id], map: "idx_rides_driver_id")
+  @@index([drop_time], map: "idx_rides_drop_time")
+  @@index([engagement_date], map: "idx_rides_engagement_date")
+  @@index([engagement_id], map: "idx_rides_engagement_id")
+  @@index([engagement_status], map: "idx_rides_engagement_status")
+  @@index([updated_at], map: "idx_rides_updated_at")
+  @@index([user_id], map: "idx_rides_user_id")
 }
 
-model AIQuery {
-  id          String   @id @default(uuid())
-  prompt      String
-  response    String
-  context     Json?
-  createdAt   DateTime @default(now())
-  
-  @@index([createdAt])
-}
+model Autorecarga {
+  id                    String    @id @default(uuid())
+  valido                Boolean?  @default(false)
+  agendado              Boolean?  @default(false)
+  tipo                  String?   @db.VarChar(50)
+  id_transacao          String?   @db.VarChar(255)
+  data                  DateTime?
+  hora                  String?   @db.VarChar(8)
+  valor_extraido        Decimal?  @db.Decimal(12, 2)
+  pagador               String?   @db.VarChar(255)
+  recebedor             String?   @db.VarChar(255)
+  cnpj_recebedor        String?   @db.VarChar(18)
+  cnpj_valido           Boolean?  @default(false)
+  status_recebedor      String?   @db.VarChar(50)
+  creditos_calculados   Decimal?  @db.Decimal(12, 2)
+  remetente_whatsapp    String?   @db.VarChar(20)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-model IBGECache {
-  id          String   @id @default(uuid())
-  cityId      Int      @unique
-  data        Json
-  lastFetched DateTime @default(now())
-  
-  @@index([lastFetched])
-}
-
-model PlanningResults {
-  id          String   @id @default(uuid())
-  cityId      Int      @unique
-  results     Json     // Armazena os resultados mensais { "2024-01": { rides, passengers, ... }, ... }
-  startDate   String?  // Data de início do planejamento (formato YYYY-MM)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@index([cityId])
-}
-
-model Passenger {
-  id                String   @id @default(uuid())
-  cityName          String   @db.VarChar(255)
-  totalPassengers   Int      @default(0)
-  dailyAverage      Float    @default(0)
-  peakHourPassengers Int     @default(0)
-  offPeakPassengers  Int     @default(0)
-  retentionRate     Float    @default(0)
-  repurchaseRate    Float    @default(0)
-  churnRate         Float    @default(0)
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  @@unique([cityName])
-  @@index([cityName])
-  @@index([createdAt])
+  @@index([id_transacao], map: "idx_autorecarga_id_transacao")
+  @@index([data], map: "idx_autorecarga_data")
+  @@index([cnpj_recebedor], map: "idx_autorecarga_cnpj_recebedor")
+  @@index([createdAt], map: "idx_autorecarga_createdAt")
 }

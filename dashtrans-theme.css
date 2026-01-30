@@ -8,7 +8,7 @@ Adaptado para React + Tailwind CSS
 
 /* ========== BASE STYLES - DASHTRANS ========== */
 html {
-  background: linear-gradient(135deg, #0c1929 0%, #142d4c 50%, #1a3a5c 100%) !important;
+  background: linear-gradient(180deg, #374151 0%, #1f2937 25%, #111827 50%, #0a0a0a 100%) !important;
   background-attachment: fixed !important;
   min-height: 100vh;
 }
@@ -416,7 +416,7 @@ table.dt-striped tbody tr:nth-child(even):hover {
 .text-dt-muted { color: rgb(255 255 255 / 40%) !important; }
 
 /* Background Colors */
-.bg-dt-body { background: linear-gradient(135deg, #0c1929 0%, #142d4c 50%, #1a3a5c 100%) !important; }
+.bg-dt-body { background: linear-gradient(180deg, #374151 0%, #1f2937 25%, #111827 50%, #0a0a0a 100%) !important; }
 .bg-dt-card { background-color: rgb(255 255 255 / 5%) !important; }
 .bg-dt-light { background-color: rgb(255 255 255 / 10%) !important; }
 .bg-dt-dark { background-color: rgb(0 20 45 / 50%) !important; }

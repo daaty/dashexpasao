@@ -2,17 +2,24 @@ import React, { useContext, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DataContext } from '../context/DataContext';
 import CityDetails from '../components/CityDetails';
+import CityDataTable from '../components/CityDataTable';
 import Card from '../components/ui/Card';
 import { FiArrowLeft } from 'react-icons/fi';
 
 const CityDetailsPage: React.FC = () => {
     const { cityId } = useParams<{ cityId: string }>();
     const navigate = useNavigate();
-    const { cities } = useContext(DataContext);
+    const { cities, updateCity } = useContext(DataContext);
 
     const city = useMemo(() => {
         return cities.find(c => c.id === Number(cityId));
     }, [cities, cityId]);
+
+    const handleUpdateCity = (field: string, value: any) => {
+        if (city) {
+            updateCity(city.id, { ...city, [field]: value });
+        }
+    };
 
     if (!city) {
         return (
@@ -52,6 +59,14 @@ const CityDetailsPage: React.FC = () => {
             <Card className="backdrop-blur-sm" style={{ background: 'rgba(0, 0, 0, 0.2)', backdropFilter: 'blur(10px)' }}>
                 <CityDetails city={city} />
             </Card>
+
+            {/* Tabela de Configurações Consolidada */}
+            <div className="mt-8">
+                <h2 className="text-2xl font-bold mb-4" style={{ color: '#ffffff' }}>
+                    📊 Configurações de Dados
+                </h2>
+                <CityDataTable city={city} onUpdate={handleUpdateCity} />
+            </div>
         </div>
     );
 };

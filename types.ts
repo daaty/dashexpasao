@@ -89,13 +89,18 @@ export interface MonthResult {
     // Revenue fields (from recharges/credits sales)
     projectedRevenue?: number;
     actualRevenue?: number;
+    // CPA and OPS per ride (for projections persistence)
+    cpaPerRide?: number;
+    opsPerRide?: number;
 }
 
 export interface CityPlan {
+  id?: string; // ID do planejamento no backend (necessário para deletar)
   cityId: number;
   startDate: string; // "YYYY-MM"
   phases: PlanningPhase[];
   results?: { [monthKey: string]: MonthResult }; // e.g., { "Mes1": { rides: 1200, marketingCost: 500, ... } }
+  realMonthlyCosts?: { [monthKey: string]: { marketingCost: number; operationalCost: number } }; // Custos reais por mês (YYYY-MM)
 }
 
 // --- Tipos para Configuração (Settings) ---

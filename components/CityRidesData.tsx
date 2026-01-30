@@ -84,6 +84,7 @@ const CityRidesData: React.FC<CityRidesDataProps> = ({
 
   useEffect(() => {
     let mounted = true;
+    let pollInterval: NodeJS.Timeout | null = null;
 
     const fetchData = async () => {
       try {
@@ -136,10 +137,22 @@ const CityRidesData: React.FC<CityRidesDataProps> = ({
       }
     };
 
+    // Fetch inicial
     fetchData();
+
+    // Polling automático a cada 30 segundos para atualizar dados de corridas
+    pollInterval = setInterval(() => {
+      if (mounted) {
+        console.log(`🔄 Atualizando dados de corridas para ${cityName}...`);
+        fetchData();
+      }
+    }, 30000); // 30 segundos
 
     return () => {
       mounted = false;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
     };
   }, [cityName, showMonthlyChart, months, currentPage]);
 

@@ -16,7 +16,26 @@ export const getAllCities = async (query: PaginationQuery & {
   const skip = (page - 1) * limit;
 
   const where: any = {};
-  if (query.status) where.status = query.status;
+  // Normalizar status para o valor do banco
+  if (query.status) {
+    // Aceita tanto enum frontend quanto string backend
+    const statusMap: Record<string, string> = {
+      'Planejamento': 'PLANNING',
+      'PLANNING': 'PLANNING',
+      'Em expansão': 'EXPANSION',
+      'EXPANSION': 'EXPANSION',
+      'Consolidada': 'CONSOLIDATED',
+      'CONSOLIDATED': 'CONSOLIDATED',
+      'Não atendida': 'NOT_SERVED',
+      'NOT_SERVED': 'NOT_SERVED',
+      'not_served': 'NOT_SERVED',
+      'consolidated': 'CONSOLIDATED',
+      'expansion': 'EXPANSION',
+      'planning': 'PLANNING',
+    };
+    const normalized = statusMap[query.status] || query.status;
+    where.status = normalized;
+  }
   if (query.mesorregion) where.mesorregion = query.mesorregion;
   if (query.minPopulation) where.population = { gte: query.minPopulation };
 
@@ -99,10 +118,13 @@ export const updateCityFromIBGE = async (id: number) => {
  * Cria ou atualiza uma cidade
  */
 export const upsertCity = async (cityData: any) => {
+  // Remover campos que não existem no modelo Prisma City
+  const { monthlyRevenue, ...cleanData } = cityData;
+  
   return await prisma.city.upsert({
-    where: { id: cityData.id },
-    update: cityData,
-    create: cityData,
+    where: { id: cleanData.id },
+    update: cleanData,
+    create: cleanData,
   });
 };
 
@@ -151,4 +173,17 @@ export const getCitiesByViabilityScore = async (limit = 20) => {
   return citiesWithScores
     .sort((a, b) => b.viabilityScore - a.viabilityScore)
     .slice(0, limit);
+};
+
+/**
+ * Atualiza o status de uma cidade
+ */
+export const updateCityStatus = async (cityId: number, status: string) => {
+  const updated = await prisma.city.update({
+    where: { id: cityId },
+    data: { status: status as any },
+  });
+
+  logger.info(`🔄 Status atualizado para cidade ${updated.name} (${cityId}): ${status}`);
+  return updated;
 };

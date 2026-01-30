@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:3001/api';
+import api from './api';
 
 export interface RevenueData {
   [monthKey: string]: number; // "2025-01": 5000
@@ -13,7 +11,7 @@ export interface RevenueData {
  */
 export const getMonthlyRevenueData = async (cityName: string): Promise<RevenueData> => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/plannings/revenue/${encodeURIComponent(cityName)}`);
+    const response = await api.get(`/plannings/revenue/${encodeURIComponent(cityName)}`);
     
     if (response.data?.success && response.data?.data) {
       return response.data.data;

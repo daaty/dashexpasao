@@ -13,6 +13,14 @@ export const PENETRATION_SCENARIOS = {
 
 export const PRICE_PER_RIDE = 2.50;
 
+// Constantes de custos (percentuais sobre receita)
+export const MARKETING_COST_PERCENT = 0.15;    // 15% da receita para marketing
+export const OPERATIONAL_COST_PERCENT = 0.35;  // 35% da receita para operacional
+export const TOTAL_COST_PERCENT = 0.50;        // 50% total (15% + 35%)
+
+// Curva de graduação dos 6 meses de implementação
+export const IMPLEMENTATION_CURVE_FACTORS = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0];
+
 export const MONTHS = [
   'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 
   'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'

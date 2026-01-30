@@ -1,0 +1,89 @@
+{
+  "expressoes_conversao": {
+    "titulo": "Expressões n8n para Converter Moeda BRL para Número",
+    
+    "expressao_simples": {
+      "descricao": "Converter R$ 20,00 para 20.00",
+      "expressao": "{{ parseFloat(($json.valor_extraido || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) }}",
+      "entrada": "R$ 20,00",
+      "saida": 20,
+      "como_usar": "Use esta expressão diretamente no campo valor_extraido do PostgreSQL"
+    },
+
+    "expressao_alternativa_1": {
+      "descricao": "Versão mais robusta",
+      "expressao": "{{ parseFloat(String($json.valor_extraido || '0').replace(/[^0-9,.-]/g, '').replace(/\\./g, '').replace(',', '.')) }}",
+      "entrada": "R$ 20,00",
+      "saida": 20
+    },
+
+    "expressao_alternativa_2": {
+      "descricao": "Se o valor já é um número",
+      "expressao": "{{ typeof $json.valor_extraido === 'number' ? $json.valor_extraido : parseFloat(($json.valor_extraido || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) }}",
+      "entrada": "R$ 20,00 ou 20",
+      "saida": 20
+    },
+
+    "expressao_com_validacao": {
+      "descricao": "Com validação de valor vazio",
+      "expressao": "{{ $json.valor_extraido ? parseFloat(($json.valor_extraido || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) : null }}",
+      "entrada": "R$ 20,00 ou vazio",
+      "saida": 20
+    },
+
+    "exemplos_praticos": {
+      "exemplo_1": {
+        "entrada": "R$ 20,00",
+        "expressao": "{{ parseFloat(($json.valor_extraido || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) }}",
+        "saida": 20
+      },
+      "exemplo_2": {
+        "entrada": "R$ 1.234,56",
+        "expressao": "{{ parseFloat(($json.valor_extraido || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) }}",
+        "saida": 1234.56
+      },
+      "exemplo_3": {
+        "entrada": "R$ 100,50",
+        "expressao": "{{ parseFloat(($json.valor_extraido || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) }}",
+        "saida": 100.5
+      },
+      "exemplo_4": {
+        "entrada": "20,00",
+        "expressao": "{{ parseFloat(($json.valor_extraido || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) }}",
+        "saida": 20
+      }
+    },
+
+    "passo_a_passo_no_n8n": {
+      "passo_1": "Abra o nó PostgreSQL (Insert)",
+      "passo_2": "Clique em 'Mapping'",
+      "passo_3": "No campo 'valor_extraido', clique no ícone de expressão (fx)",
+      "passo_4": "Cole a expressão: {{ parseFloat(($json.valor_extraido || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) }}",
+      "passo_5": "Execute o workflow"
+    },
+
+    "screenshot_representativo": {
+      "estrutura": "PostgreSQL Node > Data Tab > Mapping > valor_extraido = {{ EXPRESSAO }}"
+    },
+
+    "como_funciona_a_expressao": {
+      "passo_1": "($json.valor_extraido || '0')   - Pega o valor ou '0' se vazio",
+      "passo_2": ".replace('R$ ', '')               - Remove 'R$ '",
+      "passo_3": ".replace(/\\./g, '')              - Remove pontos (separador de milhar)",
+      "passo_4": ".replace(',', '.')                - Troca vírgula por ponto (decimal)",
+      "passo_5": "parseFloat(...)                   - Converte para número"
+    },
+
+    "resultado": {
+      "entrada": "R$ 20,00",
+      "processamento": [
+        "Passo 1: R$ 20,00",
+        "Passo 2: 20,00",
+        "Passo 3: 20,00",
+        "Passo 4: 20.00",
+        "Passo 5: 20 (número)"
+      ],
+      "saida": 20
+    }
+  }
+}

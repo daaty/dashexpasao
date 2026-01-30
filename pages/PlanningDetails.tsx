@@ -4,7 +4,7 @@ import { DataContext } from '../context/DataContext';
 import Card from '../components/ui/Card';
 import Modal from '../components/ui/Modal';
 import FinancialProjection from '../components/FinancialProjection';
-import { FiArrowLeft, FiClipboard, FiPlusCircle, FiChevronDown, FiChevronUp, FiEdit, FiTrash2, FiCheckSquare, FiSquare, FiSave, FiCalendar, FiClock, FiX, FiUsers, FiDollarSign, FiRefreshCw, FiLink, FiExternalLink, FiTrendingUp, FiTrendingDown, FiActivity, FiTarget, FiTag, FiUser, FiZap, FiAlertCircle, FiCheck } from 'react-icons/fi';
+import { FiArrowLeft, FiClipboard, FiPlusCircle, FiChevronDown, FiChevronUp, FiEdit, FiTrash2, FiCheckSquare, FiSquare, FiSave, FiCalendar, FiClock, FiX, FiUsers, FiDollarSign, FiRefreshCw, FiLink, FiExternalLink, FiTrendingUp, FiTrendingDown, FiActivity, FiTarget, FiTag, FiUser, FiZap, FiAlertCircle, FiCheck, FiPrinter } from 'react-icons/fi';
 import { getFinancialProjections, calculatePotentialRevenue, getMarketPotential, getGrowthRoadmap } from '../services/calculationService';
 import { PENETRATION_SCENARIOS, PHASE_COLORS, MONTHS } from '../constants';
 import InfoTooltip from '../components/ui/InfoTooltip';
@@ -405,7 +405,7 @@ const PlanningDetails: React.FC = () => {
     const { cityId } = useParams<{ cityId: string }>();
     const navigate = useNavigate();
     const chartRef = useRef<ChartJS<'line'>>(null);
-    const { cities, plans, addPlanForCity, deletePlan, updatePlanResults, updatePlanResultsBatch, updatePlanStartDate, updateCityImplementationDate } = useContext(DataContext);
+    const { cities, plans, addPlanForCity, deletePlan, updatePlanResults, updatePlanResultsBatch, updatePlanStartDate, updateCityImplementationDate, updatePlanRealCosts } = useContext(DataContext);
     const [isEditingResults, setIsEditingResults] = useState(false);
     const [localResults, setLocalResults] = useState<{ [key: string]: MonthResult }>({});
     const [realRidesData, setRealRidesData] = useState<{ [key: string]: number }>({});
@@ -459,39 +459,63 @@ const PlanningDetails: React.FC = () => {
         }
     }, [selectedPlan, growthRoadmapMedia]);
 
-    // Auto-preencher rides dos dados reais se disponíveis
+    // Carregar custos reais mensais do plano quando ele mudar
     useEffect(() => {
-        if (selectedPlan && selectedPlan.results) {
-            setLocalResults(selectedPlan.results);
-        } else if (growthRoadmapMedia.length > 0) {
-            const demoData: {[key: string]: MonthResult} = {};
-            growthRoadmapMedia.forEach((item, index) => {
-                if (index < 4) {
-                    const factor = 0.9 + (Math.random() * 0.3);
-                    const rides = Math.round(item.rides * factor);
-                    demoData[`Mes${item.month}`] = {
-                        rides,
-                        marketingCost: rides * (3 + Math.random() * 2),
-                        operationalCost: rides * (1.5 + Math.random() * 1)
-                    };
-                }
-            });
-            setLocalResults(demoData);
+        // NÃO sobrescrever se houver mudanças não salvas
+        if (hasUnsavedChanges) {
+            console.log('⚠️ Pulando carregamento - há mudanças não salvas');
+            return;
         }
-    }, [selectedPlan, growthRoadmapMedia]);
+        
+        if (!selectedPlan) {
+            setRealMonthlyCosts({});
+            return;
+        }
 
-    // Auto-save com debounce quando os dados mudarem
-    useEffect(() => {
-        if (!hasUnsavedChanges || !selectedCity) return;
+        // Carregar custos reais diretamente do plano (já vem do backend)
+        if (selectedPlan.realMonthlyCosts && Object.keys(selectedPlan.realMonthlyCosts).length > 0) {
+            console.log('💰 Custos reais carregados do plano:', selectedPlan.realMonthlyCosts);
+            setRealMonthlyCosts(selectedPlan.realMonthlyCosts);
+        } else {
+            console.log('ℹ️ Plano sem custos reais salvos');
+            setRealMonthlyCosts({});
+        }
+    }, [selectedPlan?.id, selectedPlan?.realMonthlyCosts, hasUnsavedChanges]);
 
-        const timer = setTimeout(() => {
-            console.log('💾 Salvamento automático ativado...');
-            updatePlanResultsBatch(selectedCity.id, localResults);
-            setHasUnsavedChanges(false);
-        }, 2000); // Salva automaticamente após 2 segundos de inatividade
+    // Auto-save com debounce quando os dados mudarem - DESABILITADO para evitar conflitos
+    // useEffect(() => {
+    //     if (!hasUnsavedChanges || !selectedCity || !selectedPlan) return;
 
-        return () => clearTimeout(timer);
-    }, [localResults, hasUnsavedChanges, selectedCity, updatePlanResultsBatch]);
+    //     const timer = setTimeout(() => {
+    //         console.log('💾 Salvamento automático ativado...');
+            
+    //         // Mesclar dados projetados com custos reais
+    //         const mergedResults = { ...localResults };
+    //         Object.keys(realMonthlyCosts).forEach(monthKey => {
+    //             const [targetYear, targetMonth] = monthKey.split('-').map(Number);
+    //             const [startYear, startMonth] = (selectedPlan?.startDate || '2025-01').split('-').map(Number);
+                
+    //             // Converter data YYYY-MM para Mes1, Mes2, etc
+    //             const targetTotalMonths = targetYear * 12 + (targetMonth - 1);
+    //             const startTotalMonths = startYear * 12 + (startMonth - 1);
+    //             const monthNum = targetTotalMonths - startTotalMonths + 1;
+                
+    //             if (monthNum >= 1 && monthNum <= 36) {
+    //                 const key = `Mes${monthNum}`;
+    //                 mergedResults[key] = {
+    //                     ...mergedResults[key] || { rides: 0, marketingCost: 0, operationalCost: 0 },
+    //                     marketingCost: realMonthlyCosts[monthKey]?.marketingCost ?? mergedResults[key]?.marketingCost ?? 0,
+    //                     operationalCost: realMonthlyCosts[monthKey]?.operationalCost ?? mergedResults[key]?.operationalCost ?? 0
+    //                 };
+    //             }
+    //         });
+            
+    //         updatePlanResultsBatch(selectedCity.id, mergedResults);
+    //         setHasUnsavedChanges(false);
+    //     }, 2000); // Salva automaticamente após 2 segundos de inatividade
+
+    //     return () => clearTimeout(timer);
+    // }, [localResults, realMonthlyCosts, hasUnsavedChanges, selectedCity, selectedPlan, updatePlanResultsBatch]);
 
     const marketPotential = useMemo(() => selectedCity ? getMarketPotential(selectedCity) : [], [selectedCity]);
 
@@ -589,7 +613,19 @@ const PlanningDetails: React.FC = () => {
             },
             { 
                 label: 'Resultados Reais', 
-                data: [0, ...labels.slice(1).map((_, index) => localResults[`Mes${index + 1}`]?.rides ?? null)], 
+                data: [0, ...labels.slice(1).map((_, index) => {
+                    // Usar dados reais do banco (realRidesData), formatados em YYYY-MM
+                    // Converter Mes1, Mes2, etc para data real
+                    const mesNum = index + 1;
+                    const [startYear, startMonth] = (selectedCity?.implementationStartDate || selectedPlan?.startDate || '2026-01').split('-').map(Number);
+                    const totalMonths = (startYear * 12 + (startMonth - 1)) + (mesNum - 1);
+                    const targetYear = Math.floor(totalMonths / 12);
+                    const targetMonth = (totalMonths % 12) + 1;
+                    const dateKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+                    
+                    // Retornar dados reais se disponíveis, senão null (não mostrar)
+                    return realRidesData[dateKey] ?? null;
+                })], 
                 borderColor: '#10b981',
                 backgroundColor: gradient || 'rgba(34, 211, 238, 0.2)', 
                 fill: true, 
@@ -604,7 +640,7 @@ const PlanningDetails: React.FC = () => {
             },
           ],
         };
-    }, [growthRoadmapMedia, growthRoadmapMuitoAlta, growthRoadmapMuitoBaixa, localResults]);
+    }, [growthRoadmapMedia, growthRoadmapMuitoAlta, growthRoadmapMuitoBaixa, localResults, realRidesData, selectedCity?.implementationStartDate, selectedPlan?.startDate]);
 
     const growthChartOptions = useMemo(() => ({
         responsive: true,
@@ -791,11 +827,37 @@ const PlanningDetails: React.FC = () => {
         updatePlanStartDate(parsedCityId, newStartDateStr);
     };
 
-    const handleSaveChanges = () => {
-        if (selectedCity) {
-            updatePlanResultsBatch(selectedCity.id, localResults);
-            setHasUnsavedChanges(false);
+    const handleSaveChanges = async () => {
+        if (!selectedCity || !selectedPlan) {
+            console.warn('⚠️ Cidade ou plano não selecionado');
+            return;
         }
+        
+        console.log('💾 SALVANDO ALTERAÇÕES...');
+        console.log('📊 Custos reais a salvar:', realMonthlyCosts);
+        console.log('📊 Resultados locais:', localResults);
+        
+        try {
+            // Salvar custos reais diretamente no backend (formato YYYY-MM)
+            if (Object.keys(realMonthlyCosts).length > 0) {
+                console.log('💰 Chamando updatePlanRealCosts...');
+                await updatePlanRealCosts(selectedCity.id, realMonthlyCosts);
+                console.log('✅ Custos reais salvos com sucesso!');
+            }
+            
+            // Salvar resultados projetados (formato Mes1, Mes2, etc)
+            if (Object.keys(localResults).length > 0) {
+                console.log('📈 Chamando updatePlanResultsBatch...');
+                await updatePlanResultsBatch(selectedCity.id, localResults);
+                console.log('✅ Resultados projetados salvos com sucesso!');
+            }
+            
+            setHasUnsavedChanges(false);
+            console.log('✅ TODAS AS ALTERAÇÕES SALVAS!');
+        } catch (error) {
+            console.error('❌ Erro ao salvar alterações:', error);
+        }
+        
         setIsEditingResults(false);
     };
 
@@ -829,42 +891,77 @@ const PlanningDetails: React.FC = () => {
         }, 100);
     };
 
-    const handleMonthlyCostChange = (monthKey: string, field: 'marketingCost' | 'operationalCost', value: number, isReal?: boolean) => {
-        if (!selectedPlan?.startDate) return;
-        
-        // Se for custo real, salvar no estado separado
-        if (isReal) {
-            setRealMonthlyCosts(prev => ({
-                ...prev,
-                [monthKey]: {
-                    ...prev[monthKey] || { marketingCost: 0, operationalCost: 0 },
-                    [field]: value
-                }
-            }));
-            setHasUnsavedChanges(true);
+    const handleMonthlyCostChange = async (monthKey: string, field: 'marketingCost' | 'operationalCost', value: number, isReal?: boolean) => {
+        if (!selectedPlan?.startDate) {
+            console.warn('⚠️ Tentativa de salvar custo sem startDate definido');
             return;
         }
         
-        // Convert monthKey (YYYY-MM) back to Mes1, Mes2, etc
-        const [targetYear, targetMonth] = monthKey.split('-').map(Number);
-        const [startYear, startMonth] = selectedPlan.startDate.split('-').map(Number);
+        if (!selectedCity) {
+            console.warn('⚠️ Nenhuma cidade selecionada');
+            return;
+        }
         
-        // Calculate month difference (Mes1 = month before start, so target - start + 2)
-        // Converter para 0-indexed antes de calcular
-        const targetTotalMonths = targetYear * 12 + (targetMonth - 1);
-        const startTotalMonths = startYear * 12 + (startMonth - 1);
-        const diffMonths = targetTotalMonths - startTotalMonths + 2;
-        
-        if (diffMonths >= 1 && diffMonths <= 36) {
-            const key = `Mes${diffMonths}`;
-            setLocalResults(prev => ({
-                ...prev,
-                [key]: {
-                    ...(prev[key] || { rides: 0, marketingCost: 0, operationalCost: 0 }),
+        // Se for custo real, salvar no estado E no backend imediatamente
+        if (isReal) {
+            console.log(`📝 Editando custo REAL - Mês: ${monthKey}, Campo: ${field}, Valor: R$ ${value}`);
+            
+            // Calcular novo estado
+            const updatedRealCosts = {
+                ...realMonthlyCosts,
+                [monthKey]: {
+                    ...realMonthlyCosts[monthKey] || { marketingCost: 0, operationalCost: 0 },
                     [field]: value
                 }
-            }));
+            };
+            
+            // Atualizar estado local
+            setRealMonthlyCosts(updatedRealCosts);
+            console.log(`💾 Custo real salvo no estado`, updatedRealCosts);
+            
+            // Salvar imediatamente no backend
+            console.log(`🚀 Salvando custos reais no backend para ${selectedCity.name}...`);
+            try {
+                await updatePlanRealCosts(selectedCity.id, updatedRealCosts);
+                console.log(`✅ Custos reais salvos no backend!`);
+            } catch (error) {
+                console.error(`❌ Erro ao salvar custos reais:`, error);
+            }
+            
+            return;
+        }
+        
+        // Converter monthKey (YYYY-MM) para Mes1, Mes2, etc
+        // Baseado na data de implementação
+        const startDate = selectedCity?.implementationStartDate || selectedPlan.startDate;
+        const startDateStr = String(startDate);
+        const startDatePart = startDateStr.includes('T') ? startDateStr.split('T')[0] : startDateStr;
+        const [startYear, startMonth] = startDatePart.split('-').map(Number);
+        
+        const [targetYear, targetMonth] = monthKey.split('-').map(Number);
+        
+        // Calcular diferença de meses: Mes1 = primeiro mês, Mes2 = segundo mês, etc
+        const targetTotalMonths = targetYear * 12 + targetMonth;
+        const startTotalMonths = startYear * 12 + startMonth;
+        const monthIndex = targetTotalMonths - startTotalMonths + 1; // +1 porque Mes1 é o primeiro
+        
+        if (monthIndex >= 1 && monthIndex <= 36) {
+            const key = `Mes${monthIndex}`;
+            console.log(`📅 Convertendo ${monthKey} → ${key} (início: ${startDatePart})`);
+            setLocalResults(prev => {
+                const updated = {
+                    ...prev,
+                    [key]: {
+                        ...(prev[key] || { rides: 0, marketingCost: 0, operationalCost: 0 }),
+                        [field]: value
+                    }
+                };
+                console.log(`💾 Custo projetado editado - ${key} - ${field}: R$ ${value}`);
+                return updated;
+            });
             setHasUnsavedChanges(true);
+        } else {
+            console.warn(`⚠️ Mês fora do intervalo válido: ${monthIndex}`);
         }
     };
 
@@ -912,7 +1009,8 @@ const PlanningDetails: React.FC = () => {
         if (startDate && growthRoadmapMedia.length > 0) {
             growthRoadmapMedia.forEach((roadmapItem) => {
                 const [startYear, startMonth] = startDate.split('-').map(Number);
-                const totalMonths = (startYear * 12 + startMonth - 1) + roadmapItem.month;
+                // roadmapItem.month é 1-based, então subtrair 1 para alinhar corretamente
+                const totalMonths = (startYear * 12 + startMonth - 1) + (roadmapItem.month - 1);
                 const targetYear = Math.floor(totalMonths / 12);
                 const targetMonth = (totalMonths % 12) + 1;
                 const dateKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
@@ -929,13 +1027,20 @@ const PlanningDetails: React.FC = () => {
         if (startDate && growthRoadmapMedia.length > 0) {
             growthRoadmapMedia.forEach((roadmapItem) => {
                 const [startYear, startMonth] = startDate.split('-').map(Number);
-                const totalMonths = (startYear * 12 + startMonth - 1) + roadmapItem.month;
+                // roadmapItem.month é 1-based (1=primeiro mês, 2=segundo mês, etc)
+                // Então para converter para data real: adicionar (month - 1) meses ao mês inicial
+                const totalMonths = (startYear * 12 + startMonth - 1) + (roadmapItem.month - 1);
                 const targetYear = Math.floor(totalMonths / 12);
                 const targetMonth = (totalMonths % 12) + 1;
                 const dateKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
                 ridesByDate[dateKey] = roadmapItem.rides;
             });
         }
+        console.log('🚗 PlanningDetails - calculatedExpectedRides:', {
+            total: Object.keys(ridesByDate).length,
+            startDate,
+            data: ridesByDate
+        });
         return ridesByDate;
     }, [selectedCity?.implementationStartDate, selectedPlan?.startDate, growthRoadmapMedia]);
 
@@ -943,25 +1048,223 @@ const PlanningDetails: React.FC = () => {
     const calculatedMonthlyCosts = useMemo(() => {
         const costsByDate: { [key: string]: { marketingCost: number; operationalCost: number } } = {};
         const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate;
-        if (startDate) {
-            Object.keys(localResults).forEach(key => {
-                if (key.startsWith('Mes')) {
-                    const monthNum = parseInt(key.replace('Mes', ''));
-                    const [startYear, startMonth] = startDate.split('-').map(Number);
-                    const totalMonths = (startYear * 12 + startMonth - 1) + (monthNum - 1);
-                    const targetYear = Math.floor(totalMonths / 12);
-                    const targetMonth = (totalMonths % 12) + 1;
-                    const dateKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
-                    const result = localResults[key];
-                    costsByDate[dateKey] = {
-                        marketingCost: result?.marketingCost || 0,
-                        operationalCost: result?.operationalCost || 0
-                    };
-                }
-            });
+        
+        if (!startDate) return costsByDate;
+        
+        // Parse da data de início
+        const dateStr = String(startDate);
+        const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+        const [startYear, startMonth] = datePart.split('-').map(Number);
+        
+        // Sempre gerar 6 meses de estrutura baseado na data de início
+        for (let i = 0; i < 6; i++) {
+            const totalMonths = (startYear * 12 + startMonth - 1) + i;
+            const targetYear = Math.floor(totalMonths / 12);
+            const targetMonth = (totalMonths % 12) + 1;
+            const dateKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+            
+            // Buscar custo projetado de localResults (formato Mes1, Mes2, etc)
+            const mesKey = `Mes${i + 1}`;
+            const localResult = localResults[mesKey];
+            
+            costsByDate[dateKey] = {
+                marketingCost: localResult?.marketingCost || 0,
+                operationalCost: localResult?.operationalCost || 0
+            };
         }
+        
+        console.log('💸 calculatedMonthlyCosts:', Object.keys(costsByDate).length, 'meses');
         return costsByDate;
     }, [selectedCity?.implementationStartDate, selectedPlan?.startDate, localResults]);
+
+    // ========================================
+    // FUNÇÃO DE EXPORTAÇÃO COMPLETA PARA IMPRESSÃO
+    // ========================================
+    const handleExportFullReport = () => {
+        if (!selectedCity) return;
+
+        const formatMonthDisplay = (monthKey: string): { monthName: string; monthYear: string } => {
+            const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const [year, month] = monthKey.split('-');
+            const monthIndex = parseInt(month) - 1;
+            return { monthName: monthNames[monthIndex] || monthKey, monthYear: `${month}/${year}` };
+        };
+
+        // Cálculo de totais
+        const months = Object.keys(calculatedMonthlyCosts).sort();
+        let totalExpectedRides = 0, totalActualRides = 0;
+        let totalMarketingProj = 0, totalMarketingReal = 0;
+        let totalOperationalProj = 0, totalOperationalReal = 0;
+        let totalProjRevenue = 0, totalActualRevenue = 0;
+
+        const tableRows = months.map(monthKey => {
+            const costs = calculatedMonthlyCosts[monthKey] || { marketingCost: 0, operationalCost: 0 };
+            const realCosts = realMonthlyCosts[monthKey] || { marketingCost: 0, operationalCost: 0 };
+            const rides = calculatedExpectedRides[monthKey] || 0;
+            const realRides = realRidesData[monthKey] || 0;
+            const projRev = calculatedProjectedRevenue[monthKey] || 0;
+            const actRev = calculatedActualRevenue[monthKey] || 0;
+            const costPerRideProj = rides > 0 ? (costs.marketingCost + costs.operationalCost) / rides : 0;
+            const costPerRideReal = realRides > 0 ? (realCosts.marketingCost + realCosts.operationalCost) / realRides : 0;
+
+            totalExpectedRides += rides;
+            totalActualRides += realRides;
+            totalMarketingProj += costs.marketingCost;
+            totalMarketingReal += realCosts.marketingCost;
+            totalOperationalProj += costs.operationalCost;
+            totalOperationalReal += realCosts.operationalCost;
+            totalProjRevenue += projRev;
+            totalActualRevenue += actRev;
+
+            const { monthYear } = formatMonthDisplay(monthKey);
+            const ridesPercent = rides > 0 ? ((realRides / rides) * 100).toFixed(0) : '-';
+            const mktVar = costs.marketingCost > 0 ? (((realCosts.marketingCost - costs.marketingCost) / costs.marketingCost) * 100).toFixed(0) : '-';
+            const opsVar = costs.operationalCost > 0 ? (((realCosts.operationalCost - costs.operationalCost) / costs.operationalCost) * 100).toFixed(0) : '-';
+
+            return `<tr>
+                <td>${monthYear}</td>
+                <td>${Math.round(rides)}</td><td>${realRides ? Math.round(realRides) : '-'}</td><td>${ridesPercent}%</td>
+                <td>${costs.marketingCost > 0 ? 'R$ ' + Math.round(costs.marketingCost).toLocaleString('pt-BR') : '-'}</td>
+                <td>${realCosts.marketingCost > 0 ? 'R$ ' + Math.round(realCosts.marketingCost).toLocaleString('pt-BR') : '-'}</td>
+                <td>${mktVar}%</td>
+                <td>${costs.operationalCost > 0 ? 'R$ ' + Math.round(costs.operationalCost).toLocaleString('pt-BR') : '-'}</td>
+                <td>${realCosts.operationalCost > 0 ? 'R$ ' + Math.round(realCosts.operationalCost).toLocaleString('pt-BR') : '-'}</td>
+                <td>${opsVar}%</td>
+                <td>${costPerRideProj.toFixed(1)}</td><td>${costPerRideReal > 0 ? costPerRideReal.toFixed(1) : '-'}</td>
+            </tr>`;
+        }).join('');
+
+        const avgCostProj = totalExpectedRides > 0 ? (totalMarketingProj + totalOperationalProj) / totalExpectedRides : 0;
+        const avgCostReal = totalActualRides > 0 ? (totalMarketingReal + totalOperationalReal) / totalActualRides : 0;
+        const mktVarTotal = totalMarketingProj > 0 ? (((totalMarketingReal - totalMarketingProj) / totalMarketingProj) * 100).toFixed(0) : '-';
+        const opsVarTotal = totalOperationalProj > 0 ? (((totalOperationalReal - totalOperationalProj) / totalOperationalProj) * 100).toFixed(0) : '-';
+
+        // Dados de metas
+        const chartRows = growthRoadmapMedia.slice(0, 6).map((item, idx) => {
+            const [startYear, startMonth] = (selectedCity?.implementationStartDate || selectedPlan?.startDate || '2025-01').split('-').map(Number);
+            const totalMonths = (startYear * 12 + (startMonth - 1)) + idx;
+            const targetYear = Math.floor(totalMonths / 12);
+            const targetMonth = (totalMonths % 12) + 1;
+            const dateKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+            const realRides = realRidesData[dateKey] || 0;
+            const metaMedia = item.rides;
+            const metaAlta = growthRoadmapMuitoAlta[idx]?.rides || 0;
+            const metaBaixa = growthRoadmapMuitoBaixa[idx]?.rides || 0;
+            const perf = metaMedia > 0 ? ((realRides / metaMedia) * 100).toFixed(0) : '-';
+            return `<tr>
+                <td>M${idx + 1}</td>
+                <td>${metaBaixa}</td><td><b>${metaMedia}</b></td><td>${metaAlta}</td>
+                <td style="color:${realRides >= metaMedia ? '#16a34a' : '#dc2626'}">${realRides || '-'}</td>
+                <td style="color:${Number(perf) >= 100 ? '#16a34a' : '#dc2626'}">${perf}%</td>
+            </tr>`;
+        }).join('');
+
+        const implDate = selectedCity.implementationStartDate ? new Date(selectedCity.implementationStartDate).toLocaleDateString('pt-BR') : 'N/D';
+
+        const printContent = `<!DOCTYPE html><html><head>
+            <title>Relatório - ${selectedCity.name}</title>
+            <meta charset="UTF-8">
+            <style>
+                @page { size: A4 portrait; margin: 4mm; }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: Arial, sans-serif; font-size: 7px; padding: 6px; color: #333; line-height: 1.2; }
+                .header { text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 4px; margin-bottom: 6px; }
+                .header h1 { font-size: 14px; color: #1e40af; }
+                .header p { font-size: 7px; color: #666; }
+                .section { margin-bottom: 6px; }
+                .section-title { background: #3b82f6; color: white; padding: 3px 6px; font-size: 8px; font-weight: bold; border-radius: 3px 3px 0 0; }
+                .section-content { background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; padding: 5px; border-radius: 0 0 3px 3px; }
+                .info-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+                .info-item { background: white; padding: 4px; border-radius: 3px; border: 1px solid #e2e8f0; text-align: center; }
+                .info-label { font-size: 5px; color: #64748b; text-transform: uppercase; }
+                .info-value { font-size: 10px; font-weight: bold; color: #1e40af; }
+                .info-sub { font-size: 5px; color: #94a3b8; }
+                .kpis { display: flex; gap: 3px; margin-bottom: 6px; }
+                .kpi { background: #f1f5f9; padding: 4px; border-radius: 3px; text-align: center; flex: 1; }
+                .kpi-label { font-size: 5px; color: #64748b; text-transform: uppercase; }
+                .kpi-value { font-size: 10px; font-weight: bold; color: #1e40af; }
+                .kpi-sub { font-size: 5px; color: #94a3b8; }
+                .progress-bar { background: #e2e8f0; border-radius: 4px; height: 12px; overflow: hidden; margin: 4px 0; }
+                .progress-fill { background: linear-gradient(90deg, #3b82f6, #8b5cf6); height: 100%; display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; color: white; font-size: 6px; font-weight: bold; }
+                table { width: 100%; border-collapse: collapse; font-size: 6px; }
+                th { background: #1e40af; color: white; padding: 2px 1px; font-size: 5px; }
+                th.grp { background: #3b82f6; font-size: 6px; }
+                td { padding: 2px 1px; border: 1px solid #e2e8f0; text-align: center; }
+                tr:nth-child(even) { background: #f8fafc; }
+                .total { background: #1e40af !important; color: white; font-weight: bold; }
+                .total td { border-color: #1e40af; }
+                .two-col { display: grid; grid-template-columns: 1fr 2fr; gap: 6px; }
+                .footer { margin-top: 4px; text-align: center; font-size: 5px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 3px; }
+                @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+            </style>
+        </head><body>
+            <div class="header">
+                <h1>📊 ${selectedCity.name} - Planejamento Financeiro</h1>
+                <p>${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} | Pop: ${selectedCity.population?.toLocaleString('pt-BR') || '-'} | Status: ${selectedCity.status}</p>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item"><div class="info-label">Implementação</div><div class="info-value">${implDate}</div></div>
+                <div class="info-item"><div class="info-label">Pop 15-44</div><div class="info-value">${selectedCity.population15to44?.toLocaleString('pt-BR') || '-'}</div></div>
+                <div class="info-item"><div class="info-label">Mês Atual</div><div class="info-value">${currentMonthLabel}</div></div>
+                <div class="info-item"><div class="info-label">Passageiros</div><div class="info-value">${currentRides}</div><div class="info-sub">meta: ${Math.round(mediumMonthlyTarget)}</div></div>
+                <div class="info-item"><div class="info-label">Progresso</div><div class="info-value">${overallProgress.toFixed(1)}%</div></div>
+                <div class="info-item"><div class="info-label">Receita Pot.</div><div class="info-value">R$${(calculatePotentialRevenue(selectedCity, 'Média')/1000).toFixed(0)}k</div></div>
+            </div>
+
+            <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(100, overallProgress)}%;">${overallProgress > 10 ? overallProgress.toFixed(0) + '%' : ''}</div></div>
+
+            <div class="kpis">
+                <div class="kpi"><div class="kpi-label">Corridas</div><div class="kpi-value">${totalActualRides}</div><div class="kpi-sub">Meta: ${totalExpectedRides} (${totalExpectedRides > 0 ? ((totalActualRides / totalExpectedRides) * 100).toFixed(0) : 0}%)</div></div>
+                <div class="kpi"><div class="kpi-label">Custo Total</div><div class="kpi-value">R$${((totalMarketingProj + totalOperationalProj)/1000).toFixed(1)}k</div><div class="kpi-sub">Real: R$${((totalMarketingReal + totalOperationalReal)/1000).toFixed(1)}k</div></div>
+                <div class="kpi"><div class="kpi-label">Receita</div><div class="kpi-value">R$${(totalActualRevenue/1000).toFixed(1)}k</div><div class="kpi-sub">Proj: R$${(totalProjRevenue/1000).toFixed(1)}k</div></div>
+                <div class="kpi"><div class="kpi-label">Custo/Corr</div><div class="kpi-value">R$${avgCostReal.toFixed(2)}</div><div class="kpi-sub">Proj: R$${avgCostProj.toFixed(2)}</div></div>
+                <div class="kpi"><div class="kpi-label">CPA Mkt</div><div class="kpi-value">R$${totalExpectedRides > 0 ? (totalMarketingProj / totalExpectedRides).toFixed(2) : '0'}</div></div>
+                <div class="kpi"><div class="kpi-label">CAC</div><div class="kpi-value">R$${totalExpectedRides > 0 ? ((totalMarketingProj + totalOperationalProj) / totalExpectedRides).toFixed(2) : '0'}</div></div>
+            </div>
+
+            <div class="two-col">
+                <div class="section">
+                    <div class="section-title">📈 Metas vs Realidade</div>
+                    <div class="section-content">
+                        <table>
+                            <thead><tr><th>Mês</th><th>Baixa</th><th>Média</th><th>Alta</th><th>Real</th><th>%</th></tr></thead>
+                            <tbody>${chartRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-title">💰 Projeção vs Realidade Financeira</div>
+                    <div class="section-content">
+                        <table>
+                            <thead>
+                                <tr><th rowspan="2">Mês</th><th colspan="3" class="grp">Corridas</th><th colspan="3" class="grp">Marketing</th><th colspan="3" class="grp">Operacional</th><th colspan="2" class="grp">Custo/Corr</th></tr>
+                                <tr><th>Meta</th><th>Real</th><th>%</th><th>P</th><th>R</th><th>V</th><th>P</th><th>R</th><th>V</th><th>P</th><th>R</th></tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                                <tr class="total">
+                                    <td>TOT</td>
+                                    <td>${totalExpectedRides}</td><td>${totalActualRides}</td><td>${totalExpectedRides > 0 ? ((totalActualRides / totalExpectedRides) * 100).toFixed(0) : 0}%</td>
+                                    <td>R$ ${Math.round(totalMarketingProj).toLocaleString('pt-BR')}</td><td>R$ ${Math.round(totalMarketingReal).toLocaleString('pt-BR')}</td><td>${mktVarTotal}%</td>
+                                    <td>R$ ${Math.round(totalOperationalProj).toLocaleString('pt-BR')}</td><td>R$ ${Math.round(totalOperationalReal).toLocaleString('pt-BR')}</td><td>${opsVarTotal}%</td>
+                                    <td>${avgCostProj.toFixed(1)}</td><td>${avgCostReal.toFixed(1)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="footer">📈 DashTrans - Relatório Completo de Planejamento Financeiro</div>
+        </body></html>`;
+
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.onload = () => { printWindow.print(); };
+        }
+    };
 
     const getPhaseProgress = (phaseName: string) => {
         if (!selectedPlan) return 0;
@@ -1025,14 +1328,24 @@ const PlanningDetails: React.FC = () => {
                     <button onClick={() => navigate('/planejamento')} className="p-2 rounded-full hover:bg-base-200 dark:hover:bg-dark-100 transition"><FiArrowLeft className="w-6 h-6"/></button>
                     <h2 className="text-2xl font-bold">Planejamento Financeiro: {selectedCity.name}</h2>
                 </div>
-                <button
-                    onClick={() => setShowDeleteConfirmation(true)}
-                    className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition"
-                    title="Remover cidade do planejamento"
-                >
-                    <FiTrash2 className="w-4 h-4" />
-                    <span>Remover Planejamento</span>
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleExportFullReport}
+                        className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white transition shadow-md"
+                        title="Exportar relatório completo para impressão"
+                    >
+                        <FiPrinter className="w-4 h-4" />
+                        <span>Exportar Relatório</span>
+                    </button>
+                    <button
+                        onClick={() => setShowDeleteConfirmation(true)}
+                        className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition"
+                        title="Remover cidade do planejamento"
+                    >
+                        <FiTrash2 className="w-4 h-4" />
+                        <span>Remover Planejamento</span>
+                    </button>
+                </div>
             </div>
 
             {/* Card para Editar Data de Implementação */}
@@ -1071,8 +1384,11 @@ const PlanningDetails: React.FC = () => {
                                         <p className="text-xs text-gray-500">
                                             {(() => {
                                                 const [year, month] = selectedCity.implementationStartDate.split('-').map(Number);
-                                                const monthDiff = (new Date().getFullYear() - year) * 12 + (new Date().getMonth() + 1 - month) + 1;
-                                                return `Mês ${Math.min(monthDiff, 6)} de 6`;
+                                                const currentDate = new Date();
+                                                const currentYear = currentDate.getFullYear();
+                                                const currentMonth = currentDate.getMonth() + 1;
+                                                const monthDiff = (currentYear - year) * 12 + (currentMonth - month) + 1;
+                                                return `Mês ${Math.min(Math.max(monthDiff, 1), 6)} de 6`;
                                             })()}
                                         </p>
                                     )}
@@ -1205,24 +1521,42 @@ const PlanningDetails: React.FC = () => {
             />
 
             {/* Projeção vs Realidade Financeira */}
-            <FinancialProjection
-                key={selectedCity.name + '-' + (selectedPlan?.startDate || '')}
-                cityName={selectedCity.name}
-                monthlyCosts={calculatedMonthlyCosts}
-                monthlyRealCosts={realMonthlyCosts}
-                expectedRides={calculatedExpectedRides}
-                actualRides={realRidesData}
-                projectedRevenue={Object.fromEntries(Object.entries(calculatedProjectedRevenue).slice(0, 6))}
-                actualRevenue={calculatedActualRevenue}
-                onCostsChange={handleMonthlyCostChange}
-                isEditing={isEditingMonthlyCosts}
-                onToggleEdit={() => {
+            {(() => {
+                const slicedCosts = Object.fromEntries(Object.entries(calculatedMonthlyCosts).slice(0, 6));
+                const slicedRealCosts = Object.fromEntries(Object.entries(realMonthlyCosts).slice(0, 6));
+                const slicedRides = Object.fromEntries(Object.entries(calculatedExpectedRides).slice(0, 6));
+                const slicedActualRides = Object.fromEntries(Object.entries(realRidesData).slice(0, 6));
+                const slicedProjRev = Object.fromEntries(Object.entries(calculatedProjectedRevenue).slice(0, 6));
+                const slicedActualRev = Object.fromEntries(Object.entries(calculatedActualRevenue).slice(0, 6));
+                
+                console.log('📤 Passando dados para FinancialProjection:', {
+                    monthlyCosts: Object.keys(slicedCosts).length,
+                    monthlyRealCosts: Object.keys(slicedRealCosts).length,
+                    expectedRides: Object.keys(slicedRides).length,
+                    actualRides: Object.keys(slicedActualRides).length,
+                });
+                
+                return (
+                    <FinancialProjection
+                        key={selectedCity.name + '-' + (selectedPlan?.startDate || '')}
+                        cityName={selectedCity.name}
+                        monthlyCosts={slicedCosts}
+                        monthlyRealCosts={slicedRealCosts}
+                        expectedRides={slicedRides}
+                        actualRides={slicedActualRides}
+                        projectedRevenue={slicedProjRev}
+                        actualRevenue={slicedActualRev}
+                        onCostsChange={handleMonthlyCostChange}
+                        isEditing={isEditingMonthlyCosts}
+                        onToggleEdit={() => {
                     if (isEditingMonthlyCosts && hasUnsavedChanges) {
                         handleSaveChanges();
                     }
                     setIsEditingMonthlyCosts(!isEditingMonthlyCosts);
                 }}
-            />
+                    />
+                );
+            })()} 
 
             <Card className="mb-6">
                 {/* GRÁFICO DE PROGRESSO DE METAS */}

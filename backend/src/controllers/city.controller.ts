@@ -92,3 +92,31 @@ export const upsertCity = async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 };
+
+export const updateCityStatus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      res.status(400).json({ 
+        success: false, 
+        error: 'Status is required' 
+      });
+      return;
+    }
+
+    const idNum = typeof id === 'string' ? parseInt(id) : parseInt(Array.isArray(id) ? id[0] : id);
+    const city = await cityService.updateCityStatus(idNum, status);
+
+    const response: ApiResponse<any> = {
+      success: true,
+      data: city,
+      message: `Status atualizado para ${status}`,
+    };
+
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+};

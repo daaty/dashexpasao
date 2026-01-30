@@ -57,20 +57,21 @@ const ImplementationProgressBar: React.FC<{ plan: CityPlan, city: City }> = ({ p
     const { progress: passengersProgress } = getPhaseProgress(plan, 'Aquisição de Passageiros');
     const { progress: optimizationProgress } = getPhaseProgress(plan, 'Pós-Lançamento & Otimização');
 
-    const differenceInMonths = (dateLeft: Date, dateRight: Date) => {
-        let diff = (dateLeft.getFullYear() - dateRight.getFullYear()) * 12;
-        diff -= dateRight.getMonth();
-        diff += dateLeft.getMonth();
-        return diff <= 0 ? 0 : diff;
-    }
-
+    // Calcular mês de implementação baseado em implementationStartDate
     const monthsSinceStart = city.implementationStartDate ? (() => {
         const parts = city.implementationStartDate.split('-').map(Number);
-        const year = parts[0];
-        const month = parts[1];
-        const day = parts[2] || 1; // Se não tiver dia, usar 1º do mês
-        const impDate = new Date(year, month - 1, day);
-        return differenceInMonths(new Date(), impDate);
+        const impYear = parts[0];
+        const impMonth = parts[1];
+        
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth() + 1;
+        
+        // Calcular diferença em meses (considerando que mês 1 é o mês da implementação)
+        const monthDiff = (currentYear - impYear) * 12 + (currentMonth - impMonth) + 1;
+        
+        // Se ainda não chegou no mês 1, retorna 0
+        return Math.max(0, monthDiff);
     })() : 0;
     
     const totalProgress = (driversProgress + marketingProgress + passengersProgress + optimizationProgress) / 4;
@@ -82,7 +83,7 @@ const ImplementationProgressBar: React.FC<{ plan: CityPlan, city: City }> = ({ p
                     Progresso: {totalProgress.toFixed(0)}%
                  </div>
                  <div className="text-xs font-bold" style={{ color: 'rgb(255 255 255 / 70%)' }}>
-                    Mês {Math.min(monthsSinceStart + 1, 6)} de 6
+                    Mês {Math.min(monthsSinceStart, 6)} de 6
                 </div>
             </div>
             <div 
@@ -106,7 +107,7 @@ const Planning: React.FC = () => {
   const { cities, plans, marketBlocks } = useContext(DataContext);
   const navigate = useNavigate();
 
-  const isPlanningComplete = (cityId: string) => {
+  const isPlanningComplete = (cityId: number) => {
     const plan = plans.find(p => p.cityId === cityId);
     if (!plan) return false;
     
@@ -114,6 +115,20 @@ const Planning: React.FC = () => {
     const prep = getPhaseProgress(plan, 'Preparação Operacional');
 
     return analysis.progress >= 100 && prep.progress >= 100;
+  };
+
+  // Verificar se há progresso nas fases operacionais
+  const hasOperationalProgress = (cityId: number) => {
+    const plan = plans.find(p => p.cityId === cityId);
+    if (!plan) return false;
+    
+    const drivers = getPhaseProgress(plan, 'Aquisição de Motoristas');
+    const marketing = getPhaseProgress(plan, 'Marketing & Lançamento');
+    const passengers = getPhaseProgress(plan, 'Aquisição de Passageiros');
+    const optimization = getPhaseProgress(plan, 'Pós-Lançamento & Otimização');
+    
+    // Se qualquer fase operacional tem progresso > 0, está em implementação
+    return drivers.progress > 0 || marketing.progress > 0 || passengers.progress > 0 || optimization.progress > 0;
   };
 
   const sortCitiesByDate = (a: City, b: City) => {
@@ -130,20 +145,50 @@ const Planning: React.FC = () => {
   };
 
   const planningCities = useMemo(() => {
-    return cities.filter(city => {
+    const filtered = cities.filter(city => {
         const hasPlan = plans.some(p => p.cityId === city.id);
         // Only include in Planning list if status is Planning AND not effectively complete
-        return hasPlan && city.status === CityStatus.Planning && !isPlanningComplete(city.id);
+        const shouldInclude = hasPlan && city.status === CityStatus.Planning && !isPlanningComplete(city.id);
+        
+        // Debug: mostrar status de Nova Monte Verde
+        if (city.name === 'Nova Monte Verde') {
+            console.log('🔍 Nova Monte Verde - Debug:', {
+                name: city.name,
+                cityId: city.id,
+                hasPlan,
+                status: city.status,
+                isPlanningComplete: isPlanningComplete(city.id),
+                shouldInclude
+            });
+        }
+        
+        return shouldInclude;
     }).sort(sortCitiesByDate);
+    return filtered;
   }, [plans, cities]);
 
   const implementingCities = useMemo(() => {
     return cities.filter(city => {
         const hasPlan = plans.some(p => p.cityId === city.id);
         const isExpansion = city.status === CityStatus.Expansion;
-        // Include if explicitly Expansion OR (Planning status but effectively complete)
+        // Include if explicitly Expansion AND has operational progress OR (Planning status but effectively complete)
         const isPlanningDone = city.status === CityStatus.Planning && isPlanningComplete(city.id);
-        return hasPlan && (isExpansion || isPlanningDone);
+        const shouldShowInExpansion = isExpansion && hasOperationalProgress(city.id);
+        
+        // Debug: mostrar status de Nova Monte Verde
+        if (city.name === 'Nova Monte Verde') {
+            console.log('🔍 Nova Monte Verde - Implementando Debug:', {
+                name: city.name,
+                hasPlan,
+                isExpansion,
+                isPlanningDone,
+                hasOperationalProgress: hasOperationalProgress(city.id),
+                shouldShowInExpansion,
+                shouldInclude: hasPlan && (shouldShowInExpansion || isPlanningDone)
+            });
+        }
+        
+        return hasPlan && (shouldShowInExpansion || isPlanningDone);
     }).sort(sortCitiesByDate);
   }, [plans, cities]);
 
@@ -161,13 +206,21 @@ const Planning: React.FC = () => {
     // Use actual phase start date if available, otherwise fallback to plan general date
     // Para cidades em expansão, usar a data de implementação salva
     let startDate: Date;
-    if (effectiveStatus === CityStatus.Expansion && city.implementationStartDate) {
+    if (city.implementationStartDate) {
+        // Se tem data de implementação definida, sempre usar (tanto para Planning quanto Expansion)
         const parts = city.implementationStartDate.split('-').map(Number);
         const year = parts[0];
         const month = parts[1];
         const day = parts[2] || 1;
         startDate = new Date(year, month - 1, day);
+    } else if (effectiveStatus === CityStatus.Expansion) {
+        // Fallback para expansão: usar fase de análise ou plan startDate
+        const analysisPhase = cityPlan.phases.find(p => p.name === 'Análise & Viabilidade');
+        startDate = analysisPhase?.startDate 
+            ? new Date(analysisPhase.startDate) 
+            : new Date(cityPlan.startDate + '-02');
     } else {
+        // Fallback para planejamento: usar fase de análise ou plan startDate
         const analysisPhase = cityPlan.phases.find(p => p.name === 'Análise & Viabilidade');
         startDate = analysisPhase?.startDate 
             ? new Date(analysisPhase.startDate) 

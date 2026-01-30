@@ -662,6 +662,8 @@ const DataQuery: React.FC = () => {
                         <tbody>
                             {sortedAndFilteredCities.map((city, index) => {
                                 const hasPlan = plans.some(p => p.cityId === city.id);
+                                // Permitir adicionar se não tem plano OU se tem plano mas status não é Planning
+                                const canAddPlan = !hasPlan || (hasPlan && city.status !== CityStatus.Planning);
                                 const blockName = cityBlockMap[city.id];
                                 const isInBlock = !!blockName;
 
@@ -793,13 +795,13 @@ const DataQuery: React.FC = () => {
 
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); handleAddPlan(city.id); }}
-                                                disabled={hasPlan}
+                                                disabled={!canAddPlan}
                                                 className="transition-colors"
                                                 style={{ 
-                                                    color: hasPlan ? 'rgb(255 255 255 / 30%)' : '#17a2b8',
-                                                    cursor: hasPlan ? 'not-allowed' : 'pointer'
+                                                    color: !canAddPlan ? 'rgb(255 255 255 / 30%)' : '#17a2b8',
+                                                    cursor: !canAddPlan ? 'not-allowed' : 'pointer'
                                                 }}
-                                                title={hasPlan ? "Já está no planejamento" : "Iniciar Expansão"}
+                                                title={!canAddPlan ? "Já está no planejamento" : "Iniciar Expansão"}
                                             >
                                                 <FiPlusCircle className="h-4 w-4" />
                                             </button>

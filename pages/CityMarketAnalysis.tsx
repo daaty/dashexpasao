@@ -3,20 +3,32 @@ import React, { useContext, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DataContext } from '../context/DataContext';
 import Card from '../components/ui/Card';
-import { FiArrowLeft, FiSave, FiTrendingUp, FiUsers, FiTarget, FiShield, FiPlus, FiTrash2, FiEdit2, FiPhone, FiMail, FiUser, FiGlobe } from 'react-icons/fi';
-import { CityMarketData, MarketCompetitor, StakeholderContact } from '../types';
+import { FiArrowLeft, FiSave, FiTrendingUp, FiUsers, FiTarget, FiShield, FiPlus, FiTrash2, FiEdit2, FiPhone, FiMail, FiUser, FiGlobe, FiDollarSign, FiCalendar } from 'react-icons/fi';
+import { CityMarketData, MarketCompetitor, StakeholderContact, MonthResult } from '../types';
+import { getGradualMonthlyGoal } from '../services/calculationService';
+import { PRICE_PER_RIDE } from '../constants';
+import * as planResultsService from '../services/planResultsService';
 
 const CityMarketAnalysis: React.FC = () => {
     const { cityId } = useParams<{ cityId: string }>();
     const navigate = useNavigate();
-    const { cities, getCityMarketData, saveCityMarketData } = useContext(DataContext);
-    const [activeTab, setActiveTab] = useState<'overview' | 'competition' | 'stakeholders' | 'swot'>('overview');
+    const { cities, plans, getCityMarketData, saveCityMarketData, updatePlanResultsBatch } = useContext(DataContext);
+    const [activeTab, setActiveTab] = useState<'overview' | 'competition' | 'stakeholders' | 'swot' | 'projections'>('overview');
 
     const city = cities.find(c => c.id === Number(cityId));
+    const cityPlan = plans.find(p => p.cityId === Number(cityId));
     
     // Form States
     const [formData, setFormData] = useState<CityMarketData | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    
+    // Projection States - custos projetados por mês (chave: Mes1, Mes2, etc.)
+    const [projectedCosts, setProjectedCosts] = useState<{ [monthKey: string]: { marketingCost: number; operationalCost: number } }>({});
+
+    // Estados para CPA e OPS - novos campos por mês
+    const [cpaValues, setCpaValues] = useState<{ [monthKey: string]: number }>({});
+    const [opsValues, setOpsValues] = useState<{ [monthKey: string]: number }>({});
+    const [cpaOpsLoadedFromBackend, setCpaOpsLoadedFromBackend] = useState(false);
 
     // Initial Load
     useEffect(() => {
@@ -25,6 +37,240 @@ const CityMarketAnalysis: React.FC = () => {
             setFormData(data);
         }
     }, [cityId, getCityMarketData]);
+    
+    // Carregar custos projetados do plano quando disponível (ou buscar diretamente do backend)
+    useEffect(() => {
+        const loadResultsFromBackend = async () => {
+            // Primeiro tenta usar dados do cityPlan local
+            let resultsToUse = cityPlan?.results;
+            
+            // Se não tiver no plano local, busca diretamente do backend
+            if (!resultsToUse && city) {
+                console.log(`🔍 Buscando resultados de ${city.name} diretamente do backend...`);
+                const backendData = await planResultsService.getPlanResults(city.id);
+                if (backendData?.results) {
+                    resultsToUse = backendData.results;
+                    console.log(`✅ Resultados encontrados no backend para ${city.name}`);
+                }
+            }
+            
+            if (resultsToUse) {
+                const costs: { [key: string]: { marketingCost: number; operationalCost: number } } = {};
+                const loadedCPA: { [key: string]: number } = {};
+                const loadedOPS: { [key: string]: number } = {};
+                let hasSavedCpaOps = false;
+                
+                Object.entries(resultsToUse).forEach(([key, result]) => {
+                    // Os dados são salvos com chave Mes1, Mes2, etc.
+                    costs[key] = {
+                        marketingCost: result.marketingCost || 0,
+                        operationalCost: result.operationalCost || 0
+                    };
+                    // Carregar CPA/OPS salvos se existirem (aceita zero como valor válido)
+                    if (result.cpaPerRide !== undefined) {
+                        loadedCPA[key] = result.cpaPerRide;
+                        hasSavedCpaOps = true;
+                    }
+                    if (result.opsPerRide !== undefined) {
+                        loadedOPS[key] = result.opsPerRide;
+                        hasSavedCpaOps = true;
+                    }
+                });
+                
+                setProjectedCosts(costs);
+                
+                // Se existem valores CPA/OPS salvos, usá-los
+                if (hasSavedCpaOps) {
+                    console.log('📥 Carregando CPA/OPS do backend:', { loadedCPA, loadedOPS });
+                    setCpaValues(loadedCPA);
+                    setOpsValues(loadedOPS);
+                    setCpaOpsLoadedFromBackend(true);
+                }
+            }
+        };
+        
+        loadResultsFromBackend();
+    }, [cityPlan, city]);
+
+    // Inicializar dados CPA/OPS para cidades específicas (apenas se não houver dados salvos)
+    useEffect(() => {
+        // Não inicializar se já foram carregados do backend
+        if (cpaOpsLoadedFromBackend) {
+            console.log('⏭️ CPA/OPS já carregados do backend, não sobrescrever');
+            return;
+        }
+        
+        // Só inicializar com dados padrão se os estados estiverem vazios
+        if (city && !Object.keys(cpaValues).length && !Object.keys(opsValues).length) {
+            // Lista das 7 cidades mencionadas com valores CPA/OPS baseados na população e características econômicas
+            const cityProjectionData = {
+                // Cuiabá (população: 650,912, alta renda)
+                5103403: {
+                    cpa: [12, 10, 8, 7, 6, 5.5, 5, 5, 5, 5, 5, 5], // Reduz CPA conforme cidade amadurece
+                    ops: [4.5, 4.2, 4.0, 3.8, 3.5, 3.2, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0] // OPS também reduz
+                },
+                // Cáceres (população: 95,448, renda média)
+                5102504: {
+                    cpa: [8, 7, 6, 5.5, 5, 4.5, 4, 4, 4, 4, 4, 4],
+                    ops: [3.8, 3.5, 3.2, 3.0, 2.8, 2.5, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3]
+                },
+                // Chapada dos Guimarães (população: 18,806, turística)
+                5103007: {
+                    cpa: [15, 12, 10, 8, 7, 6, 5.5, 5, 5, 5, 5, 5], // CPA maior por ser mercado turístico
+                    ops: [5.0, 4.5, 4.0, 3.5, 3.2, 3.0, 2.8, 2.8, 2.8, 2.8, 2.8, 2.8]
+                },
+                // Poconé (população: 31,247, renda baixa)
+                5106505: {
+                    cpa: [6, 5.5, 5, 4.5, 4, 3.5, 3.2, 3, 3, 3, 3, 3],
+                    ops: [3.2, 3.0, 2.8, 2.5, 2.3, 2.0, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8]
+                },
+                // Rosário Oeste (população: 15,638, renda baixa)
+                5107701: {
+                    cpa: [7, 6, 5.5, 5, 4.5, 4, 3.5, 3.2, 3.2, 3.2, 3.2, 3.2],
+                    ops: [3.5, 3.2, 3.0, 2.8, 2.5, 2.2, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+                },
+                // Nossa Senhora do Livramento (população: 12,940, renda baixa)
+                5106109: {
+                    cpa: [6.5, 5.8, 5.2, 4.8, 4.2, 3.8, 3.5, 3.2, 3.2, 3.2, 3.2, 3.2],
+                    ops: [3.3, 3.0, 2.8, 2.5, 2.2, 2.0, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8]
+                },
+                // Santo Antônio de Leverger (população: 15,472, renda baixa)
+                5107800: {
+                    cpa: [7.2, 6.5, 5.8, 5.2, 4.8, 4.2, 3.8, 3.5, 3.5, 3.5, 3.5, 3.5],
+                    ops: [3.6, 3.3, 3.0, 2.8, 2.5, 2.2, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+                }
+            };
+
+            const cityData = cityProjectionData[city.id as keyof typeof cityProjectionData];
+            if (cityData) {
+                const initialCPA: { [monthKey: string]: number } = {};
+                const initialOPS: { [monthKey: string]: number } = {};
+
+                // Preencher 12 meses com dados
+                for (let i = 0; i < 12; i++) {
+                    const monthKey = `Mes${i + 1}`;
+                    initialCPA[monthKey] = cityData.cpa[i];
+                    initialOPS[monthKey] = cityData.ops[i];
+                }
+
+                setCpaValues(initialCPA);
+                setOpsValues(initialOPS);
+
+                // Calcular custos projetados baseados nos CPA/OPS iniciais
+                const projectedMonths = getProjectionMonthsForCalculation();
+                const initialCosts: { [monthKey: string]: { marketingCost: number; operationalCost: number } } = {};
+                
+                for (let i = 0; i < 12; i++) {
+                    const monthKey = `Mes${i + 1}`;
+                    const expectedRides = projectedMonths[i]?.expectedRides || 0;
+                    initialCosts[monthKey] = {
+                        marketingCost: Math.round(expectedRides * cityData.cpa[i]),
+                        operationalCost: Math.round(expectedRides * cityData.ops[i])
+                    };
+                }
+                setProjectedCosts(initialCosts);
+                console.log('📝 Inicializando CPA/OPS com valores padrão da cidade');
+            }
+        }
+    }, [city, cpaOpsLoadedFromBackend, cpaValues, opsValues]);
+
+    // Função auxiliar para calcular meses de projeção (sem dependência circular)
+    const getProjectionMonthsForCalculation = () => {
+        if (!city) return [];
+        
+        const months: { expectedRides: number }[] = [];
+        for (let i = 0; i < 12; i++) {
+            let expectedRides = 0;
+            if (city.population15to44) {
+                const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0];
+                const targetPenetration = 0.10;
+                const factor = i < 6 ? curveFactors[i] : 1.0;
+                expectedRides = Math.round(city.population15to44 * factor * targetPenetration);
+            }
+            months.push({ expectedRides });
+        }
+        return months;
+    };
+
+    // Gerar meses para projeção (12 meses)
+    // Se houver data de implementação, mostra o mês real (Jan/2025)
+    // Se não houver, mostra apenas "Mês 1", "Mês 2", etc.
+    const getProjectionMonths = () => {
+        const months: { key: string; label: string; dateLabel: string | null; expectedRides: number; monthNumber: number }[] = [];
+        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        
+        const hasImplementationDate = !!city?.implementationStartDate;
+        
+        for (let i = 0; i < 12; i++) {
+            const mesKey = `Mes${i + 1}`; // Chave sempre será Mes1, Mes2, etc.
+            let dateLabel: string | null = null;
+            let expectedRides = 0;
+            
+            if (hasImplementationDate && city?.implementationStartDate) {
+                // Com data de implementação: calcula a data real
+                const [startYear, startMonth] = city.implementationStartDate.split('-').map(Number);
+                const totalMonths = (startYear * 12 + (startMonth - 1)) + i;
+                const year = Math.floor(totalMonths / 12);
+                const month = (totalMonths % 12) + 1;
+                const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+                
+                dateLabel = `${monthNames[month - 1]}/${year}`;
+                expectedRides = getGradualMonthlyGoal(city, monthKey, city.implementationStartDate);
+            } else if (city) {
+                // Sem data de implementação: usa estimativa baseada na curva gradual
+                const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0];
+                const targetPenetration = 0.10; // 10% da população 15-44
+                const factor = i < 6 ? curveFactors[i] : 1.0;
+                expectedRides = Math.round(city.population15to44 * factor * targetPenetration);
+            }
+            
+            months.push({
+                key: mesKey,
+                label: `Mês ${i + 1}`,
+                dateLabel: dateLabel,
+                expectedRides,
+                monthNumber: i + 1
+            });
+        }
+        return months;
+    };
+
+    const handleSaveProjections = async () => {
+        if (!city) return;
+        
+        setIsSaving(true);
+        
+        // Converter para formato MonthResult
+        const results: { [key: string]: MonthResult } = {};
+        const projectionMonths = getProjectionMonths();
+        
+        console.log('💾 Salvando projeções - CPA Values:', cpaValues);
+        console.log('💾 Salvando projeções - OPS Values:', opsValues);
+        
+        projectionMonths.forEach((month, index) => {
+            const mesKey = `Mes${index + 1}`;
+            const costs = projectedCosts[month.key] || { marketingCost: 0, operationalCost: 0 };
+            const cpa = cpaValues[mesKey] || 0;
+            const ops = opsValues[mesKey] || 0;
+            
+            results[mesKey] = {
+                rides: month.expectedRides,
+                marketingCost: costs.marketingCost,
+                operationalCost: costs.operationalCost,
+                projectedMarketing: costs.marketingCost,
+                projectedOperational: costs.operationalCost,
+                projectedRevenue: month.expectedRides * PRICE_PER_RIDE,
+                cpaPerRide: cpa,
+                opsPerRide: ops
+            };
+        });
+        
+        console.log('💾 Results a serem salvos:', results);
+        
+        await updatePlanResultsBatch(city.id, results);
+        
+        setTimeout(() => setIsSaving(false), 500);
+    };
 
     const handleSave = () => {
         if (formData) {
@@ -205,6 +451,19 @@ const CityMarketAnalysis: React.FC = () => {
                     onMouseLeave={(e) => { if (activeTab !== 'swot') e.currentTarget.style.color = '#ffffff'; }}
                 >
                     Análise SWOT
+                </button>
+                <button 
+                    onClick={() => setActiveTab('projections')}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'projections' ? 'border-b-2' : 'font-bold'}`}
+                    style={activeTab === 'projections' 
+                        ? { background: 'rgba(255, 255, 255, 0.1)', color: '#10b981', borderBottomColor: '#10b981' } 
+                        : { color: '#ffffff' }
+                    }
+                    onMouseEnter={(e) => { if (activeTab !== 'projections') e.currentTarget.style.color = '#10b981'; }}
+                    onMouseLeave={(e) => { if (activeTab !== 'projections') e.currentTarget.style.color = '#ffffff'; }}
+                >
+                    <FiDollarSign className="inline mr-1" />
+                    Projeções Financeiras
                 </button>
             </div>
 
@@ -738,6 +997,413 @@ const CityMarketAnalysis: React.FC = () => {
                              />
                         </Card>
                      </div>
+                </div>
+            )}
+
+            {/* PROJECTIONS TAB */}
+            {activeTab === 'projections' && (
+                <div className="space-y-6">
+                    {/* Header da aba */}
+                    <Card>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: '#ffffff' }}>
+                                    <FiDollarSign className="text-green-500" />
+                                    Projeções de Custos - {city.name}
+                                </h3>
+                                <p className="text-sm mt-1" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                                    Defina os valores projetados de marketing e operacional para os próximos 12 meses
+                                </p>
+                            </div>
+                            <button 
+                                onClick={handleSaveProjections}
+                                disabled={isSaving}
+                                className="flex items-center text-white py-2 px-6 rounded-lg transition disabled:opacity-50"
+                                style={{ backgroundColor: '#10b981' }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.8)'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
+                            >
+                                <FiSave className="mr-2" />
+                                {isSaving ? 'Salvando...' : 'Salvar Projeções'}
+                            </button>
+                        </div>
+                    </Card>
+
+                    {/* Resumo - Cards Modernos */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Card Início Implementação */}
+                        <div className="relative overflow-hidden rounded-xl p-5 border transition-all duration-300 hover:scale-[1.02]"
+                            style={{ 
+                                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)',
+                                border: '1px solid rgba(59, 130, 246, 0.3)'
+                            }}
+                        >
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-xs uppercase tracking-wider font-semibold text-blue-400 mb-2">📅 Início Implementação</p>
+                                    <p className="text-2xl font-bold" style={{ color: city.implementationStartDate ? '#ffffff' : 'rgba(255, 255, 255, 0.4)' }}>
+                                        {city.implementationStartDate 
+                                            ? new Date(city.implementationStartDate + '-01').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).toUpperCase()
+                                            : 'Não definida'
+                                        }
+                                    </p>
+                                    {!city.implementationStartDate && (
+                                        <p className="text-xs mt-2 text-amber-400">
+                                            → Defina em Planejamento
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="p-3 rounded-xl" style={{ background: 'rgba(59, 130, 246, 0.2)' }}>
+                                    <FiCalendar className="text-blue-400" size={24} />
+                                </div>
+                            </div>
+                            <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, #3b82f6, transparent)' }} />
+                        </div>
+
+                        {/* Card Marketing */}
+                        <div className="relative overflow-hidden rounded-xl p-5 border transition-all duration-300 hover:scale-[1.02]"
+                            style={{ 
+                                background: 'linear-gradient(135deg, rgba(217, 70, 239, 0.15) 0%, rgba(217, 70, 239, 0.05) 100%)',
+                                border: '1px solid rgba(217, 70, 239, 0.3)'
+                            }}
+                        >
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-xs uppercase tracking-wider font-semibold text-purple-400 mb-2">📢 Marketing (12m)</p>
+                                    <p className="text-2xl font-bold text-white">
+                                        {Object.values(projectedCosts).reduce((sum, c) => sum + (c.marketingCost || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </p>
+                                    <p className="text-xs mt-2 text-gray-400">
+                                        Média: {(Object.values(projectedCosts).reduce((sum, c) => sum + (c.marketingCost || 0), 0) / 12).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                                    </p>
+                                </div>
+                                <div className="p-3 rounded-xl" style={{ background: 'rgba(217, 70, 239, 0.2)' }}>
+                                    <FiTrendingUp className="text-purple-400" size={24} />
+                                </div>
+                            </div>
+                            <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, #d946ef, transparent)' }} />
+                        </div>
+
+                        {/* Card Operacional */}
+                        <div className="relative overflow-hidden rounded-xl p-5 border transition-all duration-300 hover:scale-[1.02]"
+                            style={{ 
+                                background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.15) 0%, rgba(249, 115, 22, 0.05) 100%)',
+                                border: '1px solid rgba(249, 115, 22, 0.3)'
+                            }}
+                        >
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-xs uppercase tracking-wider font-semibold text-orange-400 mb-2">⚙️ Operacional (12m)</p>
+                                    <p className="text-2xl font-bold text-white">
+                                        {Object.values(projectedCosts).reduce((sum, c) => sum + (c.operationalCost || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </p>
+                                    <p className="text-xs mt-2 text-gray-400">
+                                        Média: {(Object.values(projectedCosts).reduce((sum, c) => sum + (c.operationalCost || 0), 0) / 12).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                                    </p>
+                                </div>
+                                <div className="p-3 rounded-xl" style={{ background: 'rgba(249, 115, 22, 0.2)' }}>
+                                    <FiUsers className="text-orange-400" size={24} />
+                                </div>
+                            </div>
+                            <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, #f97316, transparent)' }} />
+                        </div>
+
+                        {/* Card Custo Total */}
+                        <div className="relative overflow-hidden rounded-xl p-5 border transition-all duration-300 hover:scale-[1.02]"
+                            style={{ 
+                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%)',
+                                border: '1px solid rgba(16, 185, 129, 0.3)'
+                            }}
+                        >
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-xs uppercase tracking-wider font-semibold text-emerald-400 mb-2">💰 Custo Total (12m)</p>
+                                    <p className="text-2xl font-bold text-white">
+                                        {Object.values(projectedCosts).reduce((sum, c) => sum + (c.marketingCost || 0) + (c.operationalCost || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </p>
+                                    {(() => {
+                                        const totalRides = getProjectionMonths().reduce((sum, m) => sum + m.expectedRides, 0);
+                                        const totalCost = Object.values(projectedCosts).reduce((sum, c) => sum + (c.marketingCost || 0) + (c.operationalCost || 0), 0);
+                                        const costPerRide = totalRides > 0 ? totalCost / totalRides : 0;
+                                        return (
+                                            <p className="text-xs mt-2 text-gray-400">
+                                                Custo/Corrida: <span className="text-yellow-400 font-semibold">{costPerRide > 0 ? `R$ ${costPerRide.toFixed(2)}` : '-'}</span>
+                                            </p>
+                                        );
+                                    })()}
+                                </div>
+                                <div className="p-3 rounded-xl" style={{ background: 'rgba(16, 185, 129, 0.2)' }}>
+                                    <FiDollarSign className="text-emerald-400" size={24} />
+                                </div>
+                            </div>
+                            <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, #10b981, transparent)' }} />
+                        </div>
+                    </div>
+
+                            {/* Tabela de Projeções */}
+                            <Card title="Custos Projetados por Mês" tooltipText="Defina os valores esperados de investimento em marketing e custos operacionais para cada mês.">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead style={{ background: 'rgba(55, 65, 81, 0.9)', borderBottom: '2px solid rgba(16, 185, 129, 0.5)' }}>
+                                            <tr>
+                                                <th className="p-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgb(255 255 255 / 80%)' }}>Mês</th>
+                                                <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'rgb(255 255 255 / 80%)' }}>Meta Corridas</th>
+                                                <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'rgb(255 255 255 / 80%)' }}>Receita Esperada</th>
+                                                <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: '#8b5cf6', borderLeft: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                                                    CPA (R$/Corrida)
+                                                </th>
+                                                <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: '#06b6d4' }}>
+                                                    OPS (R$/Corrida)
+                                                </th>
+                                                <th className="p-3 text-xs font-semibold uppercase tracking-wider" style={{ color: '#d946ef' }}>
+                                                    <FiTrendingUp className="inline mr-1" />
+                                                    Marketing (R$)
+                                                </th>
+                                                <th className="p-3 text-xs font-semibold uppercase tracking-wider" style={{ color: '#f97316' }}>
+                                                    <FiUsers className="inline mr-1" />
+                                                    Operacional (R$)
+                                                </th>
+                                                <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'rgb(255 255 255 / 80%)' }}>Total</th>
+                                                <th className="p-3 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'rgb(255 255 255 / 80%)' }}>Custo/Corrida</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {getProjectionMonths().map((month, index) => {
+                                                const costs = projectedCosts[month.key] || { marketingCost: 0, operationalCost: 0 };
+                                                const cpaValue = cpaValues[month.key] || 0;
+                                                const opsValue = opsValues[month.key] || 0;
+                                                
+                                                // Calcular custos baseados em CPA/OPS se definidos, senão usar valores diretos
+                                                const marketingCostFromCpa = month.expectedRides * cpaValue;
+                                                const operationalCostFromOps = month.expectedRides * opsValue;
+                                                
+                                                const finalMarketingCost = cpaValue > 0 ? marketingCostFromCpa : (costs.marketingCost || 0);
+                                                const finalOperationalCost = opsValue > 0 ? operationalCostFromOps : (costs.operationalCost || 0);
+                                                
+                                                const totalCost = finalMarketingCost + finalOperationalCost;
+                                                const expectedRevenue = month.expectedRides * PRICE_PER_RIDE;
+                                                const costPerRide = month.expectedRides > 0 ? totalCost / month.expectedRides : 0;
+                                                
+                                                return (
+                                                    <tr 
+                                                        key={month.key}
+                                                        className="hover:bg-gray-700/40 transition-colors"
+                                                        style={{ 
+                                                            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                                                            background: index % 2 === 0 ? 'rgba(55, 65, 81, 0.3)' : 'transparent'
+                                                        }}
+                                                    >
+                                                        <td className="p-3 font-medium" style={{ color: '#ffffff' }}>
+                                                            {month.label}
+                                                            {month.dateLabel && (
+                                                                <span className="text-xs ml-2" style={{ color: 'rgba(16, 185, 129, 0.8)' }}>
+                                                                    ({month.dateLabel})
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-3 text-center" style={{ color: '#3b82f6' }}>
+                                                            {month.expectedRides.toLocaleString('pt-BR')}
+                                                        </td>
+                                                        <td className="p-3 text-center" style={{ color: '#10b981' }}>
+                                                            {expectedRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        </td>
+                                                        
+                                                        {/* Novo campo CPA */}
+                                                        <td className="p-3" style={{ borderLeft: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                                                            <input 
+                                                                type="number"
+                                                                min="0"
+                                                                step="0.01"
+                                                                value={cpaValue || ''}
+                                                                onChange={(e) => {
+                                                                    const newCpa = Number(e.target.value) || 0;
+                                                                    setCpaValues({
+                                                                        ...cpaValues,
+                                                                        [month.key]: newCpa
+                                                                    });
+                                                                    
+                                                                    // Atualizar marketing cost baseado no CPA
+                                                                    if (newCpa > 0) {
+                                                                        setProjectedCosts({
+                                                                            ...projectedCosts,
+                                                                            [month.key]: {
+                                                                                ...costs,
+                                                                                marketingCost: month.expectedRides * newCpa
+                                                                            }
+                                                                        });
+                                                                    }
+                                                                }}
+                                                                placeholder="0.00"
+                                                                className="w-full p-2 rounded text-center"
+                                                                style={{ 
+                                                                    background: 'rgba(0, 0, 0, 0.3)',
+                                                                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                                                                    color: '#ffffff'
+                                                                }}
+                                                                onFocus={(e) => e.currentTarget.style.borderColor = '#8b5cf6'}
+                                                                onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)'}
+                                                            />
+                                                        </td>
+                                                        
+                                                        {/* Novo campo OPS */}
+                                                        <td className="p-3">
+                                                            <input 
+                                                                type="number"
+                                                                min="0"
+                                                                step="0.01"
+                                                                value={opsValue || ''}
+                                                                onChange={(e) => {
+                                                                    const newOps = Number(e.target.value) || 0;
+                                                                    setOpsValues({
+                                                                        ...opsValues,
+                                                                        [month.key]: newOps
+                                                                    });
+                                                                    
+                                                                    // Atualizar operational cost baseado no OPS
+                                                                    if (newOps > 0) {
+                                                                        setProjectedCosts({
+                                                                            ...projectedCosts,
+                                                                            [month.key]: {
+                                                                                ...costs,
+                                                                                operationalCost: month.expectedRides * newOps
+                                                                            }
+                                                                        });
+                                                                    }
+                                                                }}
+                                                                placeholder="0.00"
+                                                                className="w-full p-2 rounded text-center"
+                                                                style={{ 
+                                                                    background: 'rgba(0, 0, 0, 0.3)',
+                                                                    border: '1px solid rgba(6, 182, 212, 0.3)',
+                                                                    color: '#ffffff'
+                                                                }}
+                                                                onFocus={(e) => e.currentTarget.style.borderColor = '#06b6d4'}
+                                                                onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.3)'}
+                                                            />
+                                                        </td>
+                                                        
+                                                        <td className="p-3">
+                                                            <input 
+                                                                type="number"
+                                                                min="0"
+                                                                step="100"
+                                                                value={costs.marketingCost || ''}
+                                                                onChange={(e) => setProjectedCosts({
+                                                                    ...projectedCosts,
+                                                                    [month.key]: {
+                                                                        ...costs,
+                                                                        marketingCost: Number(e.target.value) || 0
+                                                                    }
+                                                                })}
+                                                                placeholder="0"
+                                                                className="w-full p-2 rounded text-right"
+                                                                style={{ 
+                                                                    background: 'rgba(0, 0, 0, 0.3)',
+                                                                    border: '1px solid rgba(217, 70, 239, 0.3)',
+                                                                    color: '#ffffff',
+                                                                    backgroundColor: cpaValue > 0 ? 'rgba(139, 92, 246, 0.1)' : 'rgba(0, 0, 0, 0.3)'
+                                                                }}
+                                                                onFocus={(e) => e.currentTarget.style.borderColor = '#d946ef'}
+                                                                onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(217, 70, 239, 0.3)'}
+                                                                readOnly={cpaValue > 0}
+                                                            />
+                                                        </td>
+                                                        <td className="p-3">
+                                                            <input 
+                                                                type="number"
+                                                                min="0"
+                                                                step="100"
+                                                                value={costs.operationalCost || ''}
+                                                                onChange={(e) => setProjectedCosts({
+                                                                    ...projectedCosts,
+                                                                    [month.key]: {
+                                                                        ...costs,
+                                                                        operationalCost: Number(e.target.value) || 0
+                                                                    }
+                                                                })}
+                                                                placeholder="0"
+                                                                className="w-full p-2 rounded text-right"
+                                                                style={{ 
+                                                                    background: 'rgba(0, 0, 0, 0.3)',
+                                                                    border: '1px solid rgba(249, 115, 22, 0.3)',
+                                                                    color: '#ffffff',
+                                                                    backgroundColor: opsValue > 0 ? 'rgba(6, 182, 212, 0.1)' : 'rgba(0, 0, 0, 0.3)'
+                                                                }}
+                                                                onFocus={(e) => e.currentTarget.style.borderColor = '#f97316'}
+                                                                onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(249, 115, 22, 0.3)'}
+                                                                readOnly={opsValue > 0}
+                                                            />
+                                                        </td>
+                                                        <td className="p-3 text-center font-bold" style={{ color: totalCost > 0 ? '#ffffff' : 'rgba(255, 255, 255, 0.4)' }}>
+                                                            {totalCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        </td>
+                                                        <td className="p-3 text-center" style={{ color: costPerRide > 0 ? '#ffc107' : 'rgba(255, 255, 255, 0.4)' }}>
+                                                            {costPerRide > 0 ? `R$ ${costPerRide.toFixed(2)}` : '-'}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                        <tfoot style={{ background: 'rgba(16, 185, 129, 0.1)', borderTop: '2px solid rgba(16, 185, 129, 0.5)' }}>
+                                            <tr>
+                                                <td className="p-3 font-bold" style={{ color: '#ffffff' }}>TOTAL</td>
+                                                <td className="p-3 text-center font-bold" style={{ color: '#3b82f6' }}>
+                                                    {getProjectionMonths().reduce((sum, m) => sum + m.expectedRides, 0).toLocaleString('pt-BR')}
+                                                </td>
+                                                <td className="p-3 text-center font-bold" style={{ color: '#10b981' }}>
+                                                    {(getProjectionMonths().reduce((sum, m) => sum + m.expectedRides, 0) * PRICE_PER_RIDE).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="p-3 text-center font-bold" style={{ color: '#8b5cf6', borderLeft: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                                                    CPA Médio
+                                                </td>
+                                                <td className="p-3 text-center font-bold" style={{ color: '#06b6d4' }}>
+                                                    OPS Médio
+                                                </td>
+                                                <td className="p-3 font-bold" style={{ color: '#d946ef' }}>
+                                                    {Object.values(projectedCosts).reduce((sum, c) => sum + (c.marketingCost || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="p-3 font-bold" style={{ color: '#f97316' }}>
+                                                    {Object.values(projectedCosts).reduce((sum, c) => sum + (c.operationalCost || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="p-3 text-center font-bold" style={{ color: '#ffffff' }}>
+                                                    {Object.values(projectedCosts).reduce((sum, c) => sum + (c.marketingCost || 0) + (c.operationalCost || 0), 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </td>
+                                                <td className="p-3 text-center font-bold" style={{ color: '#ffc107' }}>
+                                                    {(() => {
+                                                        const totalRides = getProjectionMonths().reduce((sum, m) => sum + m.expectedRides, 0);
+                                                        const totalCost = Object.values(projectedCosts).reduce((sum, c) => sum + (c.marketingCost || 0) + (c.operationalCost || 0), 0);
+                                                        return totalRides > 0 ? `R$ ${(totalCost / totalRides).toFixed(2)}` : '-';
+                                                    })()}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </Card>
+
+                            {/* Dicas */}
+                            <Card>
+                                <div className="flex items-start gap-4 p-2">
+                                    <div className="p-3 rounded-full" style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)' }}>
+                                        <FiTarget className="text-blue-500" size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold" style={{ color: '#ffffff' }}>Dicas para Projeções</h4>
+                                        <ul className="text-sm mt-2 space-y-1" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                                            <li>• <strong>CPA (Custo Por Aquisição):</strong> Define quanto você quer gastar em marketing por cada corrida adquirida. Quando preenchido, calcula automaticamente o valor de Marketing.</li>
+                                            <li>• <strong>OPS (Operacional por Corrida):</strong> Define quanto você quer gastar em operações por cada corrida. Quando preenchido, calcula automaticamente o valor Operacional.</li>
+                                            <li>• <strong>Marketing:</strong> Inclua gastos com anúncios, materiais promocionais, cupons e eventos (pode ser editado diretamente ou calculado via CPA)</li>
+                                            <li>• <strong>Operacional:</strong> Inclua custos de suporte local, incentivos a motoristas e despesas administrativas (pode ser editado diretamente ou calculado via OPS)</li>
+                                            <li>• A meta de corridas é calculada automaticamente baseada na população da cidade</li>
+                                            <li>• O custo por corrida ajuda a entender a eficiência do investimento</li>
+                                            <li>• <strong className="text-blue-400">Dica:</strong> Use CPA e OPS para definir metas por corrida, ou edite os valores totais diretamente</li>
+                                            {!city.implementationStartDate && (
+                                                <li>• <strong className="text-amber-400">Atenção:</strong> Defina a data de implementação em Planejamento para ver os meses reais</li>
+                                            )}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </Card>
                 </div>
             )}
         </div>

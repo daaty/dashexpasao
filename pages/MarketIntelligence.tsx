@@ -4,10 +4,11 @@ import { DataContext } from '../context/DataContext';
 import Card from '../components/ui/Card';
 import { FiBriefcase, FiMapPin, FiSearch, FiArrowRight, FiActivity, FiPlus, FiGrid, FiMoreHorizontal, FiTrash2, FiEdit2, FiX, FiCheck, FiMove, FiMinusCircle, FiDownload, FiClipboard, FiChevronDown } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { CityStatus, MarketBlock, City, CityPlan } from '../types';
+import { CityStatus, MarketBlock, City, CityPlan, MonthResult } from '../types';
 import Modal from '../components/ui/Modal';
 import { calculatePotentialRevenue, getMarketPotential, getGradualMonthlyGoal, getGradualMonthlyGoalForBlock } from '../services/calculationService';
 import { getRideStatsByCity, getMonthlyRidesByCity } from '../services/ridesApiService';
+import * as planResultsService from '../services/planResultsService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -382,53 +383,6 @@ const BlockKPIs: React.FC<{
                                                     </span>
                                                 </div>
                                             ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Análise de Custos Mensais - Tabela Compacta */}
-                                    <div className="mt-1 pt-1 border-t border-white/10">
-                                        <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Custos: Marketing / Operacional / CPA / Total</p>
-                                        <div className="space-y-0.5">
-                                            {monthlyCard.months.map((monthData, idx) => {
-                                                const marketingProj = Math.round(monthData.goal * 0.15);
-                                                const operacionalProj = Math.round(monthData.goal * 0.20);
-                                                const marketingReal = Math.round(monthData.rides * 0.15);
-                                                const operacionalReal = Math.round(monthData.rides * 0.18);
-                                                const cpaProj = monthData.goal > 0 ? Math.round(marketingProj / monthData.goal * 100) / 100 : 0;
-                                                const cpaReal = monthData.rides > 0 ? Math.round(marketingReal / monthData.rides * 100) / 100 : 0;
-                                                const custoTotalProj = marketingProj + operacionalProj;
-                                                const custoTotalReal = marketingReal + operacionalReal;
-                                                
-                                                // Diferenças
-                                                const diffMarketing = marketingProj - marketingReal;
-                                                const diffOperacional = operacionalProj - operacionalReal;
-                                                const diffCpa = parseFloat((cpaProj - cpaReal).toFixed(2));
-                                                const diffTotal = custoTotalProj - custoTotalReal;
-                                                
-                                                const formatDiff = (value) => {
-                                                    if (value > 0) return `+${value}`;
-                                                    return String(value);
-                                                };
-                                                
-                                                return (
-                                                    <div key={idx} className="space-y-0.5">
-                                                        <div className="flex items-center justify-between text-[8px] px-1 py-0.5 rounded" style={{ background: idx % 2 === 0 ? 'rgba(55, 65, 81, 0.15)' : 'transparent' }}>
-                                                            <span className="text-gray-400 min-w-[35px]">{monthData.month}</span>
-                                                            <span className="text-blue-400">R${marketingProj}/{marketingReal}</span>
-                                                            <span className="text-cyan-400">R${operacionalProj}/{operacionalReal}</span>
-                                                            <span className="text-purple-400">R${cpaProj.toFixed(2)}/{cpaReal.toFixed(2)}</span>
-                                                            <span className="text-orange-300 font-semibold">R${custoTotalProj}/{custoTotalReal}</span>
-                                                        </div>
-                                                        <div className="flex items-center justify-between text-[7px] px-1 pb-0.5" style={{ color: 'rgba(156, 163, 175, 0.8)' }}>
-                                                            <span className="min-w-[35px]"></span>
-                                                            <span className={diffMarketing >= 0 ? 'text-emerald-400' : 'text-red-400'}>({formatDiff(diffMarketing)})</span>
-                                                            <span className={diffOperacional >= 0 ? 'text-emerald-400' : 'text-red-400'}>({formatDiff(diffOperacional)})</span>
-                                                            <span className={diffCpa >= 0 ? 'text-emerald-400' : 'text-red-400'}>({formatDiff(diffCpa.toFixed(1))})</span>
-                                                            <span className={diffTotal >= 0 ? 'text-emerald-400' : 'text-red-400'}>({formatDiff(diffTotal)})</span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
                                         </div>
                                     </div>
                                 </div>
@@ -878,28 +832,6 @@ const CityCard: React.FC<{
                                         {Math.round(cityCurrentMonthPercent)}% {cityCurrentMonthMetaStatus ? '✅ Bateu!' : '⏳ Em progresso'}
                                     </p>
                                 </div>
-
-                                {/* Últimos 6 Meses */}
-                                {cityMonthlyRides.length > 0 && (
-                                    <div className="mt-3 pt-2 border-t border-white/10 space-y-1">
-                                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Últimos 6 Meses</p>
-                                        {cityMonthlyRides.map((monthData, idx) => (
-                                            <div key={idx} className="flex items-center justify-between text-[10px] bg-white/5 rounded px-2 py-1 border border-white/5">
-                                                <div className="flex-1">
-                                                    <p className="text-gray-300 font-medium mb-0.5">{monthData.month}</p>
-                                                    <div className="flex items-center gap-1.5 text-[9px]">
-                                                        <span className="text-blue-400">Meta: {monthData.goal?.toLocaleString('pt-BR') || 0}</span>
-                                                        <span className="text-gray-500">|</span>
-                                                        <span className="text-white font-semibold">Real: {monthData.rides.toLocaleString('pt-BR')}</span>
-                                                    </div>
-                                                </div>
-                                                <span className={`ml-1 font-bold ${monthData.metaStatus ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {monthData.metaStatus ? '✅' : '❌'}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
 
                             {/* Revenue KPI */}
@@ -953,6 +885,481 @@ const BlockSection: React.FC<{
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(block.name);
     const [isOver, setIsOver] = useState(false);
+    const [showPlanningView, setShowPlanningView] = useState(false); // Novo estado para controlar visão do planejamento
+    
+    // Estado para armazenar resultados carregados do backend para todas as cidades
+    const [cityResults, setCityResults] = useState<{ [cityId: number]: { [key: string]: MonthResult } }>({});
+    
+    // Carregar resultados do backend para todas as cidades do bloco
+    React.useEffect(() => {
+        const loadCityResults = async () => {
+            const results: { [cityId: number]: { [key: string]: MonthResult } } = {};
+            
+            for (const city of cities) {
+                // Primeiro tenta usar do plano local
+                const localPlan = plans.find(p => p.cityId === city.id);
+                if (localPlan?.results && Object.keys(localPlan.results).length > 0) {
+                    results[city.id] = localPlan.results;
+                } else {
+                    // Se não tiver local, busca do backend
+                    try {
+                        const backendData = await planResultsService.getPlanResults(city.id);
+                        if (backendData?.results) {
+                            results[city.id] = backendData.results;
+                        }
+                    } catch (error) {
+                        // Ignora erros de cidades sem dados
+                    }
+                }
+            }
+            
+            setCityResults(results);
+        };
+        
+        loadCityResults();
+    }, [cities, plans]);
+    
+    const [blockStats, setBlockStats] = useState({
+        // Meta Global Acumulativa (soma de todas as metas desde início de cada cidade)
+        globalAccumulatedGoal: 0,
+        globalAccumulatedRides: 0,
+        globalAccumulatedRevenue: 0,
+        globalAccumulatedRevenueGoal: 0,
+        // Mês atual
+        currentMonthGoal: 0,
+        currentMonthRides: 0,
+        currentMonthRevenue: 0,
+        currentMonthRevenueGoal: 0,
+        // Mês passado
+        lastMonthGoal: 0,
+        lastMonthRides: 0,
+        lastMonthRevenue: 0,
+        lastMonthRevenueGoal: 0,
+        lastMonthOpsPassProj: 0,
+        lastMonthOpsPassReal: 0,
+        lastMonthCustoCorridaProj: 0,
+        lastMonthCustoCorridaReal: 0,
+        lastMonthCpaMktProj: 0,
+        lastMonthCpaMktReal: 0,
+        lastMonthCustoTotalProj: 0,
+        lastMonthCustoTotalReal: 0,
+        // Custos
+        opsPassProj: 0,
+        opsPassReal: 0,
+        custoCorridaProj: 0,
+        custoCorridaReal: 0,
+        cpaMktProj: 0,
+        cpaMktReal: 0,
+        custoTotalProj: 0,
+        custoTotalReal: 0,
+        // Totais
+        totalRides: 0,
+        totalRevenue: 0,
+        // Potencial máximo
+        maximumPotentialGoal: 0, // Potencial máximo = média das cidades ativas * total de cidades
+        activeCitiesAverage: 0,  // Média das cidades que já começaram
+        maxPotentialProgress: 0  // Progresso em relação ao potencial máximo
+    });
+
+    /**
+     * Calcula estatísticas agregadas do bloco com dados reais
+     * 
+     * LÓGICA:
+     * - Itera por cada cidade que tem data de implementação configurada
+     * - Para cada mês desde a implementação até hoje:
+     *   1. Calcula a meta graduada do mês (com curva de 6 meses)
+     *   2. Projeta custos de marketing e operacional MÊS A MÊS (não acumulado)
+     *   3. Projeta receita de cada mês (meta * R$8)
+     * - Soma os dados reais de corridas concluídas (status='Concluída') para cada mês
+     * - Cidades SEM data de implementação são ignoradas completamente
+     */
+    // Calcular estatísticas agregadas do bloco com dados reais
+    React.useEffect(() => {
+        const calculateBlockStatsFromRealData = async () => {
+            // Meta Global Acumulativa
+            let globalAccumulatedGoal = 0;
+            let globalAccumulatedRides = 0;
+            let globalAccumulatedRevenue = 0;
+            let globalAccumulatedRevenueGoal = 0;
+            
+            // Mês atual
+            let currentMonthGoal = 0;
+            let currentMonthRides = 0;
+            let currentMonthRevenue = 0;
+            let currentMonthRevenueGoal = 0;
+            
+            // Mês passado
+            let lastMonthGoal = 0;
+            let lastMonthRides = 0;
+            let lastMonthRevenue = 0;
+            let lastMonthRevenueGoal = 0;
+            let lastMonthProjectedMarketingCost = 0;
+            let lastMonthProjectedOperationalCost = 0;
+            let lastMonthRealMarketingCost = 0;
+            let lastMonthRealOperationalCost = 0;
+            
+            // Custos acumulados
+            let totalMarketingCost = 0;
+            let totalOperationalCost = 0;
+            let projectedMarketingCost = 0;
+            let projectedOperationalCost = 0;
+
+            const today = new Date();
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth() + 1;
+            const currentMonthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            
+            // Calcular mês passado
+            const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+            const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+            const lastMonthKey = `${lastMonthYear}-${String(lastMonth).padStart(2, '0')}`;
+            
+            const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0];
+            const targetPenetration = 0.10;
+            const revenuePerRide = 8; // R$ 8 por corrida
+            const marketingCostPerRide = 0.15; // R$ 0.15 custo marketing por corrida
+            const operationalCostPerRide = 0.20; // R$ 0.20 custo operacional por corrida
+
+            // Buscar dados reais de cada cidade
+            for (const city of cities) {
+                try {
+                    if (!city.implementationStartDate) continue;
+                    
+                    const [impYear, impMonth] = city.implementationStartDate.split('-').map(Number);
+                    const impDate = new Date(impYear, impMonth - 1, 1);
+                    
+                    // Calcular quantos meses desde o início até hoje
+                    const monthsSinceStart = (currentYear - impYear) * 12 + (currentMonth - impMonth) + 1;
+                    
+                    // Meta base da cidade (100% = meta máxima)
+                    const cityBaseGoal = Math.round(city.population15to44 * targetPenetration);
+                    
+                    // Calcular meta acumulativa (soma de todas as metas graduais desde o início)
+                    let cityAccumulatedGoal = 0;
+                    for (let m = 1; m <= Math.min(monthsSinceStart, 6); m++) {
+                        const factor = curveFactors[m - 1];
+                        cityAccumulatedGoal += Math.round(cityBaseGoal * factor);
+                    }
+                    // Se passou de 6 meses, adicionar meses extras com fator 1.0
+                    if (monthsSinceStart > 6) {
+                        cityAccumulatedGoal += cityBaseGoal * (monthsSinceStart - 6);
+                    }
+                    
+                    globalAccumulatedGoal += cityAccumulatedGoal;
+                    globalAccumulatedRevenueGoal += cityAccumulatedGoal * revenuePerRide;
+                    
+                    // Meta do mês atual (com graduação)
+                    const currentMonthFactor = monthsSinceStart <= 6 ? curveFactors[monthsSinceStart - 1] : 1.0;
+                    const cityCurrentMonthGoal = Math.round(cityBaseGoal * currentMonthFactor);
+                    currentMonthGoal += cityCurrentMonthGoal;
+                    currentMonthRevenueGoal += cityCurrentMonthGoal * revenuePerRide;
+                    
+                    // Meta do mês passado (com graduação)
+                    const lastMonthsSinceStart = monthsSinceStart > 0 ? monthsSinceStart - 1 : 0;
+                    if (lastMonthsSinceStart > 0) {
+                        const lastMonthFactor = lastMonthsSinceStart <= 6 ? curveFactors[lastMonthsSinceStart - 1] : 1.0;
+                        const cityLastMonthGoal = Math.round(cityBaseGoal * lastMonthFactor);
+                        lastMonthGoal += cityLastMonthGoal;
+                        lastMonthRevenueGoal += cityLastMonthGoal * revenuePerRide;
+                        
+                        // Custos projetados do mês passado
+                        lastMonthProjectedMarketingCost += cityLastMonthGoal * marketingCostPerRide;
+                        lastMonthProjectedOperationalCost += cityLastMonthGoal * operationalCostPerRide;
+                    }
+                    
+                    // Custos projetados MÊS A MÊS desde a implementação até hoje
+                    // Iterar por cada mês desde o início da implementação
+                    let monthlyIterYear = impYear;
+                    let monthlyIterMonth = impMonth;
+                    for (let m = 1; m <= monthsSinceStart; m++) {
+                        const currentIterMonthKey = `${monthlyIterYear}-${String(monthlyIterMonth).padStart(2, '0')}`;
+                        
+                        // Meta graduada para este mês específico
+                        const monthFactor = m <= 6 ? curveFactors[m - 1] : 1.0;
+                        const monthGoal = Math.round(cityBaseGoal * monthFactor);
+                        
+                        // Custo projetado para este mês = meta do mês * custo por corrida
+                        projectedMarketingCost += monthGoal * marketingCostPerRide;
+                        projectedOperationalCost += monthGoal * operationalCostPerRide;
+                        
+                        // Avançar para próximo mês
+                        monthlyIterMonth++;
+                        if (monthlyIterMonth > 12) {
+                            monthlyIterMonth = 1;
+                            monthlyIterYear++;
+                        }
+                    }
+                    
+                    // Sobrescrever custos projetados com valores salvos no plano se disponível
+                    const cityPlan = plans.find(p => p.cityId === city.id);
+                    if (cityPlan?.results) {
+                        // Resetar custos projetados e recalcular com base nos valores do plano
+                        let tempProjectedMarketing = 0;
+                        let tempProjectedOperational = 0;
+                        
+                        // Os resultados do plano estão no formato { Mes1: {...}, Mes2: {...}, ... }
+                        const resultsArray = Object.entries(cityPlan.results).sort((a, b) => {
+                            const aNum = parseInt(a[0].replace('Mes', ''));
+                            const bNum = parseInt(b[0].replace('Mes', ''));
+                            return aNum - bNum;
+                        });
+                        
+                        for (let i = 0; i < resultsArray.length && i < monthsSinceStart; i++) {
+                            const [, result] = resultsArray[i];
+                            tempProjectedMarketing += result.marketingCost || 0;
+                            tempProjectedOperational += result.operationalCost || 0;
+                        }
+                        
+                        // Atualizar com valores do plano se houver dados suficientes
+                        if (tempProjectedMarketing > 0 || tempProjectedOperational > 0) {
+                            // Restaurar o valor anterior e substituir apenas o necessário
+                            projectedMarketingCost -= (monthsSinceStart * marketingCostPerRide * cityBaseGoal);
+                            projectedOperationalCost -= (monthsSinceStart * operationalCostPerRide * cityBaseGoal);
+                            
+                            projectedMarketingCost += tempProjectedMarketing;
+                            projectedOperationalCost += tempProjectedOperational;
+                        }
+                    }
+
+                    // Buscar dados mensais reais da cidade
+                    const monthlyData = await getMonthlyRidesByCity(city.name, 13);
+                    
+                    if (monthlyData && monthlyData.length > 0) {
+                        const monthlyTotals: { [key: string]: { rides: number; revenue: number } } = {};
+                        
+                        monthlyData.forEach(m => {
+                            const monthKey = `${m.year}-${String(m.monthNumber).padStart(2, '0')}`;
+                            if (!monthlyTotals[monthKey]) {
+                                monthlyTotals[monthKey] = { rides: 0, revenue: 0 };
+                            }
+                            monthlyTotals[monthKey].rides += m.rides;
+                            monthlyTotals[monthKey].revenue += m.revenue;
+                        });
+
+                        // Somar corridas e receita de todos os meses desde implementação
+                        Object.entries(monthlyTotals).forEach(([monthKey, data]) => {
+                            const [year, month] = monthKey.split('-').map(Number);
+                            const monthDate = new Date(year, month - 1, 1);
+                            
+                            // Apenas contar meses a partir da implementação
+                            if (monthDate >= impDate) {
+                                globalAccumulatedRides += data.rides;
+                                globalAccumulatedRevenue += data.revenue;
+                            }
+                        });
+
+                        // Dados do mês atual
+                        if (monthlyTotals[currentMonthKey]) {
+                            currentMonthRides += monthlyTotals[currentMonthKey].rides;
+                            currentMonthRevenue += monthlyTotals[currentMonthKey].revenue;
+                        }
+                        
+                        // Dados do mês passado
+                        if (monthlyTotals[lastMonthKey]) {
+                            lastMonthRides += monthlyTotals[lastMonthKey].rides;
+                            lastMonthRevenue += monthlyTotals[lastMonthKey].revenue;
+                        }
+                    }
+
+                    // Buscar custos reais do plano da cidade
+                    if (cityPlan?.realMonthlyCosts) {
+                        Object.entries(cityPlan.realMonthlyCosts).forEach(([monthKey, costs]) => {
+                            const [year, month] = monthKey.split('-').map(Number);
+                            const monthDate = new Date(year, month - 1, 1);
+                            
+                            if (monthDate >= impDate) {
+                                totalMarketingCost += costs.marketingCost || 0;
+                                totalOperationalCost += costs.operationalCost || 0;
+                            }
+                            
+                            // Custos do mês passado
+                            if (monthKey === lastMonthKey) {
+                                lastMonthRealMarketingCost += costs.marketingCost || 0;
+                                lastMonthRealOperationalCost += costs.operationalCost || 0;
+                            }
+                        });
+                    }
+
+                } catch (error) {
+                    console.error(`Erro ao buscar dados para ${city.name}:`, error);
+                }
+            }
+            
+            // Log final dos custos calculados
+            console.log('[BlockStats] Custos Finais:', {
+                projectedMarketingCost,
+                projectedOperationalCost,
+                totalMarketingCost,
+                totalOperationalCost,
+                globalAccumulatedGoal,
+                globalAccumulatedRides,
+                cpaMktProj: (projectedMarketingCost / Math.max(globalAccumulatedGoal, 1)).toFixed(4),
+                cpaMktReal: (totalMarketingCost / Math.max(globalAccumulatedRides, 1)).toFixed(4)
+            });
+
+            // Calcular KPIs
+            const totalRidesForCalc = globalAccumulatedRides || 1;
+            const goalsForCalc = globalAccumulatedGoal || 1;
+            
+            const opsPassReal = totalOperationalCost / totalRidesForCalc;
+            const opsPassProj = projectedOperationalCost / goalsForCalc;
+            
+            const custoCorridaReal = (totalMarketingCost + totalOperationalCost) / totalRidesForCalc;
+            const custoCorridaProj = (projectedMarketingCost + projectedOperationalCost) / goalsForCalc;
+            
+            const cpaMktReal = totalMarketingCost / totalRidesForCalc;
+            const cpaMktProj = projectedMarketingCost / goalsForCalc;
+
+            // KPIs do mês passado
+            const lastMonthRidesForCalc = Math.max(lastMonthRides, 1);
+            const lastMonthGoalForCalc = Math.max(lastMonthGoal, 1);
+            
+            const lastMonthOpsPassReal = lastMonthRealOperationalCost / lastMonthRidesForCalc;
+            const lastMonthOpsPassProj = lastMonthProjectedOperationalCost / lastMonthGoalForCalc;
+            
+            const lastMonthCustoCorridaReal = (lastMonthRealMarketingCost + lastMonthRealOperationalCost) / lastMonthRidesForCalc;
+            const lastMonthCustoCorridaProj = (lastMonthProjectedMarketingCost + lastMonthProjectedOperationalCost) / lastMonthGoalForCalc;
+            
+            const lastMonthCpaMktReal = lastMonthRealMarketingCost / lastMonthRidesForCalc;
+            const lastMonthCpaMktProj = lastMonthProjectedMarketingCost / lastMonthGoalForCalc;
+
+            // ===== CÁLCULO DO POTENCIAL MÁXIMO =====
+            let maximumPotentialGoal = 0;
+            let activeCitiesAverage = 0;
+            let maxPotentialProgress = 0;
+            
+            const totalCities = cities.length;
+            const activeCities = cities.filter(city => city.implementationStartDate).length;
+            
+            if (totalCities > 0) {
+                // Calcular meta média do MÊS ATUAL de TODAS as cidades do bloco (ativas e não ativas)
+                let allCitiesCurrentMonthGoalSum = 0;
+                let allCitiesCount = 0;
+                
+                for (const city of cities) {
+                    // Meta base da cidade (100% = meta máxima)
+                    const cityBaseGoal = Math.round(city.population15to44 * targetPenetration);
+                    
+                    if (city.implementationStartDate) {
+                        // Para cidades ativas: usar meta graduada do mês atual baseada no tempo decorrido
+                        const [impYear, impMonth] = city.implementationStartDate.split('-').map(Number);
+                        const monthsSinceStart = (currentYear - impYear) * 12 + (currentMonth - impMonth) + 1;
+                        
+                        // Meta do mês atual (com graduação)
+                        const currentMonthFactor = monthsSinceStart <= 6 ? curveFactors[monthsSinceStart - 1] : 1.0;
+                        const cityCurrentMonthGoal = Math.round(cityBaseGoal * currentMonthFactor);
+                        
+                        allCitiesCurrentMonthGoalSum += cityCurrentMonthGoal;
+                    } else {
+                        // Para cidades não ativas: usar potencial máximo teórico (meta no 6º mês)
+                        const cityTheoreticalMonthGoal = Math.round(cityBaseGoal * 1.0); // 100% do potencial
+                        allCitiesCurrentMonthGoalSum += cityTheoreticalMonthGoal;
+                    }
+                    
+                    allCitiesCount++;
+                }
+                
+                // Média do mês atual de todas as cidades (ativas + teórico das não ativas)
+                activeCitiesAverage = Math.round(allCitiesCurrentMonthGoalSum / allCitiesCount);
+                
+                // Potencial máximo = média do mês atual * total de cidades
+                maximumPotentialGoal = activeCitiesAverage * totalCities;
+                
+                // Progresso em relação ao potencial máximo (usando APENAS corridas do mês atual)
+                maxPotentialProgress = maximumPotentialGoal > 0 
+                    ? (currentMonthRides / maximumPotentialGoal) * 100 
+                    : 0;
+                    
+                console.log('[Potencial Máximo - Mês Atual]', {
+                    totalCities,
+                    activeCities,
+                    allCitiesCurrentMonthGoalSum,
+                    activeCitiesAverage: 'Média mês atual de todas as cidades',
+                    maximumPotentialGoal,
+                    currentMonthRides,
+                    maxPotentialProgress: maxPotentialProgress.toFixed(2) + '%'
+                });
+            }
+
+            setBlockStats({
+                globalAccumulatedGoal,
+                globalAccumulatedRides,
+                globalAccumulatedRevenue,
+                globalAccumulatedRevenueGoal,
+                currentMonthGoal,
+                currentMonthRides,
+                currentMonthRevenue,
+                currentMonthRevenueGoal,
+                lastMonthGoal,
+                lastMonthRides,
+                lastMonthRevenue,
+                lastMonthRevenueGoal,
+                lastMonthOpsPassProj,
+                lastMonthOpsPassReal,
+                lastMonthCustoCorridaProj,
+                lastMonthCustoCorridaReal,
+                lastMonthCpaMktProj,
+                lastMonthCpaMktReal,
+                lastMonthCustoTotalProj: lastMonthProjectedMarketingCost + lastMonthProjectedOperationalCost,
+                lastMonthCustoTotalReal: lastMonthRealMarketingCost + lastMonthRealOperationalCost,
+                opsPassProj,
+                opsPassReal,
+                custoCorridaProj,
+                custoCorridaReal,
+                cpaMktProj,
+                cpaMktReal,
+                custoTotalProj: projectedMarketingCost + projectedOperationalCost,
+                custoTotalReal: totalMarketingCost + totalOperationalCost,
+                totalRides: globalAccumulatedRides,
+                totalRevenue: globalAccumulatedRevenue,
+                // Potencial máximo
+                maximumPotentialGoal,
+                activeCitiesAverage,
+                maxPotentialProgress
+            });
+        };
+
+        if (cities.length > 0) {
+            calculateBlockStatsFromRealData();
+        } else {
+            // Reset stats if no cities
+            setBlockStats({
+                globalAccumulatedGoal: 0,
+                globalAccumulatedRides: 0,
+                globalAccumulatedRevenue: 0,
+                globalAccumulatedRevenueGoal: 0,
+                currentMonthGoal: 0,
+                currentMonthRides: 0,
+                currentMonthRevenue: 0,
+                currentMonthRevenueGoal: 0,
+                lastMonthGoal: 0,
+                lastMonthRides: 0,
+                lastMonthRevenue: 0,
+                lastMonthRevenueGoal: 0,
+                lastMonthOpsPassProj: 0,
+                lastMonthOpsPassReal: 0,
+                lastMonthCustoCorridaProj: 0,
+                lastMonthCustoCorridaReal: 0,
+                lastMonthCpaMktProj: 0,
+                lastMonthCpaMktReal: 0,
+                lastMonthCustoTotalProj: 0,
+                lastMonthCustoTotalReal: 0,
+                opsPassProj: 0,
+                opsPassReal: 0,
+                custoCorridaProj: 0,
+                custoCorridaReal: 0,
+                cpaMktProj: 0,
+                cpaMktReal: 0,
+                custoTotalProj: 0,
+                custoTotalReal: 0,
+                totalRides: 0,
+                totalRevenue: 0,
+                maximumPotentialGoal: 0,
+                activeCitiesAverage: 0,
+                maxPotentialProgress: 0
+            });
+        }
+    }, [cities, plans]);
 
     const handleSaveName = () => {
         if (editName.trim()) {
@@ -993,74 +1400,915 @@ const BlockSection: React.FC<{
 
     const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+    // Função para gerar dados de planejamento de 6 meses para todas as cidades do bloco
+    const getBlockPlanningData = () => {
+        const planningData: {
+            month: string;
+            totalGoal: number;
+            totalMarketingCost: number;
+            totalOperationalCost: number;
+            totalRevenue: number;
+            cityBreakdown: Array<{
+                cityName: string;
+                goal: number;
+                marketingCost: number;
+                operationalCost: number;
+                revenue: number;
+            }>;
+        }[] = [];
+
+        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'];
+        const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0];
+
+        for (let monthIndex = 0; monthIndex < 6; monthIndex++) {
+            let monthTotalGoal = 0;
+            let monthTotalMarketingCost = 0;
+            let monthTotalOperationalCost = 0;
+            let monthTotalRevenue = 0;
+            const cityBreakdown: Array<{
+                cityName: string;
+                goal: number;
+                marketingCost: number;
+                operationalCost: number;
+                revenue: number;
+            }> = [];
+
+            cities.forEach(city => {
+                if (!city.population15to44) return;
+
+                // Calcular meta gradual para cada cidade no mês específico
+                const targetPenetration = 0.10; // 10% da população 15-44
+                const factor = curveFactors[monthIndex];
+                const goal = Math.round(city.population15to44 * factor * targetPenetration);
+                
+                // Buscar valores de CPA/OPS dos resultados carregados (local ou backend)
+                const mesKey = `Mes${monthIndex + 1}`;
+                const savedResult = cityResults[city.id]?.[mesKey];
+                
+                let adjustedCPA: number;
+                let adjustedOPS: number;
+                
+                if (savedResult?.cpaPerRide !== undefined && savedResult.cpaPerRide > 0) {
+                    // Usar valores salvos do plano
+                    adjustedCPA = savedResult.cpaPerRide;
+                    adjustedOPS = savedResult.opsPerRide ?? 0;
+                } else {
+                    // Valores padrão baseados no tamanho da cidade
+                    let baseCPA = city.population > 100000 ? 10 : city.population > 50000 ? 8 : 6;
+                    let baseOPS = city.population > 100000 ? 4 : city.population > 50000 ? 3.5 : 3;
+                    
+                    // Redução gradual nos custos ao longo dos meses
+                    const cpaReductionFactor = 1 - (monthIndex * 0.1);
+                    const opsReductionFactor = 1 - (monthIndex * 0.08);
+                    
+                    adjustedCPA = baseCPA * cpaReductionFactor;
+                    adjustedOPS = baseOPS * opsReductionFactor;
+                }
+                
+                const marketingCost = goal * adjustedCPA;
+                const operationalCost = goal * adjustedOPS;
+                const revenue = goal * 8; // R$8 por corrida
+
+                monthTotalGoal += goal;
+                monthTotalMarketingCost += marketingCost;
+                monthTotalOperationalCost += operationalCost;
+                monthTotalRevenue += revenue;
+
+                cityBreakdown.push({
+                    cityName: city.name,
+                    goal,
+                    marketingCost,
+                    operationalCost,
+                    revenue
+                });
+            });
+
+            planningData.push({
+                month: monthNames[monthIndex],
+                totalGoal: monthTotalGoal,
+                totalMarketingCost: monthTotalMarketingCost,
+                totalOperationalCost: monthTotalOperationalCost,
+                totalRevenue: monthTotalRevenue,
+                cityBreakdown
+            });
+        }
+
+        return planningData;
+    };
+
+    // Função para gerar HTML completo com CSS para exportação visual
+    const generateReportHTML = () => {
+        const planningData = getBlockPlanningData();
+        const date = new Date().toLocaleDateString('pt-BR');
+        
+        // Calcular KPIs
+        const totalPop = cities.reduce((sum, c) => sum + c.population, 0);
+        const targetPop = cities.reduce((sum, c) => sum + c.population15to44, 0);
+        const totalGoal = planningData.reduce((sum, m) => sum + m.totalGoal, 0);
+        const totalMarketing = planningData.reduce((sum, m) => sum + m.totalMarketingCost, 0);
+        const totalOperational = planningData.reduce((sum, m) => sum + m.totalOperationalCost, 0);
+        const totalRevenue = planningData.reduce((sum, m) => sum + m.totalRevenue, 0);
+        const totalMargin = totalRevenue - totalMarketing - totalOperational;
+        
+        // Metas de penetração
+        const penetrationGoals = [0.02, 0.05, 0.10, 0.15, 0.20].map(p => ({
+            percent: p,
+            value: Math.round(targetPop * p),
+            revenue: Math.round(targetPop * p) * 2.5
+        }));
+
+        return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planejamento Estratégico - ${block.name}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            color: #f1f5f9;
+            min-height: 100vh;
+            padding: 40px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* Header (gray -> black gradient) */
+        .header {
+            background: linear-gradient(180deg, #6b7280 0%, #111827 100%);
+            border-radius: 24px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Header typography and layout */
+        .header .header-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header .logo-square {
+            width: 46px;
+            height: 46px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.12);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25) inset;
+            flex: 0 0 46px;
+        }
+
+        .header .brand {
+            font-family: 'Lufga', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 44px;
+            font-weight: 800;
+            color: #f8fafc;
+            line-height: 1;
+            margin-bottom: 6px;
+            letter-spacing: -0.5px;
+        }
+
+        .header .header-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header .plan-name {
+            color: #e6edf3;
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .header .projections {
+            color: #cbd5e1;
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+
+        .header .date {
+            color: #94a3b8;
+            font-size: 12px;
+        }
+        
+        /* KPI Cards Row */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .kpi-card-pastel {
+            padding: 20px;
+            border-radius: 16px;
+        }
+        
+        .kpi-card-pastel.purple {
+            /* replace purple pastel with neutral gray pastel */
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            border: 1px solid #d1d5db;
+        }
+        
+        .kpi-card-pastel.green {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            border: 1px solid #86efac;
+        }
+        
+        .kpi-card-pastel .label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .kpi-card-pastel.purple .label { color: #374151; }
+        .kpi-card-pastel.green .label { color: #166534; }
+        
+        .kpi-card-pastel .value {
+            font-size: 32px;
+            font-weight: 800;
+            margin-top: 8px;
+        }
+        
+        .kpi-card-pastel.purple .value { color: #0f172a; }
+        .kpi-card-pastel.green .value { color: #15803d; }
+        
+        /* Goals Box */
+        .goals-section {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .goals-box {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .goals-box h3 {
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+        
+        .goal-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .goal-item:last-child {
+            border-bottom: none;
+        }
+        
+        .goal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .goal-dot.yellow { background: #fbbf24; }
+        .goal-dot.orange { background: #f97316; }
+        .goal-dot.amber { background: #f59e0b; }
+        .goal-dot.blue { background: #3b82f6; }
+        .goal-dot.purple { background: #6b7280; }
+        
+        .goal-percent {
+            color: #94a3b8;
+            font-weight: 500;
+            font-size: 13px;
+            min-width: 50px;
+            background: rgba(255,255,255,0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        
+        .goal-values {
+            flex: 1;
+            text-align: right;
+        }
+        
+        .goal-revenue {
+            color: #10b981;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        .goal-rides {
+            color: #64748b;
+            font-size: 11px;
+        }
+        
+        /* Stats Cards Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card .icon-circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .stat-label {
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-card .stat-value {
+            color: #1e293b;
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+        
+        /* Tables */
+        .table-section {
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .table-section h2 {
+            color: #f1f5f9;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .table-section h2::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(to bottom, #9ca3af, #6b7280);
+            border-radius: 2px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border-spacing: 0;
+            font-size: 10px;
+            table-layout: fixed;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        thead th {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+            color: white;
+            padding: 8px 4px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border: 1px solid rgba(255,255,255,0.12);
+            white-space: nowrap;
+        }
+        
+        thead th:first-child {
+            border-radius: 0;
+            text-align: left;
+            padding-left: 8px;
+        }
+        
+        thead th:last-child {
+            border-radius: 0;
+        }
+        
+        tbody tr {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        
+        tbody tr:nth-child(even) {
+            background: rgba(30, 41, 59, 0.5);
+        }
+        
+        tbody tr:hover {
+            background: rgba(148, 163, 184, 0.04);
+        }
+        
+        tbody td {
+            padding: 6px 4px;
+            color: #e2e8f0;
+            border: 1px solid rgba(255,255,255,0.08);
+            text-align: center;
+            font-size: 9px;
+        }
+        
+        tbody td:first-child {
+            text-align: left;
+            padding-left: 8px;
+            font-weight: 600;
+        }
+        
+        tfoot tr {
+            background: linear-gradient(135deg, #111827 0%, #374151 100%);
+        }
+        
+        tfoot td {
+            padding: 6px 4px;
+            color: white;
+            font-weight: 700;
+            border: 1px solid rgba(255,255,255,0.2);
+            text-align: center;
+            font-size: 9px;
+        }
+        
+        tfoot td:first-child {
+            border-radius: 0;
+            text-align: left;
+            padding-left: 8px;
+        }
+        
+        tfoot td:last-child {
+            border-radius: 0;
+        }
+        
+        .text-right { text-align: right !important; }
+        .text-center { text-align: center !important; }
+        
+        .positive { color: #10b981; }
+        .negative { color: #ef4444; }
+        
+        /* City Section */
+        .city-section {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+            overflow: hidden;
+        }
+        
+        .city-section h3 {
+            color: #a5b4fc;
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .city-section table {
+            margin: 0;
+        }
+        
+        /* Print Styles */
+        @media print {
+            body {
+                background: white !important;
+                color: #1e293b !important;
+                padding: 20px !important;
+            }
+            
+            .header {
+                background: linear-gradient(180deg, #6b7280 0%, #0f172a 100%) !important;
+                -webkit-print-color-adjust: exact;
+            }
+            
+            .goals-box {
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+            
+            .goals-box h3 {
+                color: #1e293b !important;
+            }
+            
+            .goal-percent {
+                color: #1e293b !important;
+                font-weight: 700 !important;
+                background: #e2e8f0 !important;
+            }
+            
+            .goal-revenue {
+                color: #059669 !important;
+            }
+            
+            .goal-rides {
+                color: #475569 !important;
+            }
+            
+            .goal-dot {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            .table-section {
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+            
+            table {
+                border: 1px solid #cbd5e1 !important;
+            }
+            
+            thead th {
+                background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%) !important;
+                border: 1px solid #374151 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            tbody tr {
+                background: white !important;
+            }
+            
+            tbody tr:nth-child(even) {
+                background: #f1f5f9 !important;
+            }
+            
+            tbody td {
+                color: #1e293b !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+            
+            tfoot tr {
+                background: linear-gradient(180deg, #111827 0%, #374151 100%) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            tfoot td {
+                border: 1px solid #374151 !important;
+                color: white !important;
+            }
+            
+            .city-section {
+                page-break-inside: avoid;
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+            
+            .city-section h3 {
+                color: #1e293b !important;
+            }
+            
+            .positive {
+                color: #059669 !important;
+            }
+            
+            .negative {
+                color: #dc2626 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-row">
+                <div class="logo-square" aria-hidden="true"></div>
+                <div class="header-text">
+                    <h1 class="brand">Urban Passageiro</h1>
+                    <div class="header-details">
+                        <div class="plan-name">Planejamento Estratégico: ${block.name}</div>
+                        <div class="projections">Projeções de 6 Meses</div>
+                        <div class="date">Gerado em: ${date}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- KPI Cards -->
+        <div class="kpi-row">
+            <div class="kpi-card-pastel purple">
+                <div class="label">População Total do Bloco</div>
+                <div class="value">${totalPop.toLocaleString('pt-BR')}</div>
+            </div>
+            <div class="kpi-card-pastel green">
+                <div class="label">População Alvo (15-44 anos)</div>
+                <div class="value">${targetPop.toLocaleString('pt-BR')}</div>
+            </div>
+        </div>
+        
+        <!-- Goals + Stats Section -->
+        <div class="goals-section">
+            <!-- Goals Box -->
+            <div class="goals-box">
+                <h3>🎯 Metas de Penetração</h3>
+                ${penetrationGoals.map((goal, idx) => {
+                    const colors = ['yellow', 'orange', 'amber', 'blue', 'purple'];
+                    return `
+                    <div class="goal-item">
+                        <div class="goal-dot ${colors[idx]}"></div>
+                        <span class="goal-percent">(${Math.round(goal.percent * 100)}%)</span>
+                        <div class="goal-values">
+                            <div class="goal-revenue">${formatCurrency(goal.revenue)}</div>
+                            <div class="goal-rides">${goal.value.toLocaleString('pt-BR')} corridas/mês</div>
+                        </div>
+                    </div>
+                    `;
+                }).join('')}
+            </div>
+            
+            <!-- Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="icon-circle" style="background: #dbeafe;">👥</div>
+                    <div class="stat-label">População Total</div>
+                    <div class="stat-value">${totalPop.toLocaleString('pt-BR')}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon-circle" style="background: #dcfce7;">🎯</div>
+                    <div class="stat-label">População Alvo</div>
+                    <div class="stat-value">${targetPop.toLocaleString('pt-BR')}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon-circle" style="background: #fef3c7;">🏙️</div>
+                    <div class="stat-label">Cidades no Bloco</div>
+                    <div class="stat-value">${cities.length}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon-circle" style="background: #f3e8ff;">📈</div>
+                    <div class="stat-label">Meta Total 6M</div>
+                    <div class="stat-value">${totalGoal.toLocaleString('pt-BR')}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon-circle" style="background: #fce7f3;">💰</div>
+                    <div class="stat-label">Receita Proj. 6M</div>
+                    <div class="stat-value">${formatCurrency(totalRevenue)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon-circle" style="background: ${totalMargin >= 0 ? '#dcfce7' : '#fee2e2'};">📊</div>
+                    <div class="stat-label">Margem 6M</div>
+                    <div class="stat-value ${totalMargin >= 0 ? 'positive' : 'negative'}">${formatCurrency(totalMargin)}</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #ecfdf5 0%, white 100%); border-color: #10b981;">
+                    <div class="icon-circle" style="background: #d1fae5;">🎯</div>
+                    <div class="stat-label" style="color: #059669;">Receita Mensal (10%)</div>
+                    <div class="stat-value" style="color: #047857;">${formatCurrency(Math.round(targetPop * 0.10) * 8)}</div>
+                    <div style="font-size: 10px; color: #059669; margin-top: 4px;">${Math.round(targetPop * 0.10).toLocaleString('pt-BR')} corridas/mês</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Planning Table -->
+        <div class="table-section">
+            <h2>Projeção Mensal - Consolidado do Bloco</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mês</th>
+                        <th class="text-center">Meta Corridas</th>
+                        <th class="text-right">Marketing</th>
+                        <th class="text-right">Operacional</th>
+                        <th class="text-right">Receita</th>
+                        <th class="text-right">Margem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${planningData.map(month => {
+                        const margin = month.totalRevenue - month.totalMarketingCost - month.totalOperationalCost;
+                        return `
+                        <tr>
+                            <td><strong>${month.month}</strong></td>
+                            <td class="text-center">${month.totalGoal.toLocaleString('pt-BR')}</td>
+                            <td class="text-right">${formatCurrency(month.totalMarketingCost)}</td>
+                            <td class="text-right">${formatCurrency(month.totalOperationalCost)}</td>
+                            <td class="text-right">${formatCurrency(month.totalRevenue)}</td>
+                            <td class="text-right ${margin >= 0 ? 'positive' : 'negative'}">${formatCurrency(margin)}</td>
+                        </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td><strong>TOTAL 6M</strong></td>
+                        <td class="text-center">${totalGoal.toLocaleString('pt-BR')}</td>
+                        <td class="text-right">${formatCurrency(totalMarketing)}</td>
+                        <td class="text-right">${formatCurrency(totalOperational)}</td>
+                        <td class="text-right">${formatCurrency(totalRevenue)}</td>
+                        <td class="text-right">${formatCurrency(totalMargin)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <!-- Per City Tables -->
+        <div class="table-section">
+            <h2>Detalhamento por Cidade</h2>
+            ${cities.map(city => {
+                const cityTotalGoal = planningData.reduce((acc, month) => {
+                    const cityData = month.cityBreakdown.find(c => c.cityName === city.name);
+                    return acc + (cityData ? cityData.goal : 0);
+                }, 0);
+                const cityTotalMarketing = planningData.reduce((acc, month) => {
+                    const cityData = month.cityBreakdown.find(c => c.cityName === city.name);
+                    return acc + (cityData ? cityData.marketingCost : 0);
+                }, 0);
+                const cityTotalOperational = planningData.reduce((acc, month) => {
+                    const cityData = month.cityBreakdown.find(c => c.cityName === city.name);
+                    return acc + (cityData ? cityData.operationalCost : 0);
+                }, 0);
+                const cityTotalRevenue = planningData.reduce((acc, month) => {
+                    const cityData = month.cityBreakdown.find(c => c.cityName === city.name);
+                    return acc + (cityData ? cityData.revenue : 0);
+                }, 0);
+                const cityMargin = cityTotalRevenue - cityTotalMarketing - cityTotalOperational;
+                
+                return `
+                <div class="city-section">
+                    <h3>🏙️ ${city.name} (Pop: ${city.population.toLocaleString('pt-BR')} | Alvo: ${city.population15to44.toLocaleString('pt-BR')})</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mês</th>
+                                <th class="text-center">Meta</th>
+                                <th class="text-right">CPA</th>
+                                <th class="text-right">OPS</th>
+                                <th class="text-right">Marketing</th>
+                                <th class="text-right">Operacional</th>
+                                <th class="text-right">Receita</th>
+                                <th class="text-right">Margem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${planningData.map((month, idx) => {
+                                const cityData = month.cityBreakdown.find(c => c.cityName === city.name);
+                                if (!cityData) return '';
+                                const cpa = cityData.goal > 0 ? (cityData.marketingCost / cityData.goal) : 0;
+                                const ops = cityData.goal > 0 ? (cityData.operationalCost / cityData.goal) : 0;
+                                const margin = cityData.revenue - cityData.marketingCost - cityData.operationalCost;
+                                return `
+                                <tr>
+                                    <td><strong>${month.month}</strong></td>
+                                    <td class="text-center">${cityData.goal.toLocaleString('pt-BR')}</td>
+                                    <td class="text-right">R$ ${cpa.toFixed(2)}</td>
+                                    <td class="text-right">R$ ${ops.toFixed(2)}</td>
+                                    <td class="text-right">${formatCurrency(cityData.marketingCost)}</td>
+                                    <td class="text-right">${formatCurrency(cityData.operationalCost)}</td>
+                                    <td class="text-right">${formatCurrency(cityData.revenue)}</td>
+                                    <td class="text-right ${margin >= 0 ? 'positive' : 'negative'}">${formatCurrency(margin)}</td>
+                                </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td><strong>TOTAL</strong></td>
+                                <td class="text-center">${cityTotalGoal.toLocaleString('pt-BR')}</td>
+                                <td class="text-right">-</td>
+                                <td class="text-right">-</td>
+                                <td class="text-right">${formatCurrency(cityTotalMarketing)}</td>
+                                <td class="text-right">${formatCurrency(cityTotalOperational)}</td>
+                                <td class="text-right">${formatCurrency(cityTotalRevenue)}</td>
+                                <td class="text-right ${cityMargin >= 0 ? 'positive' : 'negative'}">${formatCurrency(cityMargin)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                `;
+            }).join('')}
+        </div>
+        
+        <!-- Footer -->
+        <div style="text-align: center; padding: 24px; color: #64748b; font-size: 12px;">
+            <p>Urban Passageiro - Relatório gerado automaticamente</p>
+            <p style="margin-top: 4px;">${date}</p>
+        </div>
+    </div>
+</body>
+</html>
+        `;
+    };
+
     const exportBlockPDF = () => {
-        const doc = new jsPDF({ orientation: 'landscape' });
+
         const date = new Date().toLocaleDateString('pt-BR');
 
-        doc.setFontSize(18);
-        doc.text(`Relatório Estratégico: ${block.name}`, 14, 20);
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text(`Urban Passageiro - Gerado em: ${date}`, 14, 27);
+        if (showPlanningView) {
+            // Exportar como HTML visual
+            const htmlContent = generateReportHTML();
+            const printWindow = window.open('', '_blank');
+            
+            if (printWindow) {
+                printWindow.document.write(htmlContent);
+                printWindow.document.close();
+                
+                // Aguardar carregamento das fontes antes de imprimir
+                setTimeout(() => {
+                    alert('Para salvar como PDF:\\n1. Pressione Ctrl+P\\n2. Selecione "Salvar como PDF"\\n3. Clique em Salvar');
+                    printWindow.print();
+                }, 1500);
+            }
+        } else {
+            // PDF para Visão Normal (código original)
+            const doc = new jsPDF({ orientation: 'portrait' });
+            doc.setFontSize(18);
+            doc.text(`Relatório Estratégico: ${block.name}`, 14, 20);
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Urban Passageiro - Gerado em: ${date}`, 14, 27);
 
-        const tableColumn = [
-            "Cidade", 
-            "Pop. Total", 
-            "Pop. Alvo (15-44)", 
-            "Corridas (Média)", 
-            "Receita Baixa", 
-            "Receita Média", 
-            "Receita Alta"
-        ];
-
-        const tableRows = cities.map(city => {
-            const rides = getMarketPotential(city).find(p => p.scenario === 'Média')?.rides || 0;
-            return [
-                city.name,
-                city.population.toLocaleString('pt-BR'),
-                city.population15to44.toLocaleString('pt-BR'),
-                Math.round(rides).toLocaleString('pt-BR'),
-                formatCurrency(calculatePotentialRevenue(city, 'Baixa')),
-                formatCurrency(calculatePotentialRevenue(city, 'Média')),
-                formatCurrency(calculatePotentialRevenue(city, 'Alta'))
+            const tableColumn = [
+                "Cidade", 
+                "Pop. Total", 
+                "Pop. Alvo (15-44)", 
+                "Corridas (Média)", 
+                "Receita Baixa", 
+                "Receita Média", 
+                "Receita Alta"
             ];
-        });
 
-        // Totais
-        const totals = cities.reduce((acc, city) => {
-            const rides = getMarketPotential(city).find(p => p.scenario === 'Média')?.rides || 0;
-            return {
-                pop: acc.pop + city.population,
-                target: acc.target + city.population15to44,
-                rides: acc.rides + rides,
-                baixa: acc.baixa + calculatePotentialRevenue(city, 'Baixa'),
-                media: acc.media + calculatePotentialRevenue(city, 'Média'),
-                alta: acc.alta + calculatePotentialRevenue(city, 'Alta'),
-            };
-        }, { pop: 0, target: 0, rides: 0, baixa: 0, media: 0, alta: 0 });
+            const tableRows = cities.map(city => {
+                const rides = getMarketPotential(city).find(p => p.scenario === 'Média')?.rides || 0;
+                return [
+                    city.name,
+                    city.population.toLocaleString('pt-BR'),
+                    city.population15to44.toLocaleString('pt-BR'),
+                    Math.round(rides).toLocaleString('pt-BR'),
+                    formatCurrency(calculatePotentialRevenue(city, 'Baixa')),
+                    formatCurrency(calculatePotentialRevenue(city, 'Média')),
+                    formatCurrency(calculatePotentialRevenue(city, 'Alta'))
+                ];
+            });
 
-        const footerRow = [
-            { content: 'TOTAIS DO GRUPO', styles: { fontStyle: 'bold', halign: 'right' } },
-            totals.pop.toLocaleString('pt-BR'),
-            totals.target.toLocaleString('pt-BR'),
-            Math.round(totals.rides).toLocaleString('pt-BR'),
-            formatCurrency(totals.baixa),
-            formatCurrency(totals.media),
-            formatCurrency(totals.alta)
-        ];
+            // Totais
+            const totals = cities.reduce((acc, city) => {
+                const rides = getMarketPotential(city).find(p => p.scenario === 'Média')?.rides || 0;
+                return {
+                    pop: acc.pop + city.population,
+                    target: acc.target + city.population15to44,
+                    rides: acc.rides + rides,
+                    baixa: acc.baixa + calculatePotentialRevenue(city, 'Baixa'),
+                    media: acc.media + calculatePotentialRevenue(city, 'Média'),
+                    alta: acc.alta + calculatePotentialRevenue(city, 'Alta'),
+                };
+            }, { pop: 0, target: 0, rides: 0, baixa: 0, media: 0, alta: 0 });
 
-        autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            foot: [footerRow],
-            startY: 35,
-            theme: 'striped',
-            headStyles: { fillColor: [34, 197, 94], fontSize: 9 },
-            bodyStyles: { fontSize: 8 },
-            footStyles: { fillColor: [229, 231, 235], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8 },
-        });
+            const footerRow = [
+                { content: 'TOTAIS DO GRUPO', styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
+                totals.pop.toLocaleString('pt-BR'),
+                totals.target.toLocaleString('pt-BR'),
+                Math.round(totals.rides).toLocaleString('pt-BR'),
+                formatCurrency(totals.baixa),
+                formatCurrency(totals.media),
+                formatCurrency(totals.alta)
+            ];
 
-        doc.save(`Urban_Relatorio_${block.name.replace(/\s+/g, '_')}_${date}.pdf`);
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                foot: [footerRow],
+                startY: 35,
+                theme: 'striped',
+                headStyles: { fillColor: [34, 197, 94], fontSize: 9 },
+                bodyStyles: { fontSize: 8 },
+                footStyles: { fillColor: [229, 231, 235], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8 },
+            });
+
+            doc.save(`Urban_Relatorio_${block.name.replace(/\s+/g, '_')}_${date}.pdf`);
+        }
     };
 
     return (
@@ -1097,52 +2345,591 @@ const BlockSection: React.FC<{
                                 <button onClick={() => { setIsEditing(false); setEditName(block.name); }} className="p-2 text-red-400 hover:bg-red-500/10 border border-red-500/30 rounded-lg transition"><FiX size={18}/></button>
                             </div>
                         ) : (
-                            <div>
-                                <div className="flex items-center gap-3">
-                                    <h3 className="text-2xl font-bold text-white">{block.name}</h3>
-                                    <span className="text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-purple-600 px-3 py-1 rounded-full shadow-lg">{cities.length} cidades</span>
+                            <div className="flex-1 flex items-center justify-between">
+                                <div className="flex items-center gap-4 flex-1">
+                                    {/* Header: Nome + Badge */}
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-2xl font-bold text-white">{block.name}</h3>
+                                        <span className="text-xs font-semibold text-white/90 bg-gradient-to-r from-emerald-500 to-green-600 px-3 py-1 rounded-full">{cities.length} cidades</span>
+                                    </div>
+                                    
+                                    {/* Barra de Potencial na mesma linha */}
+                                    {blockStats.maximumPotentialGoal > 0 && (
+                                        <div className="flex items-center gap-3 flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-slate-300">Potencial Mês Atual:</span>
+                                                <span className="text-sm font-bold text-emerald-400">{blockStats.currentMonthRides}</span>
+                                                <span className="text-xs text-slate-500">/</span>
+                                                <span className="text-sm font-semibold text-slate-400">{blockStats.maximumPotentialGoal.toLocaleString('pt-BR')}</span>
+                                            </div>
+                                            <div className="flex-1 max-w-xs">
+                                                <div className="w-full bg-slate-700/50 rounded-full h-2">
+                                                    <div 
+                                                        className={`h-full rounded-full transition-all duration-500 ${
+                                                            blockStats.maxPotentialProgress >= 75 
+                                                                ? 'bg-gradient-to-r from-emerald-500 to-green-400' 
+                                                                : blockStats.maxPotentialProgress >= 50
+                                                                ? 'bg-gradient-to-r from-blue-500 to-cyan-400'
+                                                                : blockStats.maxPotentialProgress >= 25
+                                                                ? 'bg-gradient-to-r from-yellow-500 to-amber-400'
+                                                                : 'bg-gradient-to-r from-slate-500 to-gray-400'
+                                                        }`} 
+                                                        style={{width: `${Math.min(blockStats.maxPotentialProgress, 100)}%`}}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                            <span className={`text-sm font-bold px-2 py-1 rounded ${
+                                                blockStats.maxPotentialProgress >= 50 
+                                                    ? 'bg-emerald-500/20 text-emerald-400'
+                                                    : blockStats.maxPotentialProgress >= 25
+                                                    ? 'bg-blue-500/20 text-blue-400'
+                                                    : 'bg-slate-500/20 text-slate-400'
+                                            }`}>
+                                                {blockStats.maxPotentialProgress.toFixed(1)}%
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="text-xs text-gray-400 mt-1">Arraste cidades para organizar</p>
+                                {/* Action Buttons */}
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    <button 
+                                        onClick={() => setShowPlanningView(!showPlanningView)}
+                                        disabled={cities.length === 0}
+                                        className={`p-2 border rounded-lg transition-all duration-200 ${
+                                            showPlanningView 
+                                                ? 'text-purple-400 border-purple-500/30 bg-purple-500/10' 
+                                                : 'text-gray-400 hover:text-purple-400 border-purple-500/30 hover:bg-purple-500/10'
+                                        }`}
+                                        title={showPlanningView ? "Ver visão geral" : "Ver planejamento"}
+                                    >
+                                        <FiActivity size={18}/>
+                                    </button>
+                                    <button 
+                                        onClick={exportBlockPDF}
+                                        disabled={cities.length === 0}
+                                        className="p-2 text-gray-400 hover:text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/10 transition-all duration-200" 
+                                        title="Exportar relatório em PDF"
+                                    >
+                                        <FiDownload size={18}/>
+                                    </button>
+                                    <button 
+                                        onClick={() => setIsEditing(true)} 
+                                        className="p-2 text-gray-400 hover:text-white border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-200" 
+                                        title="Renomear bloco"
+                                    >
+                                        <FiEdit2 size={16}/>
+                                    </button>
+                                    <button 
+                                        onClick={() => onDelete(block.id)} 
+                                        className="p-2 text-red-400 hover:text-red-300 border border-red-500/30 rounded-lg hover:bg-red-500/10 transition-all duration-200" 
+                                        title="Excluir bloco"
+                                    >
+                                        <FiTrash2 size={16}/>
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
-
-                    {/* Action Buttons */}
-                    {!isEditing && (
-                        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                            <button 
-                                onClick={handlePlanAllInBlock}
-                                disabled={cities.length === 0}
-                                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:from-purple-500 hover:to-purple-600 transition-all duration-200 shadow-lg hover:shadow-purple-500/50 disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="Planejar todas as cidades do bloco"
-                            >
-                                <FiClipboard size={16}/> Planejar
-                            </button>
-                            <button 
-                                onClick={exportBlockPDF}
-                                disabled={cities.length === 0}
-                                className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:from-emerald-500 hover:to-emerald-600 transition-all duration-200 shadow-lg hover:shadow-emerald-500/50 disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="Exportar relatório em PDF"
-                            >
-                                <FiDownload size={16}/> Exportar
-                            </button>
-                            <button 
-                                onClick={() => setIsEditing(true)} 
-                                className="p-2 text-gray-400 hover:text-white border border-white/20 rounded-lg hover:bg-white/5 transition-all duration-200" 
-                                title="Renomear bloco"
-                            >
-                                <FiEdit2 size={16}/>
-                            </button>
-                            <button 
-                                onClick={() => onDelete(block.id)} 
-                                className="p-2 text-red-400 hover:text-red-300 border border-red-500/30 rounded-lg hover:bg-red-500/10 transition-all duration-200" 
-                                title="Excluir bloco"
-                            >
-                                <FiTrash2 size={16}/>
-                            </button>
-                        </div>
-                    )}
                 </div>
+
+                {!isEditing && (
+                    <div className="mt-5">
+                        {showPlanningView ? (
+                            /* Visualização de Planejamento de 6 Meses */
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h4 className="text-xl font-bold text-white">Projeções de 6 Meses - {block.name}</h4>
+                                    <span className="text-xs text-purple-400 bg-purple-500/20 px-3 py-1 rounded-full">
+                                        {cities.length} cidades • Planejamento Estratégico
+                                    </span>
+                                </div>
+                                
+                                {(() => {
+                                    const planningData = getBlockPlanningData();
+                                    const totalGoal6M = planningData.reduce((sum, m) => sum + m.totalGoal, 0);
+                                    const totalRevenue6M = planningData.reduce((sum, m) => sum + m.totalRevenue, 0);
+                                    const totalCosts6M = planningData.reduce((sum, m) => sum + m.totalMarketingCost + m.totalOperationalCost, 0);
+                                    const margin6M = totalRevenue6M - totalCosts6M;
+                                    const targetPop = cities.reduce((sum, c) => sum + c.population15to44, 0);
+                                    const monthlyRevenue10Percent = Math.round(targetPop * 0.10) * 8; // 10% penetração x R$8/corrida
+                                    
+                                    return (
+                                        <>
+                                        {/* Cards de Resumo no Topo */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                                            {/* Card 1: Meta Total 6M */}
+                                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                                                        <span className="text-lg">📈</span>
+                                                    </div>
+                                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Meta Total 6M</span>
+                                                </div>
+                                                <div className="text-2xl font-bold text-slate-800">{totalGoal6M.toLocaleString('pt-BR')}</div>
+                                            </div>
+                                            
+                                            {/* Card 2: Receita Proj. 6M */}
+                                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                                                        <span className="text-lg">💰</span>
+                                                    </div>
+                                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Receita Proj. 6M</span>
+                                                </div>
+                                                <div className="text-2xl font-bold text-slate-800">{formatCurrency(totalRevenue6M)}</div>
+                                            </div>
+                                            
+                                            {/* Card 3: Margem 6M */}
+                                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                                                        <span className="text-lg">📊</span>
+                                                    </div>
+                                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Margem 6M</span>
+                                                </div>
+                                                <div className={`text-2xl font-bold ${margin6M >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(margin6M)}</div>
+                                            </div>
+                                            
+                                            {/* Card 4: Receita Mensal (10%) */}
+                                            <div className="bg-white rounded-2xl p-5 border border-emerald-200 shadow-sm bg-gradient-to-br from-emerald-50 to-white">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                                        <span className="text-lg">🎯</span>
+                                                    </div>
+                                                    <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Receita Mensal (10%)</span>
+                                                </div>
+                                                <div className="text-2xl font-bold text-emerald-700">{formatCurrency(monthlyRevenue10Percent)}</div>
+                                                <div className="text-xs text-emerald-600 mt-1">{Math.round(targetPop * 0.10).toLocaleString('pt-BR')} corridas/mês</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full bg-slate-800/50 rounded-2xl border border-slate-700/50">
+                                                <thead>
+                                                    <tr className="bg-purple-900/30">
+                                                        <th className="text-left p-4 text-sm font-semibold text-purple-200">Mês</th>
+                                                        <th className="text-center p-4 text-sm font-semibold text-purple-200">Meta Total</th>
+                                                        <th className="text-center p-4 text-sm font-semibold text-purple-200">Custo Marketing</th>
+                                                        <th className="text-center p-4 text-sm font-semibold text-purple-200">Custo Operacional</th>
+                                                        <th className="text-center p-4 text-sm font-semibold text-purple-200">Receita Projetada</th>
+                                                        <th className="text-center p-4 text-sm font-semibold text-purple-200">Margem</th>
+                                                        <th className="text-left p-4 text-sm font-semibold text-purple-200">Principais Cidades</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {planningData.map((month, index) => {
+                                                        const totalCost = month.totalMarketingCost + month.totalOperationalCost;
+                                                        const margin = month.totalRevenue - totalCost;
+                                                        const marginPercent = month.totalRevenue > 0 ? (margin / month.totalRevenue) * 100 : 0;
+                                                        const topCities = month.cityBreakdown
+                                                            .sort((a, b) => b.goal - a.goal)
+                                                            .slice(0, 3);
+                                                        
+                                                        return (
+                                                            <tr key={index} className="border-t border-slate-700/50 hover:bg-purple-900/10 transition-colors">
+                                                                <td className="p-4">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-lg font-bold text-white">{month.month}</span>
+                                                                        <span className="text-xs text-slate-400">Mês {index + 1}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="p-4 text-center">
+                                                                    <span className="text-lg font-bold text-purple-400">
+                                                                        {month.totalGoal.toLocaleString('pt-BR')}
+                                                                    </span>
+                                                                    <div className="text-xs text-slate-500">corridas</div>
+                                                                </td>
+                                                                <td className="p-4 text-center">
+                                                                    <span className="text-sm font-semibold text-orange-400">
+                                                                        {formatCurrency(month.totalMarketingCost)}
+                                                                    </span>
+                                                                    <div className="text-xs text-slate-500">
+                                                                        R${(month.totalMarketingCost / month.totalGoal).toFixed(2)}/corrida
+                                                                    </div>
+                                                                </td>
+                                                                <td className="p-4 text-center">
+                                                                    <span className="text-sm font-semibold text-cyan-400">
+                                                                        {formatCurrency(month.totalOperationalCost)}
+                                                                    </span>
+                                                                    <div className="text-xs text-slate-500">
+                                                                        R${(month.totalOperationalCost / month.totalGoal).toFixed(2)}/corrida
+                                                                    </div>
+                                                                </td>
+                                                                <td className="p-4 text-center">
+                                                                    <span className="text-lg font-bold text-emerald-400">
+                                                                        {formatCurrency(month.totalRevenue)}
+                                                                    </span>
+                                                                    <div className="text-xs text-slate-500">R$8.00/corrida</div>
+                                                                </td>
+                                                                <td className="p-4 text-center">
+                                                                    <span className={`text-sm font-bold ${margin >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                        {formatCurrency(margin)}
+                                                                    </span>
+                                                                    <div className={`text-xs ${marginPercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                                        {marginPercent.toFixed(1)}%
+                                                                    </div>
+                                                                </td>
+                                                                <td className="p-4">
+                                                                    <div className="space-y-1">
+                                                                        {topCities.map((city, i) => (
+                                                                            <div key={i} className="flex justify-between text-xs">
+                                                                                <span className="text-slate-300 truncate mr-2">{city.cityName}</span>
+                                                                                <span className="text-slate-500 flex-shrink-0">{city.goal} corridas</span>
+                                                                            </div>
+                                                                        ))}
+                                                                        {month.cityBreakdown.length > 3 && (
+                                                                            <div className="text-xs text-slate-500">
+                                                                                +{month.cityBreakdown.length - 3} outras
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                                {/* Footer com totais */}
+                                                <tfoot>
+                                                    <tr className="bg-slate-900/50 border-t-2 border-purple-500/30">
+                                                        <th className="p-4 text-left text-sm font-bold text-purple-200">6 MESES</th>
+                                                        <th className="p-4 text-center text-lg font-bold text-purple-300">
+                                                            {planningData.reduce((sum, m) => sum + m.totalGoal, 0).toLocaleString('pt-BR')}
+                                                        </th>
+                                                        <th className="p-4 text-center text-sm font-bold text-orange-300">
+                                                            {formatCurrency(planningData.reduce((sum, m) => sum + m.totalMarketingCost, 0))}
+                                                        </th>
+                                                        <th className="p-4 text-center text-sm font-bold text-cyan-300">
+                                                            {formatCurrency(planningData.reduce((sum, m) => sum + m.totalOperationalCost, 0))}
+                                                        </th>
+                                                        <th className="p-4 text-center text-lg font-bold text-emerald-300">
+                                                            {formatCurrency(planningData.reduce((sum, m) => sum + m.totalRevenue, 0))}
+                                                        </th>
+                                                        <th className="p-4 text-center text-lg font-bold text-green-300">
+                                                            {formatCurrency(
+                                                                planningData.reduce((sum, m) => sum + m.totalRevenue, 0) - 
+                                                                planningData.reduce((sum, m) => sum + m.totalMarketingCost + m.totalOperationalCost, 0)
+                                                            )}
+                                                        </th>
+                                                        <th className="p-4 text-left text-xs text-slate-400">
+                                                            Total agregado
+                                                        </th>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        ) : (
+                            /* KPIs Grid - Layout Limpo */
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                            {/* Card 1: Meta Global Acumulativa */}
+                            <div className="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50">
+                                <div className="flex items-center justify-between mb-4">
+                                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Meta Global Acumulada</span>
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                        blockStats.globalAccumulatedRides >= blockStats.globalAccumulatedGoal 
+                                            ? 'bg-green-500/20 text-green-400' 
+                                            : 'bg-blue-500/20 text-blue-400'
+                                    }`}>
+                                        {blockStats.globalAccumulatedGoal > 0 
+                                            ? Math.round((blockStats.globalAccumulatedRides / blockStats.globalAccumulatedGoal) * 100) 
+                                            : 0}%
+                                    </span>
+                                </div>
+                                <div className="flex items-end gap-6 mb-3">
+                                    <div>
+                                        <span className="text-3xl font-bold text-white">{blockStats.globalAccumulatedGoal.toLocaleString('pt-BR')}</span>
+                                        <span className="text-sm text-slate-500 ml-2">meta</span>
+                                        <div className="text-xs text-slate-400 mt-1">R${(blockStats.globalAccumulatedRevenueGoal / 1000).toFixed(1)}k proj</div>
+                                    </div>
+                                    <div>
+                                        <span className="text-3xl font-bold text-green-400">{blockStats.globalAccumulatedRides.toLocaleString('pt-BR')}</span>
+                                        <span className="text-sm text-slate-500 ml-2">atual</span>
+                                        <div className="text-xs text-green-400 mt-1">R${(blockStats.globalAccumulatedRevenue / 1000).toFixed(1)}k real</div>
+                                    </div>
+                                    {blockStats.globalAccumulatedRides >= blockStats.globalAccumulatedGoal && (
+                                        <span className="text-green-400 text-xl mb-1">✓</span>
+                                    )}
+                                </div>
+                                <div className="w-full bg-slate-700/50 rounded-full h-2 mb-4">
+                                    <div 
+                                        className={`h-full rounded-full transition-all duration-500 ${
+                                            blockStats.globalAccumulatedRides >= blockStats.globalAccumulatedGoal 
+                                                ? 'bg-gradient-to-r from-green-500 to-emerald-400' 
+                                                : 'bg-gradient-to-r from-blue-500 to-cyan-400'
+                                        }`} 
+                                        style={{width: `${Math.min((blockStats.globalAccumulatedRides / Math.max(blockStats.globalAccumulatedGoal, 1)) * 100, 100)}%`}}
+                                    ></div>
+                                </div>
+                                
+                                {/* Mini KPIs Globais */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    {/* CPA MKT */}
+                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
+                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">CPA Mkt</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs font-semibold text-slate-400">R${blockStats.cpaMktProj.toFixed(2)}</span>
+                                            <span className={`text-xs font-bold ${blockStats.cpaMktReal <= blockStats.cpaMktProj ? 'text-green-400' : 'text-red-400'}`}>
+                                                R${blockStats.cpaMktReal.toFixed(2)}
+                                            </span>
+                                            <span className={`text-[10px] ${blockStats.cpaMktReal <= blockStats.cpaMktProj ? 'text-green-400' : 'text-red-400'}`}>
+                                                {blockStats.cpaMktReal <= blockStats.cpaMktProj ? '✓' : '✗'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* OPS/PASS */}
+                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
+                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">Ops/Pass</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs font-semibold text-slate-400">R${blockStats.opsPassProj.toFixed(2)}</span>
+                                            <span className={`text-xs font-bold ${blockStats.opsPassReal <= blockStats.opsPassProj ? 'text-green-400' : 'text-red-400'}`}>
+                                                R${blockStats.opsPassReal.toFixed(2)}
+                                            </span>
+                                            <span className={`text-[10px] ${blockStats.opsPassReal <= blockStats.opsPassProj ? 'text-green-400' : 'text-red-400'}`}>
+                                                {blockStats.opsPassReal <= blockStats.opsPassProj ? '✓' : '✗'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* CUSTO TOT */}
+                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
+                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">Custo Total CPA/OPS</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs font-semibold text-slate-400">R${(blockStats.custoTotalProj / 1000).toFixed(1)}k</span>
+                                            <span className={`text-xs font-bold ${blockStats.custoTotalReal <= blockStats.custoTotalProj ? 'text-green-400' : 'text-amber-400'}`}>
+                                                R${(blockStats.custoTotalReal / 1000).toFixed(1)}k
+                                            </span>
+                                            <span className={`text-[10px] ${blockStats.custoTotalReal <= blockStats.custoTotalProj ? 'text-green-400' : 'text-amber-400'}`}>
+                                                {blockStats.custoTotalReal <= blockStats.custoTotalProj ? '✓' : '✗'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* CUSTO/CORR */}
+                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
+                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">Custo/Corr</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs font-semibold text-slate-400">R${blockStats.custoCorridaProj.toFixed(2)}</span>
+                                            <span className={`text-xs font-bold ${blockStats.custoCorridaReal <= blockStats.custoCorridaProj ? 'text-green-400' : 'text-red-400'}`}>
+                                                R${blockStats.custoCorridaReal.toFixed(2)}
+                                            </span>
+                                            <span className={`text-[10px] ${blockStats.custoCorridaReal <= blockStats.custoCorridaProj ? 'text-green-400' : 'text-red-400'}`}>
+                                                {blockStats.custoCorridaReal <= blockStats.custoCorridaProj ? '✓' : '✗'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Card 2: Mês Atual */}
+                            <div className="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-purple-400 bg-purple-500/20 px-2 py-0.5 rounded">JAN/26</span>
+                                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mês Atual</span>
+                                    </div>
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                        blockStats.currentMonthRides >= blockStats.currentMonthGoal 
+                                            ? 'bg-green-500/20 text-green-400' 
+                                            : 'bg-purple-500/20 text-purple-400'
+                                    }`}>
+                                        {blockStats.currentMonthGoal > 0 
+                                            ? Math.round((blockStats.currentMonthRides / blockStats.currentMonthGoal) * 100) 
+                                            : 0}%
+                                    </span>
+                                </div>
+                                <div className="flex items-end gap-6 mb-3">
+                                    <div>
+                                        <span className="text-3xl font-bold text-white">{blockStats.currentMonthGoal.toLocaleString('pt-BR')}</span>
+                                        <span className="text-sm text-slate-500 ml-2">meta</span>
+                                        <div className="text-xs text-slate-400 mt-1">R${(blockStats.currentMonthRevenueGoal / 1000).toFixed(1)}k proj</div>
+                                    </div>
+                                    <div>
+                                        <span className="text-3xl font-bold text-purple-400">{blockStats.currentMonthRides.toLocaleString('pt-BR')}</span>
+                                        <span className="text-sm text-slate-500 ml-2">atual</span>
+                                        <div className="text-xs text-purple-400 mt-1">R${(blockStats.currentMonthRevenue / 1000).toFixed(1)}k real</div>
+                                    </div>
+                                    {blockStats.currentMonthRides >= blockStats.currentMonthGoal && (
+                                        <span className="text-green-400 text-xl mb-1">✓</span>
+                                    )}
+                                </div>
+                                <div className="w-full bg-slate-700/50 rounded-full h-2 mb-4">
+                                    <div 
+                                        className={`h-full rounded-full transition-all duration-500 ${
+                                            blockStats.currentMonthRides >= blockStats.currentMonthGoal 
+                                                ? 'bg-gradient-to-r from-green-500 to-emerald-400' 
+                                                : 'bg-gradient-to-r from-purple-500 to-fuchsia-400'
+                                        }`} 
+                                        style={{width: `${Math.min((blockStats.currentMonthRides / Math.max(blockStats.currentMonthGoal, 1)) * 100, 100)}%`}}
+                                    ></div>
+                                </div>
+                                
+                                {/* Mini KPIs Mês Atual */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    {/* CORRIDAS */}
+                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
+                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">Corridas</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs font-semibold text-slate-400">{blockStats.currentMonthGoal.toLocaleString('pt-BR')}</span>
+                                            <span className={`text-xs font-bold ${blockStats.currentMonthRides >= blockStats.currentMonthGoal ? 'text-green-400' : 'text-purple-400'}`}>
+                                                {blockStats.currentMonthRides.toLocaleString('pt-BR')}
+                                            </span>
+                                            <span className={`text-[10px] ${blockStats.currentMonthRides >= blockStats.currentMonthGoal ? 'text-green-400' : 'text-purple-400'}`}>
+                                                {blockStats.currentMonthRides >= blockStats.currentMonthGoal ? '✓' : '⏳'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* RECEITA */}
+                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
+                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">Receita</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs font-semibold text-slate-400">R${(blockStats.currentMonthRevenueGoal / 1000).toFixed(1)}k</span>
+                                            <span className={`text-xs font-bold ${blockStats.currentMonthRevenue >= blockStats.currentMonthRevenueGoal ? 'text-green-400' : 'text-purple-400'}`}>
+                                                R${(blockStats.currentMonthRevenue / 1000).toFixed(1)}k
+                                            </span>
+                                            <span className={`text-[10px] ${blockStats.currentMonthRevenue >= blockStats.currentMonthRevenueGoal ? 'text-green-400' : 'text-purple-400'}`}>
+                                                {blockStats.currentMonthRevenue >= blockStats.currentMonthRevenueGoal ? '✓' : '⏳'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* STATUS */}
+                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
+                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">Status</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className={`text-xs font-bold ${blockStats.currentMonthRides >= blockStats.currentMonthGoal ? 'text-green-400' : 'text-purple-400'}`}>
+                                                {blockStats.currentMonthRides >= blockStats.currentMonthGoal ? 'Meta' : 'Em andamento'}
+                                            </span>
+                                            <span className={`text-[10px] ${blockStats.currentMonthRides >= blockStats.currentMonthGoal ? 'text-green-400' : 'text-purple-400'}`}>
+                                                {blockStats.currentMonthRides >= blockStats.currentMonthGoal ? '✓' : '⏳'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* PROGRESSO */}
+                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
+                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">Progresso</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className={`text-xs font-bold ${blockStats.currentMonthRides >= blockStats.currentMonthGoal ? 'text-green-400' : 'text-purple-400'}`}>
+                                                {blockStats.currentMonthGoal > 0 
+                                                    ? Math.round((blockStats.currentMonthRides / blockStats.currentMonthGoal) * 100)
+                                                    : 0}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Card 3: Mês Passado */}
+                            <div className="bg-amber-900/20 rounded-2xl p-5 border border-amber-800/50">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded">DEZ/25</span>
+                                        <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Mês Passado</span>
+                                    </div>
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                        blockStats.lastMonthRides >= blockStats.lastMonthGoal 
+                                            ? 'bg-green-500/20 text-green-400' 
+                                            : 'bg-amber-500/20 text-amber-400'
+                                    }`}>
+                                        {blockStats.lastMonthGoal > 0 
+                                            ? Math.round((blockStats.lastMonthRides / blockStats.lastMonthGoal) * 100) 
+                                            : 0}%
+                                    </span>
+                                </div>
+                                <div className="flex items-end gap-6 mb-3">
+                                    <div>
+                                        <span className="text-3xl font-bold text-white">{blockStats.lastMonthGoal.toLocaleString('pt-BR')}</span>
+                                        <span className="text-sm text-slate-500 ml-2">meta</span>
+                                        <div className="text-xs text-slate-400 mt-1">R${(blockStats.lastMonthRevenueGoal / 1000).toFixed(1)}k proj</div>
+                                    </div>
+                                    <div>
+                                        <span className="text-3xl font-bold text-amber-400">{blockStats.lastMonthRides.toLocaleString('pt-BR')}</span>
+                                        <span className="text-sm text-slate-500 ml-2">real</span>
+                                        <div className="text-xs text-amber-400 mt-1">R${(blockStats.lastMonthRevenue / 1000).toFixed(1)}k real</div>
+                                    </div>
+                                    {blockStats.lastMonthRides >= blockStats.lastMonthGoal && (
+                                        <span className="text-green-400 text-xl mb-1">✓</span>
+                                    )}
+                                </div>
+                                <div className="w-full bg-slate-700/50 rounded-full h-2 mb-4">
+                                    <div 
+                                        className={`h-full rounded-full transition-all duration-500 ${
+                                            blockStats.lastMonthRides >= blockStats.lastMonthGoal 
+                                                ? 'bg-gradient-to-r from-green-500 to-emerald-400' 
+                                                : 'bg-gradient-to-r from-amber-500 to-yellow-400'
+                                        }`} 
+                                        style={{width: `${Math.min((blockStats.lastMonthRides / Math.max(blockStats.lastMonthGoal, 1)) * 100, 100)}%`}}
+                                    ></div>
+                                </div>
+                                
+                                {/* Mini KPIs Mês Passado */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    {/* CPA MKT Last Month */}
+                                    <div className="bg-amber-900/30 rounded-lg p-2 border border-amber-800/40">
+                                        <div className="text-[9px] text-amber-500 uppercase font-medium mb-1">CPA Mkt</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs font-semibold text-amber-300">R${blockStats.lastMonthCpaMktProj.toFixed(2)}</span>
+                                            <span className={`text-xs font-bold ${blockStats.lastMonthCpaMktReal <= blockStats.lastMonthCpaMktProj ? 'text-green-400' : 'text-red-400'}`}>
+                                                R${blockStats.lastMonthCpaMktReal.toFixed(2)}
+                                            </span>
+                                            <span className={`text-[10px] ${blockStats.lastMonthCpaMktReal <= blockStats.lastMonthCpaMktProj ? 'text-green-400' : 'text-red-400'}`}>
+                                                {blockStats.lastMonthCpaMktReal <= blockStats.lastMonthCpaMktProj ? '✓' : '✗'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* OPS/PASS Last Month */}
+                                    <div className="bg-amber-900/30 rounded-lg p-2 border border-amber-800/40">
+                                        <div className="text-[9px] text-amber-500 uppercase font-medium mb-1">Ops/Pass</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs font-semibold text-amber-300">R${blockStats.lastMonthOpsPassProj.toFixed(2)}</span>
+                                            <span className={`text-xs font-bold ${blockStats.lastMonthOpsPassReal <= blockStats.lastMonthOpsPassProj ? 'text-green-400' : 'text-red-400'}`}>
+                                                R${blockStats.lastMonthOpsPassReal.toFixed(2)}
+                                            </span>
+                                            <span className={`text-[10px] ${blockStats.lastMonthOpsPassReal <= blockStats.lastMonthOpsPassProj ? 'text-green-400' : 'text-red-400'}`}>
+                                                {blockStats.lastMonthOpsPassReal <= blockStats.lastMonthOpsPassProj ? '✓' : '✗'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* CUSTO TOT Last Month */}
+                                    <div className="bg-amber-900/30 rounded-lg p-2 border border-amber-800/40">
+                                        <div className="text-[9px] text-amber-500 uppercase font-medium mb-1">Custo Total</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs font-semibold text-amber-300">R${(blockStats.lastMonthCustoTotalProj / 1000).toFixed(1)}k</span>
+                                            <span className={`text-xs font-bold ${blockStats.lastMonthCustoTotalReal <= blockStats.lastMonthCustoTotalProj ? 'text-green-400' : 'text-amber-400'}`}>
+                                                R${(blockStats.lastMonthCustoTotalReal / 1000).toFixed(1)}k
+                                            </span>
+                                            <span className={`text-[10px] ${blockStats.lastMonthCustoTotalReal <= blockStats.lastMonthCustoTotalProj ? 'text-green-400' : 'text-amber-400'}`}>
+                                                {blockStats.lastMonthCustoTotalReal <= blockStats.lastMonthCustoTotalProj ? '✓' : '✗'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* CUSTO/CORR Last Month */}
+                                    <div className="bg-amber-900/30 rounded-lg p-2 border border-amber-800/40">
+                                        <div className="text-[9px] text-amber-500 uppercase font-medium mb-1">Custo/Corr</div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs font-semibold text-amber-300">R${blockStats.lastMonthCustoCorridaProj.toFixed(2)}</span>
+                                            <span className={`text-xs font-bold ${blockStats.lastMonthCustoCorridaReal <= blockStats.lastMonthCustoCorridaProj ? 'text-green-400' : 'text-red-400'}`}>
+                                                R${blockStats.lastMonthCustoCorridaReal.toFixed(2)}
+                                            </span>
+                                            <span className={`text-[10px] ${blockStats.lastMonthCustoCorridaReal <= blockStats.lastMonthCustoCorridaProj ? 'text-green-400' : 'text-red-400'}`}>
+                                                {blockStats.lastMonthCustoCorridaReal <= blockStats.lastMonthCustoCorridaProj ? '✓' : '✗'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Content Section */}
@@ -1155,22 +2942,21 @@ const BlockSection: React.FC<{
                     </div>
                 ) : (
                     <>
-                        <BlockKPIs cities={cities} />
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {cities.map(city => (
-                            <CityCard 
-                                key={city.id} 
-                                city={city} 
-                                blocks={allBlocks}
-                                currentBlockId={block.id}
-                                hasPlan={plans.some(p => p.cityId === city.id)}
-                                plan={plans.find(p => p.cityId === city.id)}
-                                onMove={onMoveCity}
-                                onRemove={onRemoveCity}
-                                onPlan={onPlanCity}
-                                navigate={navigate}
-                            />
-                        ))}
+                                <CityCard 
+                                    key={city.id} 
+                                    city={city} 
+                                    blocks={allBlocks}
+                                    currentBlockId={block.id}
+                                    hasPlan={plans.some(p => p.cityId === city.id)}
+                                    plan={plans.find(p => p.cityId === city.id)}
+                                    onMove={onMoveCity}
+                                    onRemove={onRemoveCity}
+                                    onPlan={onPlanCity}
+                                    navigate={navigate}
+                                />
+                            ))}
                         </div>
                     </>
                 )}

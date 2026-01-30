@@ -4,9 +4,17 @@ import { MonthResult } from '../types';
 /**
  * Salvar resultados de planejamento no backend
  */
-export const savePlanResults = async (cityId: number, results: { [key: string]: MonthResult }): Promise<boolean> => {
+export const savePlanResults = async (
+  cityId: number, 
+  results: { [key: string]: MonthResult },
+  realMonthlyCosts?: { [key: string]: { marketingCost: number; operationalCost: number } }
+): Promise<boolean> => {
   try {
-    const response = await api.post(`/plannings/results/${cityId}`, { results });
+    const payload: any = { results };
+    if (realMonthlyCosts) {
+      payload.realMonthlyCosts = realMonthlyCosts;
+    }
+    const response = await api.post(`/plannings/results/${cityId}`, payload);
     console.log('✅ Resultados salvos no backend:', response.data);
     return true;
   } catch (error) {
@@ -18,7 +26,11 @@ export const savePlanResults = async (cityId: number, results: { [key: string]: 
 /**
  * Buscar resultados de planejamento do backend
  */
-export const getPlanResults = async (cityId: number): Promise<{ results: { [key: string]: MonthResult } | null, startDate?: string } | null> => {
+export const getPlanResults = async (cityId: number): Promise<{ 
+  results: { [key: string]: MonthResult } | null, 
+  realMonthlyCosts?: { [key: string]: { marketingCost: number; operationalCost: number } } | null,
+  startDate?: string 
+} | null> => {
   try {
     const response = await api.get(`/plannings/results/${cityId}`);
     const data = response.data.data;
@@ -29,6 +41,7 @@ export const getPlanResults = async (cityId: number): Promise<{ results: { [key:
         }
         return {
             results: data.results || null,
+            realMonthlyCosts: data.realMonthlyCosts || null,
             startDate: data.startDate
         };
     }

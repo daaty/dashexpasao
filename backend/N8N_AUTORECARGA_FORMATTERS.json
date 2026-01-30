@@ -1,0 +1,98 @@
+{
+  "n8n_expressions": {
+    "description": "Expressões para usar no n8n ao inserir dados em Autorecarga",
+    "conversoes": {
+      "valor_extraido": {
+        "descricao": "Converte moeda brasileira para número",
+        "exemplo_entrada": "R$ 1.234,56",
+        "exemplo_saida": 1234.56,
+        "expressoes": [
+          "{{ $json.valor_extraido.replace(/[R$\\s.]/g, '').replace(/,/g, '.') | parseFloat() }}",
+          "{{ parseFloat(($json.valor_extraido || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) }}"
+        ]
+      },
+      "creditos_calculados": {
+        "descricao": "Converte moeda brasileira para número",
+        "expressoes": [
+          "{{ parseFloat(($json.creditos_calculados || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) }}"
+        ]
+      },
+      "cnpj_recebedor": {
+        "descricao": "Remove formatação do CNPJ (mantém apenas números)",
+        "exemplo_entrada": "12.345.678/0001-90",
+        "exemplo_saida": "12345678000190",
+        "expressoes": [
+          "{{ ($json.cnpj_recebedor || '').replace(/\\D/g, '') }}"
+        ]
+      },
+      "remetente_whatsapp": {
+        "descricao": "Remove formatação do telefone",
+        "exemplo_entrada": "(65) 9 9999-9999",
+        "exemplo_saida": "6599999999",
+        "expressoes": [
+          "{{ ($json.remetente_whatsapp || '').replace(/[^\\d+]/g, '').replace(/^0/, '') }}"
+        ]
+      },
+      "valido": {
+        "descricao": "Converte texto para booleano",
+        "exemplo_entrada": "sim",
+        "exemplo_saida": true,
+        "expressoes": [
+          "{{ ['true', 'sim', 's', '1', 'yes', 'y'].includes(String($json.valido).toLowerCase()) }}"
+        ]
+      },
+      "agendado": {
+        "descricao": "Converte texto para booleano",
+        "expressoes": [
+          "{{ ['true', 'sim', 's', '1', 'yes', 'y'].includes(String($json.agendado).toLowerCase()) }}"
+        ]
+      },
+      "cnpj_valido": {
+        "descricao": "Valida CNPJ com algoritmo oficial",
+        "observacao": "Use função customizada ou use regex simples: apenas verificar se tem 14 dígitos",
+        "expressoes_simples": [
+          "{{ ($json.cnpj_recebedor || '').replace(/\\D/g, '').length === 14 }}"
+        ]
+      }
+    },
+    "guia_n8n": {
+      "passo_1": "Na transformação de dados (antes do PostgreSQL), use o nó 'Function' ou 'Rename'",
+      "passo_2": "Para cada campo numérico (valor_extraido, creditos_calculados), use as expressões acima",
+      "passo_3": "Exemplo no PostgreSQL node:",
+      "exemplo_completo": {
+        "operacao": "insert",
+        "tabela": "Autorecarga",
+        "dados": {
+          "valido": "{{ ['true', 'sim', 's', '1', 'yes', 'y'].includes(String($json.valido).toLowerCase()) }}",
+          "agendado": "{{ ['true', 'sim', 's', '1', 'yes', 'y'].includes(String($json.agendado).toLowerCase()) }}",
+          "tipo": "{{ $json.tipo }}",
+          "id_transacao": "{{ $json.id_transacao }}",
+          "data": "{{ $json.data }}",
+          "hora": "{{ $json.hora }}",
+          "valor_extraido": "{{ parseFloat(($json.valor_extraido || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) }}",
+          "pagador": "{{ $json.pagador }}",
+          "recebedor": "{{ $json.recebedor }}",
+          "cnpj_recebedor": "{{ ($json.cnpj_recebedor || '').replace(/\\D/g, '') }}",
+          "cnpj_valido": "{{ ($json.cnpj_recebedor || '').replace(/\\D/g, '').length === 14 }}",
+          "status_recebedor": "{{ $json.status_recebedor }}",
+          "creditos_calculados": "{{ parseFloat(($json.creditos_calculados || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) }}",
+          "remetente_whatsapp": "{{ ($json.remetente_whatsapp || '').replace(/[^\\d+]/g, '').replace(/^0/, '') }}"
+        }
+      }
+    },
+    "problemas_comuns": {
+      "valor_invalido_numero": {
+        "problema": "Invalid input for 'valor_extraido' expects a number but we got 'R$ 20,00'",
+        "solucao": "Use a expressão de conversão: {{ parseFloat(($json.valor_extraido || '0').replace('R$ ', '').replace(/\\./g, '').replace(',', '.')) }}"
+      },
+      "cnpj_invalido": {
+        "problema": "Inserir CNPJ com formatação (XX.XXX.XXX/XXXX-XX)",
+        "solucao": "Remove formatação: {{ ($json.cnpj_recebedor || '').replace(/\\D/g, '') }}"
+      },
+      "telefone_mal_formatado": {
+        "problema": "Telefone com muita formatação",
+        "solucao": "Limpa telefone: {{ ($json.remetente_whatsapp || '').replace(/[^\\d+]/g, '') }}"
+      }
+    }
+  }
+}

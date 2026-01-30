@@ -28,7 +28,7 @@ export const cityBodySchema = Joi.object({
   anniversary: Joi.string().required(),
   mayor: Joi.string().required(),
   monthlyRevenue: Joi.number().min(0).optional(),
-  implementationStartDate: Joi.date().optional(),
+  implementationStartDate: Joi.string().optional().allow(null),
   averageFormalSalary: Joi.number().min(0).required(),
   formalJobs: Joi.number().integer().min(0).required(),
   urbanizedAreaKm2: Joi.number().min(0).required(),

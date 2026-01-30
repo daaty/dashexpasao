@@ -1,0 +1,136 @@
+{
+  "n8n_execute_query": {
+    "descricao": "Execute Query para verificar se id_transacao existe na tabela Autorecarga",
+    "retorno": "true se existe, false se não existe",
+    
+    "query_simples": {
+      "sql": "SELECT EXISTS(SELECT 1 FROM \"Autorecarga\" WHERE \"id_transacao\" = $1) as existe;",
+      "parametros": ["{{ $json.id_transacao }}"],
+      "saida": "Boolean (true/false)"
+    },
+    
+    "query_com_detalhes": {
+      "sql": "SELECT EXISTS(SELECT 1 FROM \"Autorecarga\" WHERE \"id_transacao\" = $1) as existe, COUNT(*) as total_registros FROM \"Autorecarga\";",
+      "parametros": ["{{ $json.id_transacao }}"],
+      "saida": "{ existe: boolean, total_registros: number }"
+    },
+    
+    "query_retorna_registro": {
+      "sql": "SELECT * FROM \"Autorecarga\" WHERE \"id_transacao\" = $1 LIMIT 1;",
+      "parametros": ["{{ $json.id_transacao }}"],
+      "saida": "Objeto completo do registro ou vazio se não existe",
+      "usar_quando": "Você quer os dados completos da transação existente"
+    },
+    
+    "como_usar_no_n8n": {
+      "passo_1": "Adicione um nó 'PostgreSQL' ao seu workflow",
+      "passo_2": "Configure como 'Execute Query'",
+      "passo_3": "Cole a SQL no campo 'Query'",
+      "passo_4": "Adicione o parâmetro: {{ $json.id_transacao }}",
+      "passo_5": "A saída estará em $json[0].existe (boolean)"
+    },
+    
+    "exemplo_workflow": {
+      "passo_1_node": "Database - Query (PostgreSQL)",
+      "passo_1_config": {
+        "operation": "Execute Query",
+        "query": "SELECT EXISTS(SELECT 1 FROM \"Autorecarga\" WHERE \"id_transacao\" = $1) as existe;",
+        "parameter_1": "{{ $json.id_transacao }}"
+      },
+      "passo_2_node": "IF (condicional)",
+      "passo_2_config": {
+        "condicao": "{{ $json[0].existe === true }}",
+        "se_true": "Transação já existe - update ou skip",
+        "se_false": "Transação nova - insert"
+      }
+    },
+    
+    "expressao_para_usar_depois": {
+      "verificar_se_existe": "{{ $json[0].existe }}",
+      "negar": "{{ !$json[0].existe }}",
+      "em_condicional": "if ($json[0].existe) { /* já existe */ } else { /* não existe */ }"
+    },
+    
+    "queries_alternativas": {
+      "opcao_1_simples": "SELECT 1 FROM \"Autorecarga\" WHERE \"id_transacao\" = $1 LIMIT 1;",
+      "opcao_1_desc": "Retorna 1 linha se existe, 0 se não existe",
+      
+      "opcao_2_com_data": "SELECT * FROM \"Autorecarga\" WHERE \"id_transacao\" = $1 AND \"data\" = $2;",
+      "opcao_2_desc": "Verifica se existe com a mesma data (evita duplicatas do mesmo dia)",
+      "opcao_2_params": ["{{ $json.id_transacao }}", "{{ $json.data }}"],
+      
+      "opcao_3_status": "SELECT * FROM \"Autorecarga\" WHERE \"id_transacao\" = $1 AND \"status_recebedor\" = 'ativa';",
+      "opcao_3_desc": "Verifica se existe e está ativa",
+      
+      "opcao_4_count": "SELECT COUNT(*) as quantidade FROM \"Autorecarga\" WHERE \"id_transacao\" = $1;",
+      "opcao_4_desc": "Retorna quantidade de registros com essa transação"
+    }
+  },
+  
+  "exemplos_praticos": {
+    "exemplo_1_verificar_simples": {
+      "descricao": "Verificar se transação existe",
+      "dados_entrada": {
+        "id_transacao": "TRX-2026-01-28-00001"
+      },
+      "query": "SELECT EXISTS(SELECT 1 FROM \"Autorecarga\" WHERE \"id_transacao\" = $1) as existe;",
+      "saida": {
+        "existe": true
+      },
+      "expressao_resultado": "{{ $json[0].existe }}"
+    },
+    
+    "exemplo_2_com_if": {
+      "descricao": "IF para decidir se insere ou atualiza",
+      "query_verificacao": "SELECT EXISTS(SELECT 1 FROM \"Autorecarga\" WHERE \"id_transacao\" = $1) as existe;",
+      "node_if": {
+        "condicao": "{{ $json[0].existe === true }}",
+        "verdadeiro": {
+          "acao": "UPDATE - Atualizar registro existente",
+          "query": "UPDATE \"Autorecarga\" SET \"valor_extraido\" = $1, \"status_recebedor\" = $2 WHERE \"id_transacao\" = $3;"
+        },
+        "falso": {
+          "acao": "INSERT - Inserir novo registro",
+          "query": "INSERT INTO \"Autorecarga\" (id, valido, agendado, tipo, id_transacao, ...) VALUES (...)"
+        }
+      }
+    },
+    
+    "exemplo_3_duplicata": {
+      "descricao": "Verificar se é duplicata do mesmo dia",
+      "dados_entrada": {
+        "id_transacao": "TRX-2026-01-28-00001",
+        "data": "2026-01-28"
+      },
+      "query": "SELECT EXISTS(SELECT 1 FROM \"Autorecarga\" WHERE \"id_transacao\" = $1 AND DATE(\"data\") = $2) as eh_duplicata;",
+      "parametros": ["{{ $json.id_transacao }}", "{{ $json.data }}"],
+      "saida": {
+        "eh_duplicata": true
+      }
+    }
+  },
+  
+  "dicas": [
+    "Use $1, $2, $3... para parâmetros (prepared statement - mais seguro)",
+    "Sempre use aspas duplas em nomes de colunas (case-sensitive no PostgreSQL)",
+    "Use LIMIT 1 para evitar processar muitos registros",
+    "Para booleans, use === true ou === false",
+    "Se precisar verificar múltiplos campos, use AND: WHERE \"id_transacao\" = $1 AND \"tipo\" = $2",
+    "Para ignorar maiúsculas/minúsculas: LOWER(\"id_transacao\") = LOWER($1)"
+  ],
+  
+  "troubleshooting": {
+    "erro_coluna_nao_existe": {
+      "causa": "Nome da coluna errado ou com case diferente",
+      "solucao": "Usar aspas duplas e respeitar o case: \"id_transacao\" (não \"ID_TRANSACAO\")"
+    },
+    "retorna_erro_parametro": {
+      "causa": "Parametro vazio ou undefined",
+      "solucao": "Adicione verificação: {{ $json.id_transacao || null }}"
+    },
+    "retorna_vazio": {
+      "causa": "Nenhum registro encontrado (é o comportamento esperado)",
+      "solucao": "Isso significa que existe === false, o que é correto"
+    }
+  }
+}

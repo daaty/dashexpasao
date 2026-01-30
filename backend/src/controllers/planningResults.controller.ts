@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../config/database';
 
 /**
  * Salvar ou atualizar resultados de planejamento para uma cidade
@@ -9,7 +7,7 @@ const prisma = new PrismaClient();
 export const saveResults = async (req: Request, res: Response): Promise<void> => {
   try {
     const cityId = parseInt(req.params.cityId as string);
-    const { results } = req.body;
+    const { results, realMonthlyCosts } = req.body;
 
     if (!results || typeof results !== 'object') {
       res.status(400).json({ 
@@ -24,11 +22,13 @@ export const saveResults = async (req: Request, res: Response): Promise<void> =>
       where: { cityId },
       update: {
         results,
+        realMonthlyCosts: realMonthlyCosts || null,
         updatedAt: new Date()
       },
       create: {
         cityId,
-        results
+        results,
+        realMonthlyCosts: realMonthlyCosts || null
       }
     });
 

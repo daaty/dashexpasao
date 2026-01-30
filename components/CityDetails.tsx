@@ -1,6 +1,6 @@
 
 import React, { useContext, useRef } from 'react';
-import { City } from '../types';
+import { City, CityStatus } from '../types';
 import { getFinancialProjections, getGrowthRoadmap, calculateStateAverages, getMarketPotential } from '../services/calculationService';
 import { Line } from 'react-chartjs-2';
 import type { Chart as ChartJS } from 'chart.js';
@@ -98,6 +98,8 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
   const stateAverages = calculateStateAverages(cities);
 
   const planExists = plans.some(p => p.cityId === city.id);
+  // Permitir adicionar se não tem plano OU se tem plano mas status não é Planning
+  const canAddPlan = !planExists || (planExists && city.status !== CityStatus.Planning);
 
   const handleAddPlan = () => {
     addPlanForCity(city.id);
@@ -327,15 +329,15 @@ const CityDetails: React.FC<{ city: City }> = ({ city }) => {
         <div className="flex flex-wrap gap-4">
           <button 
             onClick={handleAddPlan}
-            disabled={planExists}
+            disabled={!canAddPlan}
             className="flex items-center py-2 px-4 rounded-lg transition disabled:cursor-not-allowed"
             style={{
-                backgroundColor: planExists ? 'rgb(255 255 255 / 20%)' : '#3b82f6',
+                backgroundColor: !canAddPlan ? 'rgb(255 255 255 / 20%)' : '#3b82f6',
                 color: '#ffffff'
             }}
           >
             <FiPlusCircle className="mr-2"/>
-            {planExists ? 'Plano já Adicionado' : 'Adicionar ao Planejamento'}
+            {!canAddPlan ? 'Plano já Adicionado' : 'Adicionar ao Planejamento'}
           </button>
           <button
             onClick={handleAddToIntelligence}

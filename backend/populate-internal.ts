@@ -3,8 +3,8 @@
  */
 
 import { PrismaClient, CityStatus as PrismaCityStatus } from '@prisma/client';
-import { internalCitiesData } from '../services/internalData.js';
-import { CityStatus } from '../types.js';
+import { internalCitiesData } from './services/internalData.js';
+import { CityStatus } from './types.js';
 
 const prisma = new PrismaClient();
 

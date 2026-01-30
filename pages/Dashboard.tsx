@@ -1,5 +1,5 @@
 
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useMemo, useState, useEffect } from 'react';
 import Card from '../components/ui/Card';
 import { FiUsers, FiDollarSign, FiTrendingUp, FiAlertTriangle, FiArrowDown, FiArrowUp, FiMapPin, FiTarget, FiBarChart2 } from 'react-icons/fi';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
@@ -7,6 +7,7 @@ import { CityStatus, Mesorregion } from '../types';
 import { useNavigate } from 'react-router-dom';
 import InfoTooltip from '../components/ui/InfoTooltip';
 import { DataContext } from '../context/DataContext';
+import { getMonthlyRidesByCity } from '../services/ridesApiService';
 
 // Sparkline mini chart component
 const SparklineChart = ({ data, color = '#ffffff' }: { data: number[], color?: string }) => {
@@ -57,45 +58,146 @@ const KpiCard = ({ icon, title, value, subValue, trend, trendValue, tooltipText,
     sparklineData?: number[]
 }) => (
     <div 
-        className="relative rounded-xl p-5 overflow-hidden transition-all duration-300 hover:-translate-y-1"
+        className="group relative rounded-2xl p-6 overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
         style={{
-            background: 'linear-gradient(135deg, #374151 0%, #4b5563 100%)',
-            border: '1px solid rgb(255 255 255 / 10%)',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.05) 100%)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            boxShadow: '0 8px 32px rgba(59, 130, 246, 0.1)'
         }}
     >
-        <div className="flex items-start justify-between relative z-10">
-            <div className="flex-1">
-                <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'rgb(255 255 255 / 60%)' }}>{title}</p>
-                <p className="text-3xl font-bold" style={{ color: '#ffffff' }}>{value}</p>
-                {trend && trendValue && (
-                    <p 
-                        className="text-xs font-medium mt-1 flex items-center"
-                        style={{ color: trend === 'up' ? '#10b981' : '#ef4444' }}
-                    >
-                        {trend === 'up' ? <FiArrowUp className="mr-1" /> : <FiArrowDown className="mr-1" />}
-                        {trendValue} {subValue}
-                    </p>
-                )}
-                {!trend && subValue && (
-                    <p className="text-xs mt-1" style={{ color: 'rgb(255 255 255 / 50%)' }}>{subValue}</p>
-                )}
+        {/* Background glow effect */}
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            style={{
+                background: 'radial-gradient(circle at top right, rgba(59, 130, 246, 0.2), transparent 70%)'
+            }}
+        />
+        
+        <div className="flex items-start justify-between relative z-10 mb-4">
+            <div className="flex-1 pr-4">
+                <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                    {title}
+                </p>
+                <div className="flex items-baseline gap-2">
+                    <p className="text-4xl font-black" style={{ color: '#ffffff' }}>{value}</p>
+                    {trend && trendValue && (
+                        <div 
+                            className="flex items-center gap-1 px-2 py-1 rounded-full"
+                            style={{ 
+                                background: trend === 'up' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                color: trend === 'up' ? '#10b981' : '#ef4444'
+                            }}
+                        >
+                            {trend === 'up' ? <FiArrowUp size={14} /> : <FiArrowDown size={14} />}
+                            <span className="text-xs font-bold">{trendValue}</span>
+                        </div>
+                    )}
+                </div>
+                <p className="text-xs mt-2" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>{subValue}</p>
             </div>
             <div 
-                className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ background: 'rgb(255 255 255 / 15%)' }}
+                className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300 shadow-lg"
+                style={{ 
+                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(37, 99, 235, 0.2))',
+                    border: '1px solid rgba(59, 130, 246, 0.5)'
+                }}
             >
-                <span className="w-5 h-5 text-white">
+                <span className="w-6 h-6 text-blue-300">
                     {icon}
                 </span>
             </div>
         </div>
-        <div className="absolute top-1 right-1 z-20">
+        
+        {/* Meta subtitle if not trend */}
+        {!trend && (
+            <div className="flex items-center gap-2 text-xs">
+                <div className="flex-1 h-1 bg-gray-700/50 rounded-full overflow-hidden">
+                    <div 
+                        className="h-full bg-gradient-to-r from-blue-500 to-blue-400"
+                        style={{ width: `${Math.min((parseFloat(value) / 100) * 100, 100)}%` }}
+                    />
+                </div>
+                <span style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                    {Math.min((parseFloat(value) / 100) * 100, 100).toFixed(0)}%
+                </span>
+            </div>
+        )}
+
+        <div className="absolute top-3 right-3 z-20">
             <InfoTooltip text={tooltipText} />
         </div>
+        
         {sparklineData && <SparklineChart data={sparklineData} />}
     </div>
 );
+
+// MetricCard component for Ops/Pass, Custo/Corr, etc.
+const MetricCard = ({ label, value, meta, status }: { label: string, value: string, meta?: string, status?: boolean }) => {
+    const isSuccess = status === undefined ? true : status;
+    
+    // Extrair número do valor para calcular porcentagem
+    const numValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
+    const numMeta = meta ? parseFloat(meta.replace(/[^0-9.-]/g, '')) : 100;
+    const percentage = Math.min((numValue / numMeta) * 100, 200);
+    
+    const getGradient = () => {
+        if (!isSuccess) return 'from-red-600 to-red-500';
+        if (percentage >= 100) return 'from-emerald-600 to-emerald-500';
+        if (percentage >= 80) return 'from-blue-600 to-blue-500';
+        return 'from-amber-600 to-amber-500';
+    };
+    
+    return (
+        <div 
+            className="group rounded-xl p-4 border backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden"
+            style={{
+                background: isSuccess 
+                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)'
+                    : 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
+                border: isSuccess 
+                    ? '1px solid rgba(16, 185, 129, 0.3)' 
+                    : '1px solid rgba(239, 68, 68, 0.3)',
+                boxShadow: isSuccess
+                    ? '0 4px 20px rgba(16, 185, 129, 0.15)'
+                    : '0 4px 20px rgba(239, 68, 68, 0.15)'
+            }}
+        >
+            <div className="relative z-10">
+                <div className="flex items-start justify-between mb-3">
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-300">{label}</p>
+                    <span className="text-lg">{isSuccess ? '✓' : '⚠'}</span>
+                </div>
+                
+                <div className="mb-3">
+                    {meta && (
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-xs text-gray-400">Meta: {meta}</span>
+                            <span className={`text-xs font-bold ${percentage >= 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                {percentage.toFixed(0)}%
+                            </span>
+                        </div>
+                    )}
+                    <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
+                        <div 
+                            className={`h-full bg-gradient-to-r ${getGradient()} rounded-full transition-all duration-500 shadow-lg`}
+                            style={{ width: `${Math.min(percentage, 100)}%` }}
+                        />
+                    </div>
+                </div>
+                
+                <p className={`text-lg font-black tracking-tight ${isSuccess ? 'text-emerald-300' : 'text-red-300'}`}>
+                    {value}
+                </p>
+            </div>
+            
+            <div 
+                className="absolute top-0 left-0 w-full h-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                style={{
+                    background: `radial-gradient(circle at 0% 0%, ${isSuccess ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'} 0%, transparent 80%)`
+                }}
+            />
+        </div>
+    );
+};
 
 const InteractiveMapPlaceholder = () => (
     <Card 
@@ -136,6 +238,103 @@ const InteractiveMapPlaceholder = () => (
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
     const { cities, warnings } = useContext(DataContext);
+    const [monthlyMetrics, setMonthlyMetrics] = useState<{ 
+        current: { ops: string; custoCorrida: string; cpaMkt: string; custoTot: string; corridas: string; receita: string } | null;
+        previous: { ops: string; custoCorrida: string; cpaMkt: string; custoTot: string; corridas: string; receita: string } | null;
+        currentMonthLabel: string;
+        previousMonthLabel: string;
+    }>({ 
+        current: null, 
+        previous: null,
+        currentMonthLabel: '',
+        previousMonthLabel: ''
+    });
+    
+    // Buscar dados de todos os meses quando o componente monta
+    useEffect(() => {
+        const loadMonthlyMetrics = async () => {
+            try {
+                const activeCities = cities.filter(c => c.status === CityStatus.Consolidated || c.status === CityStatus.Expansion);
+                
+                // Buscar dados de todos os meses para cada cidade ativa
+                const allMonthlyData: { [monthKey: string]: { rides: number; revenue: number } } = {};
+                
+                for (const city of activeCities) {
+                    try {
+                        const monthlyData = await getMonthlyRidesByCity(city.name, 24); // 24 últimos meses
+                        
+                        if (monthlyData && monthlyData.length > 0) {
+                            monthlyData.forEach(m => {
+                                const monthKey = `${m.year}-${String(m.monthNumber).padStart(2, '0')}`;
+                                if (!allMonthlyData[monthKey]) {
+                                    allMonthlyData[monthKey] = { rides: 0, revenue: 0 };
+                                }
+                                allMonthlyData[monthKey].rides += m.rides;
+                                allMonthlyData[monthKey].revenue += m.revenue || 0;
+                            });
+                        }
+                    } catch (error) {
+                        // Silenciosamente ignora cidades sem dados
+                    }
+                }
+                
+                // Obter mês atual e anterior
+                const today = new Date();
+                const currentYear = today.getFullYear();
+                const currentMonth = today.getMonth() + 1;
+                const currentMonthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+                
+                const prevDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                const previousYear = prevDate.getFullYear();
+                const previousMonth = prevDate.getMonth() + 1;
+                const previousMonthKey = `${previousYear}-${String(previousMonth).padStart(2, '0')}`;
+                
+                const currentData = allMonthlyData[currentMonthKey];
+                const previousData = allMonthlyData[previousMonthKey];
+                
+                const calculateMetrics = (rides: number, revenue: number) => {
+                    const targetPopulation = activeCities.reduce((sum, c) => sum + c.population15to44, 0);
+                    const opsPassRatio = targetPopulation > 0 ? (rides / targetPopulation).toFixed(2) : '0.00';
+                    const costPerRide = rides > 0 ? (revenue * 0.35 / rides).toFixed(2) : '0.00'; // 35% de custo estimado
+                    const cpaMkt = rides > 0 ? (revenue * 0.15 / rides).toFixed(2) : '0.00'; // 15% de custo de marketing
+                    const totalCost = (parseFloat(costPerRide) * rides).toFixed(0);
+                    
+                    return {
+                        ops: opsPassRatio,
+                        custoCorrida: `R$ ${parseFloat(costPerRide).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        cpaMkt: `R$ ${parseFloat(cpaMkt).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        custoTot: `R$ ${parseInt(totalCost).toLocaleString('pt-BR')}`,
+                        corridas: rides.toLocaleString('pt-BR'),
+                        receita: `R$ ${revenue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
+                    };
+                };
+                
+                const currentMetrics = currentData 
+                    ? calculateMetrics(currentData.rides, currentData.revenue)
+                    : null;
+                
+                const previousMetrics = previousData
+                    ? calculateMetrics(previousData.rides, previousData.revenue)
+                    : null;
+                
+                const currentMonthLabel = new Date(currentYear, currentMonth - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
+                const previousMonthLabel = new Date(previousYear, previousMonth - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
+                
+                setMonthlyMetrics({
+                    current: currentMetrics,
+                    previous: previousMetrics,
+                    currentMonthLabel,
+                    previousMonthLabel
+                });
+            } catch (error) {
+                console.error('Erro ao carregar métricas mensais:', error);
+            }
+        };
+        
+        if (cities.length > 0) {
+            loadMonthlyMetrics();
+        }
+    }, [cities]);
     
     const totalCities = 141; // Total municipalities in MT
     const activeCities = cities.filter(c => c.status === CityStatus.Consolidated).length;
@@ -279,10 +478,28 @@ const Dashboard: React.FC = () => {
         
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Header Section */}
-            <div className="mb-8">
-                <h1 className="text-4xl font-black mb-2" style={{ color: '#ffffff' }}>Dashboard</h1>
-                <p style={{ color: 'rgb(255 255 255 / 50%)' }}>Visão geral das operações em Mato Grosso</p>
+            {/* Improved Header Section */}
+            <div className="relative mb-8 overflow-hidden rounded-2xl p-8" style={{
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                boxShadow: '0 8px 32px rgba(59, 130, 246, 0.1)'
+            }}>
+                <div className="absolute top-0 right-0 w-96 h-96 opacity-20 blur-3xl" style={{
+                    background: 'radial-gradient(circle, rgba(59, 130, 246, 0.4), transparent)',
+                    animation: 'pulse 8s ease-in-out infinite'
+                }} />
+                <div className="relative z-10">
+                    <h1 className="text-5xl font-black mb-2" style={{ color: '#ffffff' }}>Dashboard</h1>
+                    <p className="text-lg" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                        Visão geral das operações em Mato Grosso
+                    </p>
+                    <div className="mt-4 flex items-center gap-4">
+                        <div className="h-1 w-16 rounded-full" style={{ background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)' }} />
+                        <span className="text-sm font-semibold" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                            📊 Atualizado em tempo real
+                        </span>
+                    </div>
+                </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -311,7 +528,7 @@ const Dashboard: React.FC = () => {
                     title="População Coberta" 
                     value={populationCovered.toLocaleString('pt-BR')} 
                     subValue={`Público-alvo: ${targetPopulationCovered.toLocaleString('pt-BR')}`}
-                    tooltipText={`População total nas cidades ativas. Público-alvo (15-44 anos) representa ${(targetPopulationCovered / populationCovered * 100).toFixed(1)}% do total.`}
+                    tooltipText={`População total nas cidades ativas. Público-alvo (15-44 anos) representa ${populationCovered > 0 ? (targetPopulationCovered / populationCovered * 100).toFixed(1) : '0'}% do total.`}
                     sparklineData={[100, 110, 105, 120, 115, 130, 125, 140, 135, 150, 160, 155]}
                 />
                 <KpiCard 
@@ -325,6 +542,92 @@ const Dashboard: React.FC = () => {
                     sparklineData={[80, 75, 78, 72, 70, 68, 65, 60, 58, 55, 50, 48]}
                 />
             </div>
+
+            {/* Linha de Métricas - Mês Atual Global */}
+            {monthlyMetrics.current && (
+                <div className="space-y-6">
+                    <div className="rounded-2xl p-6 backdrop-blur-sm" style={{
+                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)',
+                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                    }}>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-2 h-8 rounded-full" style={{ background: 'linear-gradient(180deg, #3b82f6, #1e40af)' }} />
+                            <h3 className="text-xl font-bold" style={{ color: '#ffffff' }}>
+                                Métricas Acumuladas - {monthlyMetrics.currentMonthLabel}
+                            </h3>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                            <MetricCard 
+                                label="OPS/PASS" 
+                                value={monthlyMetrics.current.ops}
+                            />
+                            <MetricCard 
+                                label="CUSTO/CORR" 
+                                value={monthlyMetrics.current.custoCorrida}
+                            />
+                            <MetricCard 
+                                label="CPA MKT" 
+                                value={monthlyMetrics.current.cpaMkt}
+                            />
+                            <MetricCard 
+                                label="CUSTO TOT" 
+                                value={monthlyMetrics.current.custoTot}
+                            />
+                            <MetricCard 
+                                label="CORRIDAS" 
+                                value={monthlyMetrics.current.corridas}
+                            />
+                            <MetricCard 
+                                label="RECEITA" 
+                                value={monthlyMetrics.current.receita}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Linha de Métricas - Mês Anterior */}
+                    {monthlyMetrics.previous && (
+                        <div className="rounded-2xl p-6 backdrop-blur-sm" style={{
+                            background: 'linear-gradient(135deg, rgba(107, 114, 128, 0.1) 0%, rgba(75, 85, 99, 0.05) 100%)',
+                            border: '1px solid rgba(107, 114, 128, 0.2)',
+                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                        }}>
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-2 h-8 rounded-full" style={{ background: 'linear-gradient(180deg, #6b7280, #374151)' }} />
+                                <h3 className="text-xl font-bold" style={{ color: '#ffffff' }}>
+                                    Métricas Acumuladas - {monthlyMetrics.previousMonthLabel}
+                                </h3>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                <MetricCard 
+                                    label="OPS/PASS" 
+                                    value={monthlyMetrics.previous.ops}
+                                />
+                                <MetricCard 
+                                    label="CUSTO/CORR" 
+                                    value={monthlyMetrics.previous.custoCorrida}
+                                />
+                                <MetricCard 
+                                    label="CPA MKT" 
+                                    value={monthlyMetrics.previous.cpaMkt}
+                                />
+                                <MetricCard 
+                                    label="CUSTO TOT" 
+                                    value={monthlyMetrics.previous.custoTot}
+                                />
+                                <MetricCard 
+                                    label="CORRIDAS" 
+                                    value={monthlyMetrics.previous.corridas}
+                                />
+                                <MetricCard 
+                                    label="RECEITA" 
+                                    value={monthlyMetrics.previous.receita}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
@@ -374,7 +677,7 @@ const Dashboard: React.FC = () => {
                         {topCitiesByRevenue.map((city, index) => (
                             <div 
                                 key={city.id} 
-                                onClick={() => navigate(`/city/${city.id}`)}
+                                onClick={() => navigate(`/cidades/${city.id}`)}
                                 className="flex items-center justify-between p-4 rounded-xl transition-all duration-200 cursor-pointer group"
                                 style={{ 
                                     background: 'rgb(255 255 255 / 5%)',
