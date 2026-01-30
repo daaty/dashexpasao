@@ -1020,11 +1020,7 @@ const CityMarketAnalysis: React.FC = () => {
                                             : 'Não definida'
                                         }
                                     </p>
-                                    {!city.implementationStartDate && (
-                                        <p className="text-xs mt-2 text-amber-400">
-                                            → Defina em Planejamento
-                                        </p>
-                                    )}
+
                                 </div>
                                 <div className="p-3 rounded-xl" style={{ background: 'rgba(59, 130, 246, 0.2)' }}>
                                     <FiCalendar className="text-blue-400" size={24} />
@@ -1370,9 +1366,8 @@ const CityMarketAnalysis: React.FC = () => {
                                             <li>• A meta de corridas é calculada automaticamente baseada na população da cidade</li>
                                             <li>• O custo por corrida ajuda a entender a eficiência do investimento</li>
                                             <li>• <strong className="text-blue-400">Dica:</strong> Use CPA e OPS para definir metas por corrida, ou edite os valores totais diretamente</li>
-                                            {!city.implementationStartDate && (
-                                                <li>• <strong className="text-amber-400">Atenção:</strong> Defina a data de implementação em Planejamento para ver os meses reais</li>
-                                            )}
+                                            <li>• <strong className="text-green-400">Flexível:</strong> A tabela funciona com ou sem data de implementação definida</li>
+
                                         </ul>
                                     </div>
                                 </div>
