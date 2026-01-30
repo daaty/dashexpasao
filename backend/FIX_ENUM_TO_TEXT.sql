@@ -1,5 +1,5 @@
 -- =====================================================
--- FIX: Convert ENUM columns to TEXT in City table
+-- FIX: Database migration for production
 -- Run this SQL directly on the PostgreSQL database
 -- =====================================================
 
@@ -12,6 +12,9 @@ ALTER TABLE "City" ALTER COLUMN "mesorregion" TYPE TEXT USING "mesorregion"::TEX
 -- Step 3: Drop the unused ENUM types (optional cleanup)
 DROP TYPE IF EXISTS "CityStatus";
 DROP TYPE IF EXISTS "Mesorregion";
+
+-- Step 4: Add missing column to PlanningResults
+ALTER TABLE "PlanningResults" ADD COLUMN IF NOT EXISTS "realMonthlyCosts" JSONB;
 
 -- =====================================================
 -- After running this, redeploy the backend
