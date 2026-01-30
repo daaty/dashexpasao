@@ -931,7 +931,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           title: `Planejamento ${cityName}`,
           description: `Planejamento de expansão para ${cityName}`,
           startDate,
-          status: 'Em Análise'
+          status: 'active'
         };
         const created = await planningApi.createPlanning(planningData);
         if (created) {
