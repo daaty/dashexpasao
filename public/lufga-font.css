@@ -1,0 +1,9 @@
+/* Lufga font-face for HTML export (woff2 for best browser support) */
+@font-face {
+  font-family: 'Lufga';
+  src: url('https://fonts.cdnfonts.com/s/17409/Lufga-Regular.woff2') format('woff2'),
+       url('https://fonts.cdnfonts.com/s/17409/Lufga-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

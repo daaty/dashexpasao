@@ -1462,6 +1462,7 @@ const BlockSection: React.FC<{
     const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
     // Função para gerar dados de planejamento de 6 meses para todas as cidades do bloco
+    // Usa os dados salvos em PlanningResults de cada cidade quando disponíveis
     const getBlockPlanningData = () => {
         const planningData: {
             month: string;
@@ -1475,10 +1476,11 @@ const BlockSection: React.FC<{
                 marketingCost: number;
                 operationalCost: number;
                 revenue: number;
+                fromSavedPlan: boolean;
             }>;
         }[] = [];
 
-        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'];
+        const monthNames = ['Mês 1', 'Mês 2', 'Mês 3', 'Mês 4', 'Mês 5', 'Mês 6'];
         const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0];
 
         for (let monthIndex = 0; monthIndex < 6; monthIndex++) {
@@ -1492,31 +1494,51 @@ const BlockSection: React.FC<{
                 marketingCost: number;
                 operationalCost: number;
                 revenue: number;
+                fromSavedPlan: boolean;
             }> = [];
 
             cities.forEach(city => {
                 if (!city.population15to44) return;
 
-                // Calcular meta gradual para cada cidade no mês específico
-                const targetPenetration = 0.10; // 10% da população 15-44
-                const factor = curveFactors[monthIndex];
-                const goal = Math.round(city.population15to44 * factor * targetPenetration);
+                // Buscar plano salvo da cidade
+                const cityPlan = plans.find(p => p.cityId === city.id);
+                const mesKey = `Mes${monthIndex + 1}`;
+                const savedResult = cityPlan?.results?.[mesKey];
                 
-                // Custos baseados em valores padrão escalonados por cidade
-                // CPA e OPS reduzem ao longo dos meses e variam por tamanho da cidade
-                let baseCPA = city.population > 100000 ? 10 : city.population > 50000 ? 8 : 6;
-                let baseOPS = city.population > 100000 ? 4 : city.population > 50000 ? 3.5 : 3;
-                
-                // Redução gradual nos custos ao longo dos meses
-                const cpaReductionFactor = 1 - (monthIndex * 0.1); // Reduz 10% por mês
-                const opsReductionFactor = 1 - (monthIndex * 0.08); // Reduz 8% por mês
-                
-                const adjustedCPA = baseCPA * cpaReductionFactor;
-                const adjustedOPS = baseOPS * opsReductionFactor;
-                
-                const marketingCost = goal * adjustedCPA;
-                const operationalCost = goal * adjustedOPS;
-                const revenue = goal * 2.5; // R$2.50 por corrida
+                let goal = 0;
+                let marketingCost = 0;
+                let operationalCost = 0;
+                let revenue = 0;
+                let fromSavedPlan = false;
+
+                // Se há dados salvos no plano, usar eles
+                if (savedResult && (savedResult.rides > 0 || savedResult.marketingCost > 0 || savedResult.operationalCost > 0)) {
+                    goal = savedResult.rides || 0;
+                    marketingCost = savedResult.projectedMarketing || savedResult.marketingCost || 0;
+                    operationalCost = savedResult.projectedOperational || savedResult.operationalCost || 0;
+                    revenue = savedResult.projectedRevenue || (goal * 2.5);
+                    fromSavedPlan = true;
+                } else {
+                    // Fallback: calcular automaticamente se não há plano salvo
+                    const targetPenetration = 0.10; // 10% da população 15-44
+                    const factor = curveFactors[monthIndex];
+                    goal = Math.round(city.population15to44 * factor * targetPenetration);
+                    
+                    // Custos baseados em valores padrão escalonados por cidade
+                    let baseCPA = city.population > 100000 ? 10 : city.population > 50000 ? 8 : 6;
+                    let baseOPS = city.population > 100000 ? 4 : city.population > 50000 ? 3.5 : 3;
+                    
+                    // Redução gradual nos custos ao longo dos meses
+                    const cpaReductionFactor = 1 - (monthIndex * 0.1); // Reduz 10% por mês
+                    const opsReductionFactor = 1 - (monthIndex * 0.08); // Reduz 8% por mês
+                    
+                    const adjustedCPA = baseCPA * cpaReductionFactor;
+                    const adjustedOPS = baseOPS * opsReductionFactor;
+                    
+                    marketingCost = goal * adjustedCPA;
+                    operationalCost = goal * adjustedOPS;
+                    revenue = goal * 2.5; // R$2.50 por corrida
+                }
 
                 monthTotalGoal += goal;
                 monthTotalMarketingCost += marketingCost;
@@ -1528,7 +1550,8 @@ const BlockSection: React.FC<{
                     goal,
                     marketingCost,
                     operationalCost,
-                    revenue
+                    revenue,
+                    fromSavedPlan
                 });
             });
 
@@ -1559,6 +1582,43 @@ const BlockSection: React.FC<{
         const totalRevenue = planningData.reduce((sum, m) => sum + m.totalRevenue, 0);
         const totalMargin = totalRevenue - totalMarketing - totalOperational;
         
+        // Calcular ROI - encontrar mês onde receita acumulada >= investimento acumulado
+        let roiMonth = -1; // -1 significa não atingido nos 6 meses
+        let roiInvestment = 0;
+        let accumulatedRevenue = 0;
+        let accumulatedInvestment = 0;
+        
+        for (let i = 0; i < planningData.length; i++) {
+            const month = planningData[i];
+            accumulatedRevenue += month.totalRevenue;
+            accumulatedInvestment += month.totalMarketingCost + month.totalOperationalCost;
+            
+            if (roiMonth === -1 && accumulatedRevenue >= accumulatedInvestment) {
+                roiMonth = i + 1; // Mês 1-indexed
+                roiInvestment = accumulatedInvestment;
+            }
+        }
+        
+        // Se não atingiu ROI em 6 meses, calcular projeção para encontrar quando atinge
+        let projectedRoiMonth = roiMonth;
+        let projectedRoiInvestment = roiInvestment;
+        
+        if (roiMonth === -1) {
+            // Usar média mensal do mês 6 para projetar
+            const month6 = planningData[5];
+            const avgMonthlyRevenue = month6.totalRevenue;
+            const avgMonthlyInvestment = month6.totalMarketingCost + month6.totalOperationalCost;
+            const avgMonthlyProfit = avgMonthlyRevenue - avgMonthlyInvestment;
+            
+            if (avgMonthlyProfit > 0) {
+                // Quanto falta para cobrir o déficit acumulado
+                const deficit = accumulatedInvestment - accumulatedRevenue;
+                const monthsToRecover = Math.ceil(deficit / avgMonthlyProfit);
+                projectedRoiMonth = 6 + monthsToRecover;
+                projectedRoiInvestment = accumulatedInvestment + (monthsToRecover * avgMonthlyInvestment);
+            }
+        }
+        
         // Metas de penetração
         const penetrationGoals = [0.02, 0.05, 0.10, 0.15, 0.20].map(p => ({
             percent: p,
@@ -1574,6 +1634,7 @@ const BlockSection: React.FC<{
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Planejamento Estratégico - ${block.name}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="/lufga-font.css" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -1583,7 +1644,7 @@ const BlockSection: React.FC<{
         
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
             color: #f1f5f9;
             min-height: 100vh;
             padding: 40px;
@@ -1598,25 +1659,41 @@ const BlockSection: React.FC<{
         
         /* Header */
         .header {
-            background: linear-gradient(135deg, #312e81 0%, #4c1d95 100%);
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
             border-radius: 24px;
             padding: 32px;
             margin-bottom: 24px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
         
-        .header h1 {
-            font-size: 28px;
+        .header .main-title {
+            font-family: 'Lufga', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 40px;
             font-weight: 800;
-            background: linear-gradient(to right, #fff, #c4b5fd);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            letter-spacing: 0.5px;
+            color: #fff;
             margin-bottom: 8px;
+            background: none;
+            -webkit-background-clip: unset;
+            -webkit-text-fill-color: unset;
+            background-clip: unset;
+        }
+        .header .subtitle {
+            color: #fff;
+            font-size: 18px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+        .header .subinfo {
+            color: #fff;
+            font-size: 14px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin-bottom: 0;
         }
         
         .header .subtitle {
-            color: #a5b4fc;
+            color: #94a3b8;
             font-size: 14px;
         }
         
@@ -1640,8 +1717,8 @@ const BlockSection: React.FC<{
         }
         
         .kpi-card-pastel.purple {
-            background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
-            border: 1px solid #c4b5fd;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border: 1px solid #94a3b8;
         }
         
         .kpi-card-pastel.green {
@@ -1656,7 +1733,7 @@ const BlockSection: React.FC<{
             letter-spacing: 0.5px;
         }
         
-        .kpi-card-pastel.purple .label { color: #5b21b6; }
+        .kpi-card-pastel.purple .label { color: #334155; }
         .kpi-card-pastel.green .label { color: #166534; }
         
         .kpi-card-pastel .value {
@@ -1665,7 +1742,7 @@ const BlockSection: React.FC<{
             margin-top: 8px;
         }
         
-        .kpi-card-pastel.purple .value { color: #4c1d95; }
+        .kpi-card-pastel.purple .value { color: #0f172a; }
         .kpi-card-pastel.green .value { color: #15803d; }
         
         /* Goals Box */
@@ -1714,7 +1791,7 @@ const BlockSection: React.FC<{
         .goal-dot.orange { background: #f97316; }
         .goal-dot.amber { background: #f59e0b; }
         .goal-dot.blue { background: #3b82f6; }
-        .goal-dot.purple { background: #8b5cf6; }
+        .goal-dot.purple { background: #475569; }
         
         .goal-percent {
             color: #94a3b8;
@@ -1746,40 +1823,95 @@ const BlockSection: React.FC<{
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
+            gap: 16px;
         }
         
         .stat-card {
-            background: white;
-            border-radius: 12px;
-            padding: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.4);
         }
         
         .stat-card .icon-circle {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
-            margin-bottom: 8px;
+            font-size: 20px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.2);
         }
         
         .stat-card .stat-label {
-            color: #64748b;
-            font-size: 10px;
+            color: #94a3b8;
+            font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
+            margin-bottom: 4px;
         }
         
         .stat-card .stat-value {
-            color: #1e293b;
-            font-size: 18px;
-            font-weight: 700;
+            color: #f1f5f9;
+            font-size: 22px;
+            font-weight: 800;
             margin-top: 4px;
+        }
+        
+        .stat-card .stat-subtitle {
+            color: #64748b;
+            font-size: 10px;
+            margin-top: 4px;
+        }
+        
+        /* Special Cards */
+        .stat-card.highlight-green {
+            background: linear-gradient(145deg, #065f46 0%, #064e3b 100%);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        
+        .stat-card.highlight-green .stat-label {
+            color: #6ee7b7;
+        }
+        
+        .stat-card.highlight-green .stat-value {
+            color: #ecfdf5;
+        }
+        
+        .stat-card.highlight-amber {
+            background: linear-gradient(145deg, #92400e 0%, #78350f 100%);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+        
+        .stat-card.highlight-amber .stat-label {
+            color: #fcd34d;
+        }
+        
+        .stat-card.highlight-amber .stat-value {
+            color: #fffbeb;
+        }
+        
+        .stat-card.highlight-blue {
+            background: linear-gradient(145deg, #1e40af 0%, #1e3a8a 100%);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        
+        .stat-card.highlight-blue .stat-label {
+            color: #93c5fd;
+        }
+        
+        .stat-card.highlight-blue .stat-value {
+            color: #eff6ff;
         }
         
         /* Tables */
@@ -1805,7 +1937,7 @@ const BlockSection: React.FC<{
             content: '';
             width: 4px;
             height: 20px;
-            background: linear-gradient(to bottom, #8b5cf6, #6366f1);
+            background: linear-gradient(to bottom, #475569, #334155);
             border-radius: 2px;
         }
         
@@ -1821,7 +1953,7 @@ const BlockSection: React.FC<{
         }
         
         thead th {
-            background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
             color: white;
             padding: 8px 4px;
             text-align: center;
@@ -1852,7 +1984,7 @@ const BlockSection: React.FC<{
         }
         
         tbody tr:hover {
-            background: rgba(99, 102, 241, 0.1);
+            background: rgba(71, 85, 105, 0.2);
         }
         
         tbody td {
@@ -1870,7 +2002,7 @@ const BlockSection: React.FC<{
         }
         
         tfoot tr {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         }
         
         tfoot td {
@@ -1909,7 +2041,7 @@ const BlockSection: React.FC<{
         }
         
         .city-section h3 {
-            color: #a5b4fc;
+            color: #94a3b8;
             font-size: 11px;
             font-weight: 700;
             margin-bottom: 10px;
@@ -1930,17 +2062,17 @@ const BlockSection: React.FC<{
             }
             
             .header {
-                background: #4f46e5 !important;
+                background: #1e293b !important;
                 -webkit-print-color-adjust: exact;
             }
             
             .goals-box {
-                background: #f8fafc !important;
-                border: 1px solid #e2e8f0 !important;
+                background: white !important;
+                border: 2px solid #1e293b !important;
             }
             
             .goals-box h3 {
-                color: #1e293b !important;
+                color: #0f172a !important;
             }
             
             .goal-percent {
@@ -1967,13 +2099,22 @@ const BlockSection: React.FC<{
                 border: 1px solid #e2e8f0 !important;
             }
             
+            .table-section h2 {
+                color: #0f172a !important;
+            }
+            
+            .table-section h2::before {
+                background: #0f172a !important;
+            }
+            
             table {
                 border: 1px solid #cbd5e1 !important;
             }
             
             thead th {
-                background: #7c3aed !important;
-                border: 1px solid #6d28d9 !important;
+                background: #0f172a !important;
+                border: 1px solid #1e293b !important;
+                color: white !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
@@ -1987,19 +2128,24 @@ const BlockSection: React.FC<{
             }
             
             tbody td {
-                color: #1e293b !important;
+                color: #0f172a !important;
                 border: 1px solid #e2e8f0 !important;
             }
             
+            tbody td strong {
+                color: #0f172a !important;
+            }
+            
             tfoot tr {
-                background: #4f46e5 !important;
+                background: #0f172a !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
             
             tfoot td {
-                border: 1px solid #4338ca !important;
+                border: 1px solid #1e293b !important;
                 color: white !important;
+                font-weight: 800 !important;
             }
             
             .city-section {
@@ -2019,6 +2165,70 @@ const BlockSection: React.FC<{
             .negative {
                 color: #dc2626 !important;
             }
+            
+            /* Stats Cards Print Styles */
+            .stat-card {
+                background: white !important;
+                border: 2px solid #1e293b !important;
+                box-shadow: none !important;
+            }
+            
+            .stat-card .stat-label {
+                color: #475569 !important;
+            }
+            
+            .stat-card .stat-value {
+                color: #0f172a !important;
+            }
+            
+            .stat-card .stat-subtitle {
+                color: #64748b !important;
+            }
+            
+            .stat-card.highlight-green,
+            .stat-card.highlight-amber,
+            .stat-card.highlight-blue {
+                background: white !important;
+                border: 2px solid #1e293b !important;
+            }
+            
+            .stat-card.highlight-green .stat-label,
+            .stat-card.highlight-amber .stat-label,
+            .stat-card.highlight-blue .stat-label {
+                color: #475569 !important;
+            }
+            
+            .stat-card.highlight-green .stat-value,
+            .stat-card.highlight-amber .stat-value,
+            .stat-card.highlight-blue .stat-value {
+                color: #0f172a !important;
+            }
+            
+            .stat-card.highlight-green .stat-subtitle,
+            .stat-card.highlight-amber .stat-subtitle,
+            .stat-card.highlight-blue .stat-subtitle {
+                color: #64748b !important;
+            }
+            
+            .stat-card .icon-circle {
+                background: #e2e8f0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            /* KPI Cards Print Styles */
+            .kpi-card-pastel {
+                background: white !important;
+                border: 2px solid #1e293b !important;
+            }
+            
+            .kpi-card-pastel .label {
+                color: #475569 !important;
+            }
+            
+            .kpi-card-pastel .value {
+                color: #0f172a !important;
+            }
         }
     </style>
 </head>
@@ -2026,9 +2236,9 @@ const BlockSection: React.FC<{
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>📊 Planejamento Estratégico: ${block.name}</h1>
-            <p class="subtitle">Urban Passageiro - Projeções de 6 Meses</p>
-            <p class="date">Gerado em: ${date}</p>
+            <div class="main-title">Urban Passageiro</div>
+            <div class="subtitle">Planejamento de Expansão</div>
+            <div class="subinfo">${date} &mdash; Bloco: <b>${block.name}</b></div>
         </div>
         
         <!-- KPI Cards -->
@@ -2066,42 +2276,145 @@ const BlockSection: React.FC<{
             <!-- Stats Grid -->
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="icon-circle" style="background: #dbeafe;">👥</div>
+                    <div class="icon-circle" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">👥</div>
                     <div class="stat-label">População Total</div>
                     <div class="stat-value">${totalPop.toLocaleString('pt-BR')}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="icon-circle" style="background: #dcfce7;">🎯</div>
+                    <div class="icon-circle" style="background: linear-gradient(135deg, #10b981, #059669);">🎯</div>
                     <div class="stat-label">População Alvo</div>
                     <div class="stat-value">${targetPop.toLocaleString('pt-BR')}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="icon-circle" style="background: #fef3c7;">🏙️</div>
+                    <div class="icon-circle" style="background: linear-gradient(135deg, #f59e0b, #d97706);">🏙️</div>
                     <div class="stat-label">Cidades no Bloco</div>
                     <div class="stat-value">${cities.length}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="icon-circle" style="background: #f3e8ff;">📈</div>
+                    <div class="icon-circle" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">📈</div>
                     <div class="stat-label">Meta Total 6M</div>
                     <div class="stat-value">${totalGoal.toLocaleString('pt-BR')}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="icon-circle" style="background: #fce7f3;">💰</div>
+                    <div class="icon-circle" style="background: linear-gradient(135deg, #ec4899, #db2777);">💰</div>
                     <div class="stat-label">Receita Proj. 6M</div>
                     <div class="stat-value">${formatCurrency(totalRevenue)}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="icon-circle" style="background: ${totalMargin >= 0 ? '#dcfce7' : '#fee2e2'};">📊</div>
+                    <div class="icon-circle" style="background: linear-gradient(135deg, ${totalMargin >= 0 ? '#10b981, #059669' : '#ef4444, #dc2626'});">📊</div>
                     <div class="stat-label">Margem 6M</div>
                     <div class="stat-value ${totalMargin >= 0 ? 'positive' : 'negative'}">${formatCurrency(totalMargin)}</div>
                 </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #ecfdf5 0%, white 100%); border-color: #10b981;">
-                    <div class="icon-circle" style="background: #d1fae5;">🎯</div>
-                    <div class="stat-label" style="color: #059669;">Receita Mensal (10%)</div>
-                    <div class="stat-value" style="color: #047857;">${formatCurrency(Math.round(targetPop * 0.10) * 2.5)}</div>
-                    <div style="font-size: 10px; color: #059669; margin-top: 4px;">${Math.round(targetPop * 0.10).toLocaleString('pt-BR')} corridas/mês</div>
+                <div class="stat-card highlight-green">
+                    <div class="icon-circle" style="background: linear-gradient(135deg, #34d399, #10b981);">💎</div>
+                    <div class="stat-label">Receita Mensal (10%)</div>
+                    <div class="stat-value">${formatCurrency(Math.round(targetPop * 0.10) * 2.5)}</div>
+                    <div class="stat-subtitle" style="color: #6ee7b7;">${Math.round(targetPop * 0.10).toLocaleString('pt-BR')} corridas/mês</div>
+                </div>
+                <div class="stat-card highlight-amber">
+                    <div class="icon-circle" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);">⏱️</div>
+                    <div class="stat-label">Tempo até ROI</div>
+                    <div class="stat-value">${projectedRoiMonth > 0 ? projectedRoiMonth + (projectedRoiMonth === 1 ? ' mês' : ' meses') : 'N/A'}</div>
+                    <div class="stat-subtitle" style="color: #fcd34d;">${roiMonth > 0 ? '✅ Atingido' : projectedRoiMonth > 6 ? '📊 Projeção' : '⚠️ Não atingido'}</div>
+                </div>
+                <div class="stat-card highlight-blue">
+                    <div class="icon-circle" style="background: linear-gradient(135deg, #60a5fa, #3b82f6);">💵</div>
+                    <div class="stat-label">Investimento até ROI</div>
+                    <div class="stat-value">${projectedRoiInvestment > 0 ? formatCurrency(projectedRoiInvestment) : formatCurrency(totalMarketing + totalOperational)}</div>
+                    <div class="stat-subtitle" style="color: #93c5fd;">Mkt + Ops acum.${roiMonth === -1 ? ' (6M)' : ''}</div>
                 </div>
             </div>
+        </div>
+        
+        <!-- ROI Progress Table -->
+        <div class="table-section" style="margin-bottom: 24px;">
+            <h2>📈 Evolução até o ROI</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mês</th>
+                        <th class="text-right">Investimento Mensal</th>
+                        <th class="text-right">Investimento Acum.</th>
+                        <th class="text-right">Receita Mensal</th>
+                        <th class="text-right">Receita Acum.</th>
+                        <th class="text-right">Saldo Acum.</th>
+                        <th class="text-center">ROI</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${(() => {
+                        let accRev = 0;
+                        let accInv = 0;
+                        let roiReached = false;
+                        const rows: string[] = [];
+                        
+                        // Mostrar até o mês do ROI (ou todos se não atingir)
+                        for (let i = 0; i < planningData.length; i++) {
+                            const month = planningData[i];
+                            const monthInv = month.totalMarketingCost + month.totalOperationalCost;
+                            accRev += month.totalRevenue;
+                            accInv += monthInv;
+                            const balance = accRev - accInv;
+                            const isRoiMonth = !roiReached && balance >= 0;
+                            if (isRoiMonth) roiReached = true;
+                            const rowStyle = isRoiMonth ? 'background: rgba(16, 185, 129, 0.2) !important;' : '';
+                            const balanceClass = balance >= 0 ? 'positive' : 'negative';
+                            const roiIndicator = isRoiMonth ? '✅' : (balance >= 0 ? '✓' : '—');
+                            
+                            rows.push('<tr style="' + rowStyle + '">' +
+                                '<td><strong>' + month.month + '</strong></td>' +
+                                '<td class="text-right">' + formatCurrency(monthInv) + '</td>' +
+                                '<td class="text-right">' + formatCurrency(accInv) + '</td>' +
+                                '<td class="text-right">' + formatCurrency(month.totalRevenue) + '</td>' +
+                                '<td class="text-right">' + formatCurrency(accRev) + '</td>' +
+                                '<td class="text-right ' + balanceClass + '">' + formatCurrency(balance) + '</td>' +
+                                '<td class="text-center">' + roiIndicator + '</td>' +
+                            '</tr>');
+                            
+                            // Parar no mês do ROI
+                            if (isRoiMonth) break;
+                        }
+                        
+                        // Se não atingiu ROI em 6 meses, projetar meses adicionais
+                        if (!roiReached && projectedRoiMonth > 6) {
+                            const month6 = planningData[5];
+                            const avgMonthlyRevenue = month6.totalRevenue;
+                            const avgMonthlyInvestment = month6.totalMarketingCost + month6.totalOperationalCost;
+                            
+                            for (let m = 7; m <= projectedRoiMonth; m++) {
+                                accRev += avgMonthlyRevenue;
+                                accInv += avgMonthlyInvestment;
+                                const balance = accRev - accInv;
+                                const isRoiMonth = !roiReached && balance >= 0;
+                                if (isRoiMonth) roiReached = true;
+                                const rowStyle = isRoiMonth ? 'background: rgba(16, 185, 129, 0.2) !important;' : 'background: rgba(251, 191, 36, 0.1);';
+                                const balanceClass = balance >= 0 ? 'positive' : 'negative';
+                                const roiIndicator = isRoiMonth ? '✅' : '—';
+                                
+                                rows.push('<tr style="' + rowStyle + '">' +
+                                    '<td><strong>Mês ' + m + '</strong> <span style="font-size: 8px; color: #f59e0b;">(projeção)</span></td>' +
+                                    '<td class="text-right">' + formatCurrency(avgMonthlyInvestment) + '</td>' +
+                                    '<td class="text-right">' + formatCurrency(accInv) + '</td>' +
+                                    '<td class="text-right">' + formatCurrency(avgMonthlyRevenue) + '</td>' +
+                                    '<td class="text-right">' + formatCurrency(accRev) + '</td>' +
+                                    '<td class="text-right ' + balanceClass + '">' + formatCurrency(balance) + '</td>' +
+                                    '<td class="text-center">' + roiIndicator + '</td>' +
+                                '</tr>');
+                                
+                                if (isRoiMonth) break;
+                            }
+                        }
+                        
+                        return rows.join('');
+                    })()}
+                </tbody>
+            </table>
+            ${roiMonth === -1 && projectedRoiMonth <= 0 ? 
+                '<div style="margin-top: 16px; padding: 12px; background: rgba(251, 191, 36, 0.1); border: 1px solid #f59e0b; border-radius: 8px;">' +
+                '<p style="color: #f59e0b; font-size: 12px; margin: 0;">' +
+                '⚠️ <strong>ROI não projetável.</strong> Ajuste os custos de CPA/OPS para melhorar a margem.' +
+                '</p></div>' 
+            : ''}
         </div>
         
         <!-- Planning Table -->
@@ -2837,16 +3150,16 @@ const BlockSection: React.FC<{
                             </div>
 
                             {/* Card 3: Mês Passado */}
-                            <div className="bg-amber-900/20 rounded-2xl p-5 border border-amber-800/50">
+                            <div className="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50">
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded">DEZ/25</span>
-                                        <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Mês Passado</span>
+                                        <span className="text-xs font-bold text-orange-400 bg-orange-500/20 px-2 py-0.5 rounded">DEZ/25</span>
+                                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mês Passado</span>
                                     </div>
                                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                                         blockStats.lastMonthRides >= blockStats.lastMonthGoal 
                                             ? 'bg-green-500/20 text-green-400' 
-                                            : 'bg-amber-500/20 text-amber-400'
+                                            : 'bg-orange-500/20 text-orange-400'
                                     }`}>
                                         {blockStats.lastMonthGoal > 0 
                                             ? Math.round((blockStats.lastMonthRides / blockStats.lastMonthGoal) * 100) 
@@ -2860,9 +3173,9 @@ const BlockSection: React.FC<{
                                         <div className="text-xs text-slate-400 mt-1">R${(blockStats.lastMonthRevenueGoal / 1000).toFixed(1)}k proj</div>
                                     </div>
                                     <div>
-                                        <span className="text-3xl font-bold text-amber-400">{blockStats.lastMonthRides.toLocaleString('pt-BR')}</span>
+                                        <span className="text-3xl font-bold text-orange-400">{blockStats.lastMonthRides.toLocaleString('pt-BR')}</span>
                                         <span className="text-sm text-slate-500 ml-2">real</span>
-                                        <div className="text-xs text-amber-400 mt-1">R${(blockStats.lastMonthRevenue / 1000).toFixed(1)}k real</div>
+                                        <div className="text-xs text-orange-400 mt-1">R${(blockStats.lastMonthRevenue / 1000).toFixed(1)}k real</div>
                                     </div>
                                     {blockStats.lastMonthRides >= blockStats.lastMonthGoal && (
                                         <span className="text-green-400 text-xl mb-1">✓</span>
@@ -2873,7 +3186,7 @@ const BlockSection: React.FC<{
                                         className={`h-full rounded-full transition-all duration-500 ${
                                             blockStats.lastMonthRides >= blockStats.lastMonthGoal 
                                                 ? 'bg-gradient-to-r from-green-500 to-emerald-400' 
-                                                : 'bg-gradient-to-r from-amber-500 to-yellow-400'
+                                                : 'bg-gradient-to-r from-orange-500 to-orange-400'
                                         }`} 
                                         style={{width: `${Math.min((blockStats.lastMonthRides / Math.max(blockStats.lastMonthGoal, 1)) * 100, 100)}%`}}
                                     ></div>
@@ -2882,10 +3195,10 @@ const BlockSection: React.FC<{
                                 {/* Mini KPIs Mês Passado */}
                                 <div className="grid grid-cols-2 gap-2">
                                     {/* CPA MKT Last Month */}
-                                    <div className="bg-amber-900/30 rounded-lg p-2 border border-amber-800/40">
-                                        <div className="text-[9px] text-amber-500 uppercase font-medium mb-1">CPA Mkt</div>
+                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
+                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">CPA Mkt</div>
                                         <div className="flex items-baseline gap-1">
-                                            <span className="text-xs font-semibold text-amber-300">R${blockStats.lastMonthCpaMktProj.toFixed(2)}</span>
+                                            <span className="text-xs font-semibold text-slate-400">R${blockStats.lastMonthCpaMktProj.toFixed(2)}</span>
                                             <span className={`text-xs font-bold ${blockStats.lastMonthCpaMktReal <= blockStats.lastMonthCpaMktProj ? 'text-green-400' : 'text-red-400'}`}>
                                                 R${blockStats.lastMonthCpaMktReal.toFixed(2)}
                                             </span>
@@ -2896,10 +3209,10 @@ const BlockSection: React.FC<{
                                     </div>
 
                                     {/* OPS/PASS Last Month */}
-                                    <div className="bg-amber-900/30 rounded-lg p-2 border border-amber-800/40">
-                                        <div className="text-[9px] text-amber-500 uppercase font-medium mb-1">Ops/Pass</div>
+                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
+                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">Ops/Pass</div>
                                         <div className="flex items-baseline gap-1">
-                                            <span className="text-xs font-semibold text-amber-300">R${blockStats.lastMonthOpsPassProj.toFixed(2)}</span>
+                                            <span className="text-xs font-semibold text-slate-400">R${blockStats.lastMonthOpsPassProj.toFixed(2)}</span>
                                             <span className={`text-xs font-bold ${blockStats.lastMonthOpsPassReal <= blockStats.lastMonthOpsPassProj ? 'text-green-400' : 'text-red-400'}`}>
                                                 R${blockStats.lastMonthOpsPassReal.toFixed(2)}
                                             </span>
@@ -2910,24 +3223,24 @@ const BlockSection: React.FC<{
                                     </div>
 
                                     {/* CUSTO TOT Last Month */}
-                                    <div className="bg-amber-900/30 rounded-lg p-2 border border-amber-800/40">
-                                        <div className="text-[9px] text-amber-500 uppercase font-medium mb-1">Custo Total</div>
+                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
+                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">Custo Total</div>
                                         <div className="flex items-baseline gap-1">
-                                            <span className="text-xs font-semibold text-amber-300">R${(blockStats.lastMonthCustoTotalProj / 1000).toFixed(1)}k</span>
-                                            <span className={`text-xs font-bold ${blockStats.lastMonthCustoTotalReal <= blockStats.lastMonthCustoTotalProj ? 'text-green-400' : 'text-amber-400'}`}>
+                                            <span className="text-xs font-semibold text-slate-400">R${(blockStats.lastMonthCustoTotalProj / 1000).toFixed(1)}k</span>
+                                            <span className={`text-xs font-bold ${blockStats.lastMonthCustoTotalReal <= blockStats.lastMonthCustoTotalProj ? 'text-green-400' : 'text-orange-400'}`}>
                                                 R${(blockStats.lastMonthCustoTotalReal / 1000).toFixed(1)}k
                                             </span>
-                                            <span className={`text-[10px] ${blockStats.lastMonthCustoTotalReal <= blockStats.lastMonthCustoTotalProj ? 'text-green-400' : 'text-amber-400'}`}>
+                                            <span className={`text-[10px] ${blockStats.lastMonthCustoTotalReal <= blockStats.lastMonthCustoTotalProj ? 'text-green-400' : 'text-orange-400'}`}>
                                                 {blockStats.lastMonthCustoTotalReal <= blockStats.lastMonthCustoTotalProj ? '✓' : '✗'}
                                             </span>
                                         </div>
                                     </div>
 
                                     {/* CUSTO/CORR Last Month */}
-                                    <div className="bg-amber-900/30 rounded-lg p-2 border border-amber-800/40">
-                                        <div className="text-[9px] text-amber-500 uppercase font-medium mb-1">Custo/Corr</div>
+                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
+                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">Custo/Corr</div>
                                         <div className="flex items-baseline gap-1">
-                                            <span className="text-xs font-semibold text-amber-300">R${blockStats.lastMonthCustoCorridaProj.toFixed(2)}</span>
+                                            <span className="text-xs font-semibold text-slate-400">R${blockStats.lastMonthCustoCorridaProj.toFixed(2)}</span>
                                             <span className={`text-xs font-bold ${blockStats.lastMonthCustoCorridaReal <= blockStats.lastMonthCustoCorridaProj ? 'text-green-400' : 'text-red-400'}`}>
                                                 R${blockStats.lastMonthCustoCorridaReal.toFixed(2)}
                                             </span>
