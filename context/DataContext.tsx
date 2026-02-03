@@ -568,9 +568,14 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         await planDetailsService.savePlanDetails(cityId, newPhases, now.slice(0, 7));
         console.log('✅ Fases do planejamento salvas no PostgreSQL');
         
-        // 3. Atualizar status da cidade no PostgreSQL
-        await updateCityStatusBackend(cityId, CityStatus.Planning);
-        console.log('✅ Status da cidade atualizado no PostgreSQL');
+        // 3. Atualizar status da cidade no PostgreSQL APENAS se não for CONSOLIDATED ou EXPANDING
+        // Cidades consolidadas e em expansão mantêm seu status mesmo com planejamento
+        if (city.status === CityStatus.NotServed) {
+            await updateCityStatusBackend(cityId, CityStatus.Planning);
+            console.log('✅ Status da cidade atualizado para PLANNING no PostgreSQL');
+        } else {
+            console.log(`ℹ️ Status da cidade ${city.name} mantido como ${city.status}`);
+        }
         
         // 4. Recarregar dados do banco
         const [refreshedPlans, { cities: refreshedCities }] = await Promise.all([

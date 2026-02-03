@@ -981,8 +981,10 @@ const BlockSection: React.FC<{
             const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0];
             const targetPenetration = 0.10;
             const revenuePerRide = 2.5; // R$ 2.50 por corrida
-            const marketingCostPerRide = 0.15; // R$ 0.15 custo marketing por corrida
-            const operationalCostPerRide = 0.20; // R$ 0.20 custo operacional por corrida
+            // Valores de custo por corrida baseados em análise de projeções reais (analyze-fallback-values.js)
+            // Média ponderada: CPA ~R$0.85, OPS ~R$0.35
+            const marketingCostPerRide = 0.85; // R$ 0.85 custo marketing por corrida (média real)
+            const operationalCostPerRide = 0.35; // R$ 0.35 custo operacional por corrida (média real)
 
             // Buscar dados de receita projetada do planejamento para cada cidade
             for (const city of cities) {
@@ -1512,17 +1514,21 @@ const BlockSection: React.FC<{
                     fromSavedPlan = true;
                 } else {
                     // Fallback: calcular automaticamente se não há plano salvo
+                    // VALORES BASEADOS EM ANÁLISE DE PROJEÇÕES REAIS SALVAS (analyze-fallback-values.js)
                     const targetPenetration = 0.10; // 10% da população 15-44
                     const factor = curveFactors[monthIndex];
                     goal = Math.round(city.population15to44 * factor * targetPenetration);
                     
-                    // Custos baseados em valores padrão escalonados por cidade
-                    let baseCPA = city.population > 100000 ? 10 : city.population > 50000 ? 8 : 6;
-                    let baseOPS = city.population > 100000 ? 4 : city.population > 50000 ? 3.5 : 3;
+                    // Custos baseados em médias reais por categoria de cidade
+                    // Grande (>100k): CPA=R$0.76, OPS=R$0.35
+                    // Média (50-100k): CPA=R$1.08, OPS=R$0.64
+                    // Pequena (<50k): CPA=R$0.89, OPS=R$0.32
+                    let baseCPA = city.population > 100000 ? 0.76 : city.population > 50000 ? 1.08 : 0.89;
+                    let baseOPS = city.population > 100000 ? 0.35 : city.population > 50000 ? 0.64 : 0.32;
                     
-                    // Redução gradual nos custos ao longo dos meses
-                    const cpaReductionFactor = 1 - (monthIndex * 0.1); // Reduz 10% por mês
-                    const opsReductionFactor = 1 - (monthIndex * 0.08); // Reduz 8% por mês
+                    // Redução gradual nos custos ao longo dos meses (eficiência)
+                    const cpaReductionFactor = 1 - (monthIndex * 0.05); // Reduz 5% por mês
+                    const opsReductionFactor = 1 - (monthIndex * 0.03); // Reduz 3% por mês
                     
                     const adjustedCPA = baseCPA * cpaReductionFactor;
                     const adjustedOPS = baseOPS * opsReductionFactor;

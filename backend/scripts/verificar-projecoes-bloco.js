@@ -64,12 +64,15 @@ async function main() {
       const factor = curveFactors[m];
       const goal = Math.round(city.population15to44 * factor * 0.10);
       
-      // CPA/OPS padrão (mesma lógica do frontend)
-      let baseCPA = city.population > 100000 ? 10 : city.population > 50000 ? 8 : 6;
-      let baseOPS = city.population > 100000 ? 4 : city.population > 50000 ? 3.5 : 3;
+      // CPA/OPS CORRIGIDOS - baseados em análise de dados reais (analyze-fallback-values.js)
+      // Grande (>100k): CPA=R$0.76, OPS=R$0.35
+      // Média (50-100k): CPA=R$1.08, OPS=R$0.64
+      // Pequena (<50k): CPA=R$0.89, OPS=R$0.32
+      let baseCPA = city.population > 100000 ? 0.76 : city.population > 50000 ? 1.08 : 0.89;
+      let baseOPS = city.population > 100000 ? 0.35 : city.population > 50000 ? 0.64 : 0.32;
       
-      const cpaReduction = 1 - (m * 0.1);
-      const opsReduction = 1 - (m * 0.08);
+      const cpaReduction = 1 - (m * 0.05); // 5% por mês
+      const opsReduction = 1 - (m * 0.03); // 3% por mês
       
       const cpa = baseCPA * cpaReduction;
       const ops = baseOPS * opsReduction;
