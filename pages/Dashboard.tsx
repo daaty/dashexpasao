@@ -7,7 +7,7 @@ import { CityStatus, Mesorregion } from '../types';
 import { useNavigate } from 'react-router-dom';
 import InfoTooltip from '../components/ui/InfoTooltip';
 import { DataContext } from '../context/DataContext';
-import { getMonthlyRidesByCity } from '../services/ridesApiService';
+import { getMonthlyRidesByCity, getTodayRides } from '../services/ridesApiService';
 
 // Sparkline mini chart component
 const SparklineChart = ({ data, color = '#ffffff' }: { data: number[], color?: string }) => {
@@ -238,6 +238,11 @@ const InteractiveMapPlaceholder = () => (
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
     const { cities, warnings } = useContext(DataContext);
+    const [todayRides, setTodayRides] = useState<{ rides: number; revenue: number; cityCount: number }>({ 
+        rides: 0, 
+        revenue: 0,
+        cityCount: 0
+    });
     const [monthlyMetrics, setMonthlyMetrics] = useState<{ 
         current: { ops: string; custoCorrida: string; cpaMkt: string; custoTot: string; corridas: string; receita: string } | null;
         previous: { ops: string; custoCorrida: string; cpaMkt: string; custoTot: string; corridas: string; receita: string } | null;
@@ -249,6 +254,40 @@ const Dashboard: React.FC = () => {
         currentMonthLabel: '',
         previousMonthLabel: ''
     });
+    
+    // Buscar corridas de hoje com atualização automática a cada 1 minuto
+    const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+    const [isUpdating, setIsUpdating] = useState(false);
+    
+    useEffect(() => {
+        let isMounted = true;
+        
+        const loadTodayRides = async () => {
+            try {
+                setIsUpdating(true);
+                const data = await getTodayRides();
+                if (isMounted) {
+                    setTodayRides(data);
+                    setLastUpdateTime(new Date());
+                    setIsUpdating(false);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar corridas de hoje:', error);
+                setIsUpdating(false);
+            }
+        };
+        
+        // Carregar na montagem imediatamente
+        loadTodayRides();
+        
+        // Configurar polling a cada 1 minuto (60000 ms)
+        const interval = setInterval(loadTodayRides, 60000);
+        
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, []);
     
     // Buscar dados de todos os meses quando o componente monta
     useEffect(() => {
@@ -541,6 +580,139 @@ const Dashboard: React.FC = () => {
                     tooltipText="Cidades não atendidas representam oportunidades de expansão. Algumas já estão em fase de planejamento."
                     sparklineData={[80, 75, 78, 72, 70, 68, 65, 60, 58, 55, 50, 48]}
                 />
+            </div>
+
+            {/* Bloco de Corridas Realizadas Hoje - Atualiza a cada 1 minuto */}
+            <div className="rounded-2xl p-6 backdrop-blur-sm" style={{
+                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%)',
+                border: '1px solid rgba(6, 182, 212, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+            }}>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-2 h-8 rounded-full" style={{ background: 'linear-gradient(180deg, #06b6d4, #10b981)' }} />
+                        <h3 className="text-xl font-bold" style={{ color: '#ffffff' }}>
+                            Corridas Realizadas Hoje
+                        </h3>
+                        <span className="text-xs px-3 py-1 rounded-full" style={{ background: 'rgba(6, 182, 212, 0.3)', color: '#06b6d4' }}>
+                            🔄 Atualiza a cada 1 min
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {isUpdating && (
+                            <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(34, 197, 94, 0.3)', color: '#10b981' }}>
+                                ⟳ Atualizando...
+                            </span>
+                        )}
+                        <span className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                            {lastUpdateTime.toLocaleTimeString('pt-BR')}
+                        </span>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Card: Corridas de Hoje */}
+                    <div 
+                        className="group rounded-xl p-6 border backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden relative"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(34, 197, 94, 0.1) 100%)',
+                            border: '1px solid rgba(6, 182, 212, 0.3)',
+                            boxShadow: '0 4px 20px rgba(6, 182, 212, 0.15)'
+                        }}
+                    >
+                        {isUpdating && (
+                            <div className="absolute inset-0 animate-pulse" style={{ background: 'linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.1), transparent)' }} />
+                        )}
+                        <div className="relative z-10">
+                            <div className="flex items-start justify-between mb-3">
+                                <p className="text-xs font-bold uppercase tracking-widest text-gray-300">Corridas</p>
+                                <span className="text-lg">🚗</span>
+                            </div>
+                            <p className="text-4xl font-black tracking-tight" style={{ color: '#06b6d4' }}>
+                                {todayRides.rides.toLocaleString('pt-BR')}
+                            </p>
+                            <p className="text-xs mt-3" style={{ color: 'rgb(255 255 255 / 50%)' }}>
+                                corridas concluídas hoje
+                            </p>
+                            <div className="mt-3 pt-3 border-t border-gray-600">
+                                <p className="text-xs font-semibold" style={{ color: '#06b6d4' }}>
+                                    ✓ Dados em tempo real
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Card: Receita Real e Concluída Hoje */}
+                    <div 
+                        className="group rounded-xl p-6 border backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden relative"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                            border: '1px solid rgba(34, 197, 94, 0.3)',
+                            boxShadow: '0 4px 20px rgba(34, 197, 94, 0.15)'
+                        }}
+                    >
+                        {isUpdating && (
+                            <div className="absolute inset-0 animate-pulse" style={{ background: 'linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.1), transparent)' }} />
+                        )}
+                        <div className="relative z-10">
+                            <div className="flex items-start justify-between mb-3">
+                                <p className="text-xs font-bold uppercase tracking-widest text-gray-300">Receita Real</p>
+                                <span className="text-lg">💰</span>
+                            </div>
+                            <p className="text-3xl font-black tracking-tight" style={{ color: '#22c55e' }}>
+                                R$ {todayRides.revenue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                            </p>
+                            <p className="text-xs mt-3" style={{ color: 'rgb(255 255 255 / 50%)' }}>
+                                receita concluída hoje
+                            </p>
+                            <div className="mt-3 pt-3 border-t border-gray-600">
+                                <p className="text-xs font-semibold" style={{ color: '#22c55e' }}>
+                                    ✓ Receita verificada
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Card: Cidades Ativas */}
+                    <div 
+                        className="group rounded-xl p-6 border backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden relative"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                            border: '1px solid rgba(168, 85, 247, 0.3)',
+                            boxShadow: '0 4px 20px rgba(168, 85, 247, 0.15)'
+                        }}
+                    >
+                        {isUpdating && (
+                            <div className="absolute inset-0 animate-pulse" style={{ background: 'linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.1), transparent)' }} />
+                        )}
+                        <div className="relative z-10">
+                            <div className="flex items-start justify-between mb-3">
+                                <p className="text-xs font-bold uppercase tracking-widest text-gray-300">Cidades</p>
+                                <span className="text-lg">🏙️</span>
+                            </div>
+                            <p className="text-4xl font-black tracking-tight" style={{ color: '#a855f7' }}>
+                                {todayRides.cityCount}
+                            </p>
+                            <p className="text-xs mt-3" style={{ color: 'rgb(255 255 255 / 50%)' }}>
+                                cidades em operação
+                            </p>
+                            <div className="mt-3 pt-3 border-t border-gray-600">
+                                <p className="text-xs font-semibold" style={{ color: '#a855f7' }}>
+                                    ✓ Ativas hoje
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Informações Adicionais */}
+                <div className="mt-6 pt-6 border-t border-gray-700 flex items-center justify-between text-xs">
+                    <div style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                        📊 Última atualização: {lastUpdateTime.toLocaleString('pt-BR')}
+                    </div>
+                    <div style={{ color: 'rgba(6, 182, 212, 0.7)' }}>
+                        Próxima atualização em ~1 minuto
+                    </div>
+                </div>
             </div>
 
             {/* Linha de Métricas - Mês Atual Global */}

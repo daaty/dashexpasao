@@ -196,6 +196,26 @@ export const getDailyRidesByCity = async (
 };
 
 /**
+ * Busca corridas realizadas no dia de hoje - totalizando de todas as cidades ativas
+ */
+export const getTodayRides = async (): Promise<{ rides: number; revenue: number; cityCount: number }> => {
+  try {
+    const response = await api.get('/rides/today');
+    return {
+      rides: response.data.rides || 0,
+      revenue: response.data.revenue || 0,
+      cityCount: response.data.cityCount || 0
+    };
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      return { rides: 0, revenue: 0, cityCount: 0 };
+    }
+    console.error('Erro ao buscar corridas de hoje:', error);
+    return { rides: 0, revenue: 0, cityCount: 0 };
+  }
+};
+
+/**
  * Busca resumo geral de todas as corridas
  */
 export const getRidesSummary = async (filters?: {
@@ -254,6 +274,7 @@ export default {
   getRideStatsByCity,
   getMonthlyRidesByCity,
   getDailyRidesByCity,
+  getTodayRides,
   getRidesSummary,
   useRidesService,
 };

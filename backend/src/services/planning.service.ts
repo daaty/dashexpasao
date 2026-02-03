@@ -1,6 +1,6 @@
 import prisma from '../config/database';
 import logger from '../config/logger';
-import { CityStatus } from '@prisma/client';
+import { CityStatus } from '../types';
 import { n8nDatabase } from '../config/n8nDatabase';
 
 /**
@@ -178,10 +178,97 @@ export const deleteTask = async (taskId: string) => {
 };
 
 /**
+ * Obtém a data efetiva de implementação (usa data atual se não houver uma definida)
+ * @param implementationStartDate Data de implementação ou null/undefined
+ * @returns Data no formato YYYY-MM
+ */
+const getEffectiveImplementationDate = (implementationStartDate?: string | null): string => {
+  if (implementationStartDate) {
+    return implementationStartDate;
+  }
+  // Usa data atual como início hipotético
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+};
+
+/**
  * Busca receita de recargas por mês e cidade
  * Retorna distribuição mensal de receita de créditos/recargas
+ * Agora funciona mesmo sem data de implementação (usa data atual como hipotética)
  */
 export const getMonthlyRechargeRevenue = async (cityName: string) => {
+  try {
+    // Buscar cidade no banco
+    const city = await prisma.city.findFirst({
+      where: { name: cityName }
+    });
+
+    if (!city) {
+      logger.warn(`Cidade ${cityName} não encontrada. Retornando dados reais de recargas.`);
+      // Fallback: retornar dados reais de recargas do banco
+      return getMonthlyRechargeRevenueFromDatabase(cityName);
+    }
+
+    // Usar data efetiva (real ou hipotética baseada na data atual)
+    const effectiveStartDate = getEffectiveImplementationDate(city.implementationStartDate);
+    
+    if (!city.implementationStartDate) {
+      logger.info(`Cidade ${cityName} sem data de implementação. Usando data atual como hipotética: ${effectiveStartDate}`);
+    }
+
+    // Constantes de cálculo (mesmas do frontend)
+    const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0]; // 6 meses de graduação
+    const targetPenetration = 0.10; // Média = 10%
+    const revenuePerRide = 2.50; // R$ 2.50 por corrida
+
+    // Parse data de implementação efetiva
+    const [impYear, impMonth] = effectiveStartDate.split('-').map(Number);
+    
+    // Gerar receitas projetadas para cada mês (últimos 12 meses + próximos 6 meses)
+    const revenueByMonth: { [key: string]: number } = {};
+    
+    const today = new Date();
+    const startDate = new Date(today.getFullYear() - 1, today.getMonth(), 1);
+    const endDate = new Date(today.getFullYear(), today.getMonth() + 6, 1);
+
+    for (let date = new Date(startDate); date < endDate; date.setMonth(date.getMonth() + 1)) {
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+
+      // Calcular quantos meses se passaram desde a implementação
+      const monthsSinceStart = (year - impYear) * 12 + (month - impMonth) + 1;
+
+      let monthlyGoal = 0;
+
+      if (monthsSinceStart >= 1 && monthsSinceStart <= 6) {
+        // Primeiros 6 meses: usar curva gradual
+        const factor = curveFactors[monthsSinceStart - 1];
+        monthlyGoal = Math.round(city.population15to44 * factor * targetPenetration);
+      } else if (monthsSinceStart > 6) {
+        // Após 6 meses: meta fixa (Média)
+        monthlyGoal = Math.round(city.population15to44 * targetPenetration);
+      }
+      // Se monthsSinceStart < 1, não há meta ainda (deixa 0)
+
+      // Receita projetada = meta do mês * preço por corrida
+      const projectedRevenue = monthlyGoal * revenuePerRide;
+      revenueByMonth[monthKey] = projectedRevenue;
+    }
+
+    logger.info(`Receita projetada calculada para ${cityName}: ${Object.keys(revenueByMonth).length} meses`);
+    return revenueByMonth;
+  } catch (error: any) {
+    logger.error(`Erro ao calcular receita projetada para ${cityName}:`, error.message);
+    // Fallback: retornar dados reais de recargas
+    return getMonthlyRechargeRevenueFromDatabase(cityName);
+  }
+};
+
+/**
+ * Buscar dados reais de recargas do banco (usado como fallback)
+ */
+const getMonthlyRechargeRevenueFromDatabase = async (cityName: string) => {
   try {
     // Criar variações do nome da cidade para buscar
     const cityVariations = [
@@ -215,7 +302,7 @@ export const getMonthlyRechargeRevenue = async (cityName: string) => {
       revenueByMonth[row.month] = parseFloat(row.revenue) || 0;
     });
 
-    logger.info(`Receita de recargas encontrada para ${cityName}: ${result.rows.length} meses`);
+    logger.info(`Receita de recargas (REAL) encontrada para ${cityName}: ${result.rows.length} meses`);
     return revenueByMonth;
   } catch (error: any) {
     logger.error(`Erro ao buscar receita de recargas para ${cityName}:`, error.message);

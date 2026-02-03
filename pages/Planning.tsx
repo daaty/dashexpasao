@@ -104,7 +104,7 @@ const ImplementationProgressBar: React.FC<{ plan: CityPlan, city: City }> = ({ p
 };
 
 const Planning: React.FC = () => {
-  const { cities, plans, marketBlocks } = useContext(DataContext);
+  const { cities, plans, marketBlocks, forceRefresh, isLoading, loadingStatus } = useContext(DataContext);
   const navigate = useNavigate();
 
   const isPlanningComplete = (cityId: number) => {
@@ -296,6 +296,32 @@ const Planning: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-2">
           <h2 className="text-2xl font-bold" style={{ color: '#ffffff' }}>Visão Geral do Planejamento</h2>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => forceRefresh()}
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors"
+            >
+              🔄 Refresh
+            </button>
+            <button 
+              onClick={() => {
+                console.log('🔍 DEBUG - Status atual das cidades:', {
+                  totalCities: cities.length,
+                  planningCount: planningCities.length,
+                  implementingCount: implementingCities.length,
+                  consolidatedCount: consolidatedCities.length,
+                  loadingStatus,
+                  isLoading,
+                  novaMonte: cities.find(c => c.name === 'Nova Monte Verde'),
+                  novaBandeirantes: cities.find(c => c.name === 'Nova Bandeirantes')
+                });
+                forceRefresh();
+              }}
+              className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+            >
+              🔄 Debug & Refresh
+            </button>
+          </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

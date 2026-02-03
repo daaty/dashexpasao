@@ -39,19 +39,87 @@ export const getGrowthRoadmap = (city: City, targetPenetration: number) => {
 };
 
 /**
+ * Gera roadmap de crescimento estendido para 12 meses (usado para cidades consolidadas)
+ * - Meses 1-6: crescimento gradual até 100% da penetração alvo
+ * - Meses 7-12: mantém a meta fixa do mês 6
+ * @param city Cidade
+ * @param targetPenetration Taxa de penetração alvo
+ * @returns Array com 12 meses de metas
+ */
+export const getGrowthRoadmapExtended = (city: City, targetPenetration: number) => {
+    // Curva gradual até mês 6
+    const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0]; 
+    const finalFactor = 1.0; // Meta fixa a partir do mês 7
+    
+    const result = [];
+    for (let i = 0; i < 12; i++) {
+        const factor = i < 6 ? curveFactors[i] : finalFactor;
+        const rate = factor * targetPenetration;
+        result.push({
+            month: i + 1,
+            rides: city.population15to44 * rate
+        });
+    }
+    return result;
+};
+
+/**
+ * Obtém a data efetiva de implementação (usa data atual se não houver uma definida)
+ * @param city Cidade
+ * @returns Data no formato YYYY-MM
+ */
+export const getEffectiveImplementationDate = (city: City): string => {
+    if (city.implementationStartDate) {
+        return city.implementationStartDate;
+    }
+    // Usa data atual como início hipotético
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+};
+
+/**
+ * Calcula projeção de receita para 12 meses independente da data de implementação
+ * Útil para exibir projeções mesmo quando não há data definida
+ * @param city Cidade
+ * @returns Array com projeção de cada mês
+ */
+export const getProjectionWithoutDate = (city: City): { month: number; label: string; rides: number; revenue: number }[] => {
+    const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0];
+    const targetPenetration = PENETRATION_SCENARIOS['Média'];
+    const projections = [];
+    
+    for (let i = 0; i < 12; i++) {
+        const factor = i < 6 ? curveFactors[i] : 1.0;
+        const rides = Math.round(city.population15to44 * factor * targetPenetration);
+        const revenue = rides * PRICE_PER_RIDE;
+        
+        projections.push({
+            month: i + 1,
+            label: `Mês ${i + 1}`,
+            rides,
+            revenue
+        });
+    }
+    
+    return projections;
+};
+
+/**
  * Calcula a meta mensal gradual para uma cidade
  * Usa curva gradual nos primeiros 6 meses e fica fixo na Média depois
+ * Se não houver data de implementação, usa data atual como início hipotético
  * @param city Cidade
  * @param monthDate Data do mês em formato YYYY-MM ou Date object
- * @param implementationStartDate Data de início (YYYY-MM)
+ * @param implementationStartDate Data de início (YYYY-MM) - se null, usa data atual
  * @returns Meta de corridas para aquele mês
  */
 export const getGradualMonthlyGoal = (city: City, monthDate: string | Date, implementationStartDate?: string): number => {
     const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0]; // 6 meses
     const targetPenetration = PENETRATION_SCENARIOS['Média'];
     
-    // Se não há data de implementação, usa apenas a meta fixa (Média)
-    if (!implementationStartDate) {
+    // Se não há data de implementação, usa data atual como início hipotético
+    const effectiveStartDate = implementationStartDate || getEffectiveImplementationDate(city);
+    if (!effectiveStartDate) {
         return Math.round(city.population15to44 * targetPenetration);
     }
     
@@ -60,8 +128,8 @@ export const getGradualMonthlyGoal = (city: City, monthDate: string | Date, impl
         ? `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`
         : monthDate;
     
-    // Parse dates
-    const [impYear, impMonth] = implementationStartDate.split('-').map(Number);
+    // Parse dates - usar effectiveStartDate ao invés de implementationStartDate
+    const [impYear, impMonth] = effectiveStartDate.split('-').map(Number);
     const [curYear, curMonth] = monthStr.split('-').map(Number);
     
     // Calcular diferença em meses (considerando que mês 1 é o mês da implementação)

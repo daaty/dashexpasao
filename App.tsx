@@ -48,10 +48,37 @@ ChartJS.register(
 
 // Wrapper component to handle Loading State inside Context
 const AppContent: React.FC = () => {
-    const { isLoading, loadingStatus, saveCounter } = useContext(DataContext);
+    const { isLoading, loadingStatus, saveCounter, backendConnected, warnings } = useContext(DataContext);
 
     if (isLoading) {
         return <LoadingIndicator status={loadingStatus} />;
+    }
+
+    // Se backend offline, mostrar aviso prominente
+    if (!backendConnected) {
+        return (
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+                <div className="bg-red-900/50 border border-red-500 rounded-xl p-8 max-w-lg text-center">
+                    <div className="text-6xl mb-4">🔌</div>
+                    <h1 className="text-2xl font-bold text-red-400 mb-4">Backend Offline</h1>
+                    <p className="text-gray-300 mb-6">
+                        O sistema não conseguiu conectar ao servidor de dados.
+                        Nenhum dado será exibido até que a conexão seja restabelecida.
+                    </p>
+                    <div className="space-y-2 text-left bg-gray-800/50 rounded-lg p-4 mb-6">
+                        {warnings.map((w, i) => (
+                            <p key={i} className="text-sm text-gray-400">• {w}</p>
+                        ))}
+                    </div>
+                    <button 
+                        onClick={() => window.location.reload()}
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors"
+                    >
+                        🔄 Tentar Reconectar
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     return (

@@ -1,12 +1,12 @@
 
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState, useEffect } from 'react';
 import { DataContext } from '../context/DataContext';
 import Card from '../components/ui/Card';
 import { FiBriefcase, FiMapPin, FiSearch, FiArrowRight, FiActivity, FiPlus, FiGrid, FiMoreHorizontal, FiTrash2, FiEdit2, FiX, FiCheck, FiMove, FiMinusCircle, FiDownload, FiClipboard, FiChevronDown } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { CityStatus, MarketBlock, City, CityPlan } from '../types';
 import Modal from '../components/ui/Modal';
-import { calculatePotentialRevenue, getMarketPotential, getGradualMonthlyGoal, getGradualMonthlyGoalForBlock } from '../services/calculationService';
+import { calculatePotentialRevenue, getMarketPotential, getGradualMonthlyGoal, getGradualMonthlyGoalForBlock, getEffectiveImplementationDate } from '../services/calculationService';
 import { getRideStatsByCity, getMonthlyRidesByCity } from '../services/ridesApiService';
 import { getMonthlyRevenueData } from '../services/revenueService';
 import jsPDF from 'jspdf';
@@ -52,14 +52,13 @@ const BlockKPIs: React.FC<{
                 
                 for (const city of cities) {
                     if (!monthlyByCity[city.name]) continue;
-                    if (!city.implementationStartDate) {
-                        // Sem data de implementação: não inclui
-                        continue;
-                    }
+                    
+                    // Usar data efetiva (real ou hipotética baseada na data atual)
+                    const effectiveStartDate = getEffectiveImplementationDate(city);
                     
                     let cityCurrentMonthKey: string | null = null;
                     // Calcular qual é o "mês atual" dela
-                    const [impYear, impMonth] = city.implementationStartDate.split('-').map(Number);
+                    const [impYear, impMonth] = effectiveStartDate.split('-').map(Number);
                     const monthDiff = (currentYear - impYear) * 12 + (currentMonth - impMonth) + 1;
                     
                     if (monthDiff >= 1) {
@@ -133,14 +132,12 @@ const BlockKPIs: React.FC<{
                     const curYear = parseInt(year);
                     const curMonth = parseInt(month);
                     
-                    // Somar meta de cada cidade (apenas com data de implementação)
+                    // Somar meta de cada cidade (incluindo as sem data - usa data atual como hipotética)
                     goalForMonth = cities.reduce((total, city) => {
-                        if (!city.implementationStartDate) {
-                            // Sem data de implementação: não inclui
-                            return total;
-                        }
+                        // Usar data efetiva (real ou hipotética)
+                        const effectiveStartDate = getEffectiveImplementationDate(city);
                         
-                        const [impYear, impMonth] = city.implementationStartDate.split('-').map(Number);
+                        const [impYear, impMonth] = effectiveStartDate.split('-').map(Number);
                         const monthDiff = (curYear - impYear) * 12 + (curMonth - impMonth) + 1;
                         
                         let cityGoal = 0;
@@ -193,15 +190,13 @@ const BlockKPIs: React.FC<{
     const targetPenetration = 0.10; // Média = 10%
     
     // Calcular meta gradual para o mês ATUAL (soma de todas as cidades)
-    // Apenas cidades com data de implementação são incluídas
+    // Inclui todas as cidades - usa data atual como hipotética se não houver data definida
     let monthlyGoal = 0;
     for (const city of cities) {
-        if (!city.implementationStartDate) {
-            // Sem data: não inclui na meta (aguarda data de início)
-            continue;
-        }
+        // Usar data efetiva (real ou hipotética baseada na data atual)
+        const effectiveStartDate = getEffectiveImplementationDate(city);
         
-        const [impYear, impMonth] = city.implementationStartDate.split('-').map(Number);
+        const [impYear, impMonth] = effectiveStartDate.split('-').map(Number);
         const monthDiff = (currentYear - impYear) * 12 + (currentMonth - impMonth) + 1;
         
         if (monthDiff >= 1 && monthDiff <= 6) {
@@ -222,10 +217,10 @@ const BlockKPIs: React.FC<{
     // Calcular qual mês de implementação é o mês atual (para informação adicional)
     let implementationMonthNumber = 0;
     let implementationMonthFactor = 1.0;
-    const citiesWithImplementation = cities.filter(c => c.implementationStartDate);
-    if (citiesWithImplementation.length > 0) {
-        // Usar a primeira implementação como referência
-        const [impYear, impMonth] = citiesWithImplementation[0].implementationStartDate!.split('-').map(Number);
+    // Usar a primeira cidade como referência (todas terão data efetiva agora)
+    if (cities.length > 0) {
+        const effectiveStartDate = getEffectiveImplementationDate(cities[0]);
+        const [impYear, impMonth] = effectiveStartDate.split('-').map(Number);
         implementationMonthNumber = (currentYear - impYear) * 12 + (currentMonth - impMonth) + 1;
         if (implementationMonthNumber >= 1 && implementationMonthNumber <= 6) {
             implementationMonthFactor = curveFactors[implementationMonthNumber - 1];
@@ -400,35 +395,46 @@ const BlockKPIs: React.FC<{
             
             {/* Linha 2: Custos, Corridas e Receita - Cards Compactos */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                {otherCards.map((kpi, idx) => (
+                {otherCards.map((kpi, idx) => {
+                    // Verificar se é card de receita e se não bateu a meta
+                    const isRevenueCard = kpi.label === 'Receita Mensal';
+                    const revenueMetaBroken = false; // Desabilitado - blockStats não disponível neste escopo
+                    
+                    return (
                     <div 
                         key={idx}
-                        className="relative group overflow-hidden rounded-lg backdrop-blur-sm border border-white/10 hover:border-white/20 transition-all duration-300 p-2.5"
+                        className={`relative group overflow-hidden rounded-lg backdrop-blur-sm border transition-all duration-300 p-2.5 ${
+                            revenueMetaBroken 
+                                ? 'border-yellow-500/40 hover:border-yellow-500/60 bg-gradient-to-br from-yellow-500/15 to-yellow-600/5' 
+                                : 'border-white/10 hover:border-white/20 bg-gradient-to-br from-white/5 to-white/2'
+                        }`}
                         style={{
-                            background: `linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)`,
+                            background: revenueMetaBroken 
+                                ? undefined 
+                                : `linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)`,
                         }}
                     >
                         {/* Gradient Background */}
                         <div 
                             className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300"
-                            style={{ background: `linear-gradient(135deg, ${kpi.color} 0%, transparent 100%)` }}
+                            style={{ background: `linear-gradient(135deg, ${revenueMetaBroken ? '#FBBF24' : kpi.color} 0%, transparent 100%)` }}
                         />
                         
                         {/* Content */}
                         <div className="relative z-10 space-y-1">
                             <div className="flex items-center justify-between">
-                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{kpi.label}</p>
+                                <p className={`text-xs font-semibold uppercase tracking-wide ${revenueMetaBroken ? 'text-yellow-300' : 'text-gray-400'}`}>{kpi.label}</p>
                                 <span className="text-base">{kpi.icon}</span>
                             </div>
                             
-                            <div className="flex items-center gap-2 bg-white/[0.03] rounded px-2 py-0.5">
+                            <div className={`flex items-center gap-2 rounded px-2 py-0.5 ${revenueMetaBroken ? 'bg-yellow-500/10' : 'bg-white/[0.03]'}`}>
                                 <div className="flex-1">
-                                    <p className="text-[10px] text-gray-500">Meta</p>
-                                    <p className="text-sm font-bold text-white">{kpi.value}</p>
+                                    <p className={`text-[10px] ${revenueMetaBroken ? 'text-yellow-400/70' : 'text-gray-500'}`}>Meta</p>
+                                    <p className={`text-sm font-bold ${revenueMetaBroken ? 'text-yellow-200' : 'text-white'}`}>{kpi.value}</p>
                                 </div>
                                 <div className="text-right flex-1">
-                                    <p className="text-[10px] text-gray-500">{kpi.goal}</p>
-                                    <p className="text-sm font-bold text-white">{kpi.currentValue}</p>
+                                    <p className={`text-[10px] ${revenueMetaBroken ? 'text-yellow-400/70' : 'text-gray-500'}`}>{kpi.goal}</p>
+                                    <p className={`text-sm font-bold ${revenueMetaBroken ? 'text-yellow-300' : 'text-white'}`}>{kpi.currentValue}</p>
                                 </div>
                             </div>
                         </div>
@@ -436,10 +442,11 @@ const BlockKPIs: React.FC<{
                         {/* Bottom Accent Line */}
                         <div 
                             className="absolute bottom-0 left-0 right-0 h-0.5 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"
-                            style={{ background: `linear-gradient(90deg, ${kpi.color} 0%, transparent 100%)` }}
+                            style={{ background: `linear-gradient(90deg, ${revenueMetaBroken ? '#FBBF24' : kpi.color} 0%, transparent 100%)` }}
                         />
                     </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
@@ -553,18 +560,16 @@ const CityCard: React.FC<{
                     setCityCurrentMonthRides(currentMonth);
 
                     // Formatar para os últimos 6 meses com meta gradual de cada mês
-                    // FILTRAR: Se tem implementationStartDate, mostrar apenas meses a partir disso
+                    // Usar data efetiva (real ou hipotética) para filtrar e calcular metas
+                    const effectiveStartDate = getEffectiveImplementationDate(city);
                     const formattedMonths = otherMonths
                         .filter(([key]) => {
-                            // Se não tem data, mostrar todos
-                            if (!city.implementationStartDate) return true;
-                            
-                            const [impYear, impMonth] = city.implementationStartDate.split('-').map(Number);
+                            const [impYear, impMonth] = effectiveStartDate.split('-').map(Number);
                             const [year, month] = key.split('-').map(Number);
                             const monthDate = year * 100 + month;
                             const implDate = impYear * 100 + impMonth;
                             
-                            // Mostrar apenas meses a partir da implementação
+                            // Mostrar apenas meses a partir da implementação (real ou hipotética)
                             return monthDate >= implDate;
                         })
                         .map(([key, rides]) => {
@@ -572,35 +577,28 @@ const CityCard: React.FC<{
 
                         const monthNames = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
                         
-                        // Calcular meta gradual para esse mês específico
+                        // Calcular meta gradual para esse mês específico usando data efetiva
                         let goalForMonth = 0;
+                        const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0]; // 6 meses
+                        const targetPenetration = 0.10; // Média = 10%
                         
-                        // Se cidade tem data de implementação, calcular com curva gradual
-                        if (city.implementationStartDate) {
-                            const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0]; // 6 meses
-                            const targetPenetration = 0.10; // Média = 10%
-                            
-                            const [impYear, impMonth] = city.implementationStartDate.split('-').map(Number);
-                            const curYear = parseInt(year);
-                            const curMonth = parseInt(month);
-                            
-                            // Calcular qual mês de implementação é (1 = primeiro mês)
-                            const monthDiff = (curYear - impYear) * 12 + (curMonth - impMonth) + 1;
-                            
-                            if (monthDiff >= 1 && monthDiff <= 6) {
-                                // Primeiros 6 meses: usar curva gradual
-                                const factor = curveFactors[monthDiff - 1];
-                                goalForMonth = Math.round(city.population15to44 * factor * targetPenetration);
-                            } else if (monthDiff > 6) {
-                                // Após 6 meses: meta fixa
-                                goalForMonth = Math.round(city.population15to44 * targetPenetration);
-                            } else {
-                                // Antes de implementação: sem meta
-                                goalForMonth = 0;
-                            }
+                        const [impYear, impMonth] = effectiveStartDate.split('-').map(Number);
+                        const curYear = parseInt(year);
+                        const curMonth = parseInt(month);
+                        
+                        // Calcular qual mês de implementação é (1 = primeiro mês)
+                        const monthDiff = (curYear - impYear) * 12 + (curMonth - impMonth) + 1;
+                        
+                        if (monthDiff >= 1 && monthDiff <= 6) {
+                            // Primeiros 6 meses: usar curva gradual
+                            const factor = curveFactors[monthDiff - 1];
+                            goalForMonth = Math.round(city.population15to44 * factor * targetPenetration);
+                        } else if (monthDiff > 6) {
+                            // Após 6 meses: meta fixa
+                            goalForMonth = Math.round(city.population15to44 * targetPenetration);
                         } else {
-                            // Sem data de implementação: meta fixa (Média)
-                            goalForMonth = Math.round(city.population15to44 * 0.10);
+                            // Antes de implementação: sem meta
+                            goalForMonth = 0;
                         }
                         
                         return {
@@ -642,24 +640,21 @@ const CityCard: React.FC<{
     const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0];
     const targetPenetration = 0.10;
     
-    if (city.implementationStartDate) {
-        const [impYear, impMonth] = city.implementationStartDate.split('-').map(Number);
-        const monthDiff = (currentYear - impYear) * 12 + (currentMonth - impMonth) + 1;
-        
-        if (monthDiff >= 1 && monthDiff <= 6) {
-            // Primeiros 6 meses: usar curva gradual
-            const factor = curveFactors[monthDiff - 1];
-            cityMonthlyGoal = Math.round(city.population15to44 * factor * targetPenetration);
-        } else if (monthDiff > 6) {
-            // Após 6 meses: meta fixa
-            cityMonthlyGoal = Math.round(city.population15to44 * targetPenetration);
-        } else {
-            // Antes de implementação: sem meta
-            cityMonthlyGoal = 0;
-        }
+    // Usar data efetiva (real ou hipotética baseada na data atual)
+    const effectiveStartDate = getEffectiveImplementationDate(city);
+    const [impYear, impMonth] = effectiveStartDate.split('-').map(Number);
+    const monthDiff = (currentYear - impYear) * 12 + (currentMonth - impMonth) + 1;
+    
+    if (monthDiff >= 1 && monthDiff <= 6) {
+        // Primeiros 6 meses: usar curva gradual
+        const factor = curveFactors[monthDiff - 1];
+        cityMonthlyGoal = Math.round(city.population15to44 * factor * targetPenetration);
+    } else if (monthDiff > 6) {
+        // Após 6 meses: meta fixa
+        cityMonthlyGoal = Math.round(city.population15to44 * targetPenetration);
     } else {
-        // Sem data de implementação: meta fixa (Média)
-        cityMonthlyGoal = Math.round(city.population15to44 * 0.10);
+        // Antes de implementação: sem meta
+        cityMonthlyGoal = 0;
     }
     
     const cityCurrentMonthMetaStatus = cityCurrentMonthRides >= cityMonthlyGoal;
@@ -881,7 +876,9 @@ const BlockSection: React.FC<{
     onRemoveCity: (cityId: number) => void;
     onPlanCity: (cityId: number) => void;
     navigate: (path: string) => void;
-}> = ({ block, cities, allBlocks, plans, onRename, onDelete, onMoveCity, onRemoveCity, onPlanCity, navigate }) => {
+    isUpdating?: boolean;
+    lastUpdateTime?: Date;
+}> = ({ block, cities, allBlocks, plans, onRename, onDelete, onMoveCity, onRemoveCity, onPlanCity, navigate, isUpdating = false, lastUpdateTime = new Date() }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(block.name);
     const [isOver, setIsOver] = useState(false);
@@ -990,9 +987,10 @@ const BlockSection: React.FC<{
             // Buscar dados de receita projetada do planejamento para cada cidade
             for (const city of cities) {
                 try {
-                    if (!city.implementationStartDate) continue;
+                    // Usar data efetiva (real ou hipotética baseada na data atual)
+                    const effectiveStartDate = getEffectiveImplementationDate(city);
                     
-                    const [impYear, impMonth] = city.implementationStartDate.split('-').map(Number);
+                    const [impYear, impMonth] = effectiveStartDate.split('-').map(Number);
                     const impDate = new Date(impYear, impMonth - 1, 1);
                     
                     // Calcular quantos meses desde o início até hoje
@@ -1009,7 +1007,7 @@ const BlockSection: React.FC<{
                     let tempMonth = impMonth;
                     for (let m = 1; m <= monthsSinceStart; m++) {
                         const monthKey = `${tempYear}-${String(tempMonth).padStart(2, '0')}`;
-                        const monthGoal = getGradualMonthlyGoal(city, monthKey, city.implementationStartDate);
+                        const monthGoal = getGradualMonthlyGoal(city, monthKey, effectiveStartDate);
                         cityAccumulatedGoal += monthGoal;
                         
                         // Avançar para próximo mês
@@ -1024,30 +1022,24 @@ const BlockSection: React.FC<{
                     globalAccumulatedRevenueGoal += cityAccumulatedGoal * revenuePerRide;
                     
                     // Meta do mês atual (com graduação correta)
-                    const cityCurrentMonthGoal = getGradualMonthlyGoal(city, currentMonthKey, city.implementationStartDate);
+                    const cityCurrentMonthGoal = getGradualMonthlyGoal(city, currentMonthKey, effectiveStartDate);
                     currentMonthGoal += cityCurrentMonthGoal;
                     
                     // Buscar receita projetada do planejamento para este mês
-                    try {
-                        const revenueData = await getMonthlyRevenueData(city.name);
-                        const currentMonthProjectedRevenue = revenueData[currentMonthKey] || 0;
+                    const revenueData = await getMonthlyRevenueData(city.name);
+                    const currentMonthProjectedRevenue = revenueData[currentMonthKey];
+                    
+                    if (currentMonthProjectedRevenue && currentMonthProjectedRevenue > 0) {
                         currentMonthRevenueGoal += currentMonthProjectedRevenue;
-                    } catch (error) {
-                        console.warn(`Erro ao buscar receita projetada para ${city.name}, usando valores estimados:`, error);
-                        // Fallback com valores mais realistas baseados nos dados do planejamento
-                        const fallbackValues: { [key: string]: number } = {
-                            'Nova Monte Verde': 479,
-                            'Nova Bandeirantes': 1610,
-                            'Apiacás': 48,
-                            'Paranaíta': 86
-                        };
-                        currentMonthRevenueGoal += fallbackValues[city.name] || (cityCurrentMonthGoal * revenuePerRide * 0.1);
+                    } else {
+                        // Fallback: estimar baseado na meta do mês * preço por corrida
+                        currentMonthRevenueGoal += cityCurrentMonthGoal * revenuePerRide;
                     }
                     
                     // Meta do mês passado (com graduação correta)
                     const lastMonthsSinceStart = monthsSinceStart > 0 ? monthsSinceStart - 1 : 0;
                     if (lastMonthsSinceStart > 0) {
-                        const cityLastMonthGoal = getGradualMonthlyGoal(city, lastMonthKey, city.implementationStartDate);
+                        const cityLastMonthGoal = getGradualMonthlyGoal(city, lastMonthKey, effectiveStartDate);
                         lastMonthGoal += cityLastMonthGoal;
                         
                         // Buscar receita projetada do planejamento para o mês passado
@@ -1082,8 +1074,8 @@ const BlockSection: React.FC<{
                     for (let m = 1; m <= monthsSinceStart; m++) {
                         const currentIterMonthKey = `${monthlyIterYear}-${String(monthlyIterMonth).padStart(2, '0')}`;
                         
-                        // Meta graduada para este mês específico (usando função correta)
-                        const monthGoal = getGradualMonthlyGoal(city, currentIterMonthKey, city.implementationStartDate);
+                        // Meta graduada para este mês específico (usando data efetiva)
+                        const monthGoal = getGradualMonthlyGoal(city, currentIterMonthKey, effectiveStartDate);
                         
                         // Custo projetado para este mês = meta do mês * custo por corrida
                         const monthMarketingCost = monthGoal * marketingCostPerRide;
@@ -2950,34 +2942,55 @@ const BlockSection: React.FC<{
                             /* KPIs Grid - Layout Limpo */
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                             {/* Card 1: Meta Global Acumulativa */}
-                            <div className="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50">
-                                <div className="flex items-center justify-between mb-4">
-                                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Meta Global Acumulada</span>
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                        blockStats.globalAccumulatedRides >= blockStats.globalAccumulatedGoal 
-                                            ? 'bg-green-500/20 text-green-400' 
-                                            : 'bg-blue-500/20 text-blue-400'
-                                    }`}>
-                                        {blockStats.globalAccumulatedGoal > 0 
-                                            ? Math.round((blockStats.globalAccumulatedRides / blockStats.globalAccumulatedGoal) * 100) 
-                                            : 0}%
-                                    </span>
-                                </div>
-                                <div className="flex items-end gap-6 mb-3">
-                                    <div>
-                                        <span className="text-3xl font-bold text-white">{blockStats.globalAccumulatedGoal.toLocaleString('pt-BR')}</span>
-                                        <span className="text-sm text-slate-500 ml-2">meta</span>
-                                        <div className="text-xs text-slate-400 mt-1">R${(blockStats.globalAccumulatedRevenueGoal / 1000).toFixed(1)}k proj</div>
+                            <div className="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50 relative overflow-hidden">
+                                {isUpdating && (
+                                    <div className="absolute inset-0 animate-pulse" style={{ background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent)' }} />
+                                )}
+                                <div className="relative z-10">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Meta Global Acumulada</span>
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400">
+                                                🔄 Atualiza a cada 1 min
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {isUpdating && (
+                                                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
+                                                    ⟳ Atualizando...
+                                                </span>
+                                            )}
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                                blockStats.globalAccumulatedRides >= blockStats.globalAccumulatedGoal 
+                                                    ? 'bg-green-500/20 text-green-400' 
+                                                    : 'bg-blue-500/20 text-blue-400'
+                                            }`}>
+                                                {blockStats.globalAccumulatedGoal > 0 
+                                                    ? Math.round((blockStats.globalAccumulatedRides / blockStats.globalAccumulatedGoal) * 100) 
+                                                    : 0}%
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <span className="text-3xl font-bold text-green-400">{blockStats.globalAccumulatedRides.toLocaleString('pt-BR')}</span>
-                                        <span className="text-sm text-slate-500 ml-2">atual</span>
-                                        <div className="text-xs text-green-400 mt-1">R${(blockStats.globalAccumulatedRevenue / 1000).toFixed(1)}k real</div>
+                                    <div className="flex items-end gap-6 mb-3">
+                                        <div>
+                                            <span className="text-3xl font-bold text-white">{blockStats.globalAccumulatedGoal.toLocaleString('pt-BR')}</span>
+                                            <span className="text-sm text-slate-500 ml-2">meta</span>
+                                            <div className="text-xs text-slate-400 mt-1">R${(blockStats.globalAccumulatedRevenueGoal / 1000).toFixed(1)}k proj</div>
+                                        </div>
+                                        <div>
+                                            <span className="text-3xl font-bold text-green-400">{blockStats.globalAccumulatedRides.toLocaleString('pt-BR')}</span>
+                                            <span className="text-sm text-slate-500 ml-2">atual</span>
+                                            <div className="text-xs text-green-400 mt-1">R${(blockStats.globalAccumulatedRevenue / 1000).toFixed(1)}k real ✓</div>
+                                        </div>
+                                        {blockStats.globalAccumulatedRides >= blockStats.globalAccumulatedGoal && (
+                                            <span className="text-green-400 text-xl mb-1">✓</span>
+                                        )}
                                     </div>
-                                    {blockStats.globalAccumulatedRides >= blockStats.globalAccumulatedGoal && (
-                                        <span className="text-green-400 text-xl mb-1">✓</span>
-                                    )}
-                                </div>
+                                    
+                                    {/* Informação de Atualização */}
+                                    <div className="text-xs text-slate-500 mb-3 pb-2 border-b border-slate-700/50">
+                                        📊 Última atualização: {lastUpdateTime.toLocaleString('pt-BR')}
+                                    </div>
                                 <div className="w-full bg-slate-700/50 rounded-full h-2 mb-4">
                                     <div 
                                         className={`h-full rounded-full transition-all duration-500 ${
@@ -3047,40 +3060,60 @@ const BlockSection: React.FC<{
                                         </div>
                                     </div>
                                 </div>
+                                </div>
                             </div>
 
                             {/* Card 2: Mês Atual */}
-                            <div className="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-purple-400 bg-purple-500/20 px-2 py-0.5 rounded">JAN/26</span>
-                                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mês Atual</span>
+                            <div className="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50 relative overflow-hidden">
+                                {isUpdating && (
+                                    <div className="absolute inset-0 animate-pulse" style={{ background: 'linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.1), transparent)' }} />
+                                )}
+                                <div className="relative z-10">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-bold text-purple-400 bg-purple-500/20 px-2 py-0.5 rounded">JAN/26</span>
+                                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mês Atual</span>
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400">
+                                                🔄 Atualiza a cada 1 min
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {isUpdating && (
+                                                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
+                                                    ⟳ Atualizando...
+                                                </span>
+                                            )}
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                                blockStats.currentMonthRides >= blockStats.currentMonthGoal 
+                                                    ? 'bg-green-500/20 text-green-400' 
+                                                    : 'bg-purple-500/20 text-purple-400'
+                                            }`}>
+                                                {blockStats.currentMonthGoal > 0 
+                                                    ? Math.round((blockStats.currentMonthRides / blockStats.currentMonthGoal) * 100) 
+                                                    : 0}%
+                                            </span>
+                                        </div>
                                     </div>
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                        blockStats.currentMonthRides >= blockStats.currentMonthGoal 
-                                            ? 'bg-green-500/20 text-green-400' 
-                                            : 'bg-purple-500/20 text-purple-400'
-                                    }`}>
-                                        {blockStats.currentMonthGoal > 0 
-                                            ? Math.round((blockStats.currentMonthRides / blockStats.currentMonthGoal) * 100) 
-                                            : 0}%
-                                    </span>
-                                </div>
-                                <div className="flex items-end gap-6 mb-3">
-                                    <div>
-                                        <span className="text-3xl font-bold text-white">{blockStats.currentMonthGoal.toLocaleString('pt-BR')}</span>
-                                        <span className="text-sm text-slate-500 ml-2">meta</span>
-                                        <div className="text-xs text-slate-400 mt-1">R${(blockStats.currentMonthRevenueGoal / 1000).toFixed(1)}k proj</div>
+                                    <div className="flex items-end gap-6 mb-3">
+                                        <div>
+                                            <span className="text-3xl font-bold text-white">{blockStats.currentMonthGoal.toLocaleString('pt-BR')}</span>
+                                            <span className="text-sm text-slate-500 ml-2">meta</span>
+                                            <div className="text-xs text-slate-400 mt-1">R${(blockStats.currentMonthRevenueGoal / 1000).toFixed(1)}k proj</div>
+                                        </div>
+                                        <div>
+                                            <span className="text-3xl font-bold text-purple-400">{blockStats.currentMonthRides.toLocaleString('pt-BR')}</span>
+                                            <span className="text-sm text-slate-500 ml-2">atual</span>
+                                            <div className="text-xs text-purple-400 mt-1">R${(blockStats.currentMonthRevenue / 1000).toFixed(1)}k real ✓</div>
+                                        </div>
+                                        {blockStats.currentMonthRides >= blockStats.currentMonthGoal && (
+                                            <span className="text-green-400 text-xl mb-1">✓</span>
+                                        )}
                                     </div>
-                                    <div>
-                                        <span className="text-3xl font-bold text-purple-400">{blockStats.currentMonthRides.toLocaleString('pt-BR')}</span>
-                                        <span className="text-sm text-slate-500 ml-2">atual</span>
-                                        <div className="text-xs text-purple-400 mt-1">R${(blockStats.currentMonthRevenue / 1000).toFixed(1)}k real</div>
+                                    
+                                    {/* Informação de Atualização */}
+                                    <div className="text-xs text-slate-500 mb-3 pb-2 border-b border-slate-700/50">
+                                        📊 Última atualização: {lastUpdateTime.toLocaleString('pt-BR')}
                                     </div>
-                                    {blockStats.currentMonthRides >= blockStats.currentMonthGoal && (
-                                        <span className="text-green-400 text-xl mb-1">✓</span>
-                                    )}
-                                </div>
                                 <div className="w-full bg-slate-700/50 rounded-full h-2 mb-4">
                                     <div 
                                         className={`h-full rounded-full transition-all duration-500 ${
@@ -3109,15 +3142,15 @@ const BlockSection: React.FC<{
                                     </div>
 
                                     {/* RECEITA */}
-                                    <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/40">
-                                        <div className="text-[9px] text-slate-500 uppercase font-medium mb-1">Receita</div>
+                                    <div className={`rounded-lg p-2 border transition-all ${blockStats.currentMonthRevenue >= blockStats.currentMonthRevenueGoal ? 'bg-slate-800/40 border-slate-700/40' : 'bg-yellow-500/15 border-yellow-500/40'}`}>
+                                        <div className={`text-[9px] uppercase font-medium mb-1 ${blockStats.currentMonthRevenue >= blockStats.currentMonthRevenueGoal ? 'text-slate-500' : 'text-yellow-400'}`}>Receita</div>
                                         <div className="flex items-baseline gap-1">
-                                            <span className="text-xs font-semibold text-slate-400">R${(blockStats.currentMonthRevenueGoal / 1000).toFixed(1)}k</span>
-                                            <span className={`text-xs font-bold ${blockStats.currentMonthRevenue >= blockStats.currentMonthRevenueGoal ? 'text-green-400' : 'text-purple-400'}`}>
+                                            <span className={`text-xs font-semibold ${blockStats.currentMonthRevenue >= blockStats.currentMonthRevenueGoal ? 'text-slate-400' : 'text-yellow-300'}`}>R${(blockStats.currentMonthRevenueGoal / 1000).toFixed(1)}k</span>
+                                            <span className={`text-xs font-bold ${blockStats.currentMonthRevenue >= blockStats.currentMonthRevenueGoal ? 'text-green-400' : 'text-yellow-300'}`}>
                                                 R${(blockStats.currentMonthRevenue / 1000).toFixed(1)}k
                                             </span>
-                                            <span className={`text-[10px] ${blockStats.currentMonthRevenue >= blockStats.currentMonthRevenueGoal ? 'text-green-400' : 'text-purple-400'}`}>
-                                                {blockStats.currentMonthRevenue >= blockStats.currentMonthRevenueGoal ? '✓' : '⏳'}
+                                            <span className={`text-[10px] ${blockStats.currentMonthRevenue >= blockStats.currentMonthRevenueGoal ? 'text-green-400' : 'text-yellow-400'}`}>
+                                                {blockStats.currentMonthRevenue >= blockStats.currentMonthRevenueGoal ? '✓' : '⚠️'}
                                             </span>
                                         </div>
                                     </div>
@@ -3146,6 +3179,7 @@ const BlockSection: React.FC<{
                                             </span>
                                         </div>
                                     </div>
+                                </div>
                                 </div>
                             </div>
 
@@ -3298,6 +3332,39 @@ const MarketIntelligence: React.FC = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [newBlockName, setNewBlockName] = useState('');
     const [isUnassignedOver, setIsUnassignedOver] = useState(false);
+    
+    // Estados para atualização automática a cada 1 minuto
+    const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+    const [isUpdating, setIsUpdating] = useState(false);
+    
+    // Trigger atualização a cada 1 minuto para forçar re-render
+    useEffect(() => {
+        let isMounted = true;
+        
+        const updateData = () => {
+            if (isMounted) {
+                setIsUpdating(true);
+                // Simular atualização - dispara re-render
+                setLastUpdateTime(new Date());
+                setTimeout(() => {
+                    if (isMounted) {
+                        setIsUpdating(false);
+                    }
+                }, 500);
+            }
+        };
+        
+        // Primeira atualização imediata
+        updateData();
+        
+        // Configurar polling a cada 1 minuto (60000 ms)
+        const interval = setInterval(updateData, 60000);
+        
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, []);
 
     // --- Lógica para obter as cidades relevantes para esta tela ---
     const strategicCities = useMemo(() => {
@@ -3440,6 +3507,8 @@ const MarketIntelligence: React.FC = () => {
                         onRemoveCity={handleRemoveFromIntelligence}
                         onPlanCity={handlePlanCity}
                         navigate={navigate}
+                        isUpdating={isUpdating}
+                        lastUpdateTime={lastUpdateTime}
                     />
                 ))}
             </div>

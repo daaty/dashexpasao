@@ -178,7 +178,7 @@ async function fetchIndicadoresIBGE(cityIds: string[]): Promise<Map<string, any>
 /**
  * Busca dados do Censo 2022 (população por faixa etária e sexo)
  */
-async function fetchCenso2022(cityIds: string[]): Promise<Map<string, any>> {
+async function fetchCenso2022(_cityIds: string[]): Promise<Map<string, any>> {
   console.log('👥 Buscando dados do Censo 2022...');
   const censoData = new Map<string, any>();
 
@@ -294,11 +294,13 @@ async function main() {
 
     // 2. Buscar dados complementares
     console.log('\n📋 Buscando dados complementares...');
-    const [aniversarios, indicadores, censo2022] = await Promise.all([
+    const [aniversarios, indicadores, _censo2022] = await Promise.all([
       fetchAniversarios(),
       fetchIndicadoresIBGE(cityIds),
       fetchCenso2022(cityIds)
     ]);
+    // Nota: _censo2022 está disponível para uso futuro mas atualmente apenas indicadores são usados
+    void _censo2022;
 
     // 3. Processar e atualizar cada cidade
     console.log('\n🏙️ Processando e atualizando dados das cidades...');
@@ -310,7 +312,8 @@ async function main() {
       try {
         const cityId = municipio.id.toString();
         const indicadoresCity = indicadores.get(cityId);
-        const censo2022City = censo2022.get(cityId);
+        // Nota: censo2022 está disponível para uso futuro mas não é usado atualmente
+        // const censo2022City = censo2022.get(cityId);
 
         // Preparar dados base
         const cityData: CityUpdateData = {

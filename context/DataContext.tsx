@@ -1,7 +1,8 @@
 
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { City, CityPlan, CityStatus, PlanningPhase, PlanningAction, PhaseTemplate, Tag, Responsible, CityMarketData, MarketBlock, MonthResult } from '../types';
-import { internalCitiesData } from '../services/internalData';
+// REMOVIDO: Fallback local desativado - backend é fonte única da verdade
+// import { internalCitiesData } from '../services/internalData';
 import { fetchSingleCityUpdate, fetchInitialData } from '../services/ibgeService';
 import { fetchAllCities, updateCityStatus as updateCityStatusBackend, upsertCity } from '../services/cityApiService';
 import * as planningApi from '../services/planningApiService';
@@ -18,11 +19,13 @@ interface DataContextType {
   loadingStatus: string;
   isUpdating: number | null;
   warnings: string[];
+  backendConnected: boolean;
   phaseTemplates: PhaseTemplate[];
   tags: Tag[];
   responsibles: Responsible[];
   marketBlocks: MarketBlock[];
   saveCounter: number;
+  forceRefresh: () => void;
   updateCity: (cityId: number) => Promise<void>;
   addPlanForCity: (cityId: number) => void;
   deletePlan: (cityId: number) => void;
@@ -81,11 +84,13 @@ export const DataContext = createContext<DataContextType>({
   loadingStatus: '',
   isUpdating: null,
   warnings: [],
+  backendConnected: false,
   phaseTemplates: [],
   tags: [],
   responsibles: [],
   marketBlocks: [],
   saveCounter: 0,
+  forceRefresh: () => {},
   updateCity: async () => {},
   addPlanForCity: () => {},
   deletePlan: () => {},
@@ -153,6 +158,8 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [saveCounter, setSaveCounter] = useState(0);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const [forceRefreshKey, setForceRefreshKey] = useState(0);
+  const [backendConnected, setBackendConnected] = useState(false); // Estado de conexão com backend
 
   // 1. Dados carregam do PostgreSQL (useEffect abaixo)
   // NÃO USAR localStorage - dados APENAS do banco de dados
@@ -200,7 +207,8 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
         
         try {
-            // SEMPRE buscar do PostgreSQL - fonte única da verdade
+            // SEMPRE buscar do PostgreSQL - fonte ÚNICA da verdade
+            // SEM FALLBACK - se backend estiver offline, mostrar nada
             setLoadingStatus('Carregando cidades do banco de dados...');
             const { cities: backendCities } = await fetchAllCities({ limit: 1000 });
             
@@ -209,64 +217,18 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             
             if (backendCities && backendCities.length > 0) {
                 console.log('✅ Cidades carregadas do backend:', backendCities.length);
+                setBackendConnected(true);
                 
-                // Criar mapa de cidades do backend
-                const backendMap = new Map(backendCities.map(c => [c.id, c]));
-                
-                // Identificar cidades do internalData que NÃO estão no backend
-                const missingCities = internalCitiesData.filter(c => !backendMap.has(c.id));
-                if (missingCities.length > 0) {
-                    console.log(`🔄 ${missingCities.length} cidades faltando no PostgreSQL - populando...`);
-                    // Popular assíncronamente (não bloquear UI)
-                    missingCities.forEach(async (city) => {
-                        try {
-                            await upsertCity(city);
-                            console.log(`✅ Cidade ${city.name} populada no PostgreSQL`);
-                        } catch (err) {
-                            console.error(`❌ Erro ao popular ${city.name}:`, err);
-                        }
-                    });
-                }
-                
-                // Usar TODAS as cidades (backend + internalData temporariamente até popular)
-                const allCityIds = new Set([
-                    ...backendCities.map(c => c.id),
-                    ...internalCitiesData.map(c => c.id)
-                ]);
-                
-                const mergedCities: City[] = [];
-                allCityIds.forEach(cityId => {
-                    const backendCity = backendMap.get(cityId);
-                    const internalCity = internalCitiesData.find(c => c.id === cityId);
-                    
-                    if (backendCity) {
-                        // Backend TEM PRIORIDADE ABSOLUTA - é a fonte da verdade
-                        mergedCities.push(backendCity);
-                    } else if (internalCity) {
-                        // Fallback temporário até ser populado no PostgreSQL
-                        mergedCities.push(internalCity);
-                    }
-                });
-                
-                console.log('📊 Total de cidades após merge:', mergedCities.length);
-                citiesToUse = mergedCities;
-                setCities(mergedCities);
-                // NÃO salvar no localStorage - backend é a fonte da verdade
+                // Usar APENAS dados do backend - SEM MERGE com internalData
+                citiesToUse = backendCities;
+                setCities(backendCities);
+                // NÃO salvar no localStorage - backend é a fonte única da verdade
             } else {
-                // Se não há cidades no backend, usar dados internos para popular
-                setLoadingStatus('Populando banco de dados...');
-                console.warn('⚠️ Backend sem dados, populando com dados internos...');
-                // Popular banco de dados com dados internos
-                for (const city of internalCitiesData) {
-                    try {
-                        await upsertCity(city);
-                    } catch (err) {
-                        console.error(`❌ Erro ao popular ${city.name}:`, err);
-                    }
-                }
-                // Usar dados internos temporáriamente
-                citiesToUse = internalCitiesData;
-                setCities(internalCitiesData);
+                // Backend conectado mas sem dados - mostrar vazio
+                console.warn('⚠️ Backend conectado mas sem dados de cidades');
+                setBackendConnected(true);
+                citiesToUse = [];
+                setCities([]);
             }
             
             // Buscar planejamentos do backend
@@ -318,7 +280,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                     return {
                         id: plan.id, // Armazenar ID do backend para permitir deletar
                         cityId: plan.cityId,
-                        startDate: startDateResult || (plan.startDate ? String(plan.startDate).slice(0, 7) : new Date().toISOString().slice(0, 7)),
+                        startDate: startDateResult || (plan.startDate ? String(plan.startDate).slice(0, 7) : ''),
                         phases: phasesToUse,
                         results: resultsToUse,
                         realMonthlyCosts: realMonthlyCostsFromBackend
@@ -329,12 +291,15 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 setPlans(convertedPlans);
                 
                 // Sincronizar status das cidades com planejamentos existentes
+                // NOTA: NÃO forçar status para PLANNING se a cidade já está CONSOLIDADA ou EM EXPANSÃO
+                // Cidades consolidadas podem ter planejamentos históricos
                 const cityIdsWithPlan = new Set(convertedPlans.map(p => p.cityId));
                 
-                // Atualizar status no backend para todas as cidades com planejamento
+                // Atualizar status no backend APENAS para cidades que estão "Não atendida"
                 for (const cityId of cityIdsWithPlan) {
                     const city = citiesToUse.find(c => c.id === cityId);
-                    if (city && city.status !== CityStatus.Planning) {
+                    // Apenas atualizar se a cidade está como "Não atendida" - preservar outros status
+                    if (city && city.status === CityStatus.NotServed) {
                         try {
                             await updateCityStatusBackend(cityId, CityStatus.Planning);
                             console.log(`✅ Status de ${city.name} atualizado para PLANNING no banco`);
@@ -375,19 +340,33 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             
         } catch (e) {
             console.error("❌ Erro ao carregar do backend:", e);
-            setLoadingStatus('Erro na conexão com o banco de dados');
+            setLoadingStatus('❌ Backend offline - sem dados disponíveis');
             
-            // NÃO usar fallback para localStorage - exibir erro
-            // O usuário deve saber que há um problema de conexão
+            // Backend offline - NÃO usar fallback - mostrar NADA
+            // O usuário deve saber que o sistema depende do backend
+            setBackendConnected(false);
             setCities([]);
             setPlans([]);
-            setWarnings(["❌ Erro de conexão com PostgreSQL", "Verifique a conexão com o banco de dados", "Dados não carregados"]);
+            setMarketBlocks([]);
+            setMarketData([]);
+            setWarnings([
+                "❌ BACKEND OFFLINE", 
+                "O sistema requer conexão com o servidor", 
+                "Verifique se o backend está rodando",
+                "Nenhum dado será exibido até reconectar"
+            ]);
         } finally {
             setIsLoading(false);
         }
     };
     initData();
-  }, []);
+  }, [forceRefreshKey]);
+
+  // Função para forçar refresh completo dos dados
+  const forceRefresh = () => {
+    console.log('🔄 Forçando refresh completo dos dados...');
+    setForceRefreshKey(prev => prev + 1);
+  };
 
   // Debug removido - sistema estável
 
@@ -496,7 +475,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 return {
                     id: p.id,
                     cityId: p.cityId,
-                    startDate: p.startDate ? String(p.startDate).slice(0, 7) : new Date().toISOString().slice(0, 7),
+                    startDate: p.startDate ? String(p.startDate).slice(0, 7) : '',
                     phases: planDetailsData?.phases || [],
                     results: resultsData || undefined
                 };
@@ -608,7 +587,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 return {
                     id: plan.id,
                     cityId: plan.cityId,
-                    startDate: plan.startDate ? String(plan.startDate).slice(0, 7) : new Date().toISOString().slice(0, 7),
+                    startDate: plan.startDate ? String(plan.startDate).slice(0, 7) : '',
                     phases: planDetailsData?.phases || newPhases,
                     results: resultsData || undefined
                 };
@@ -913,32 +892,38 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           results: { ...(p.results || {}), ...results } 
       } : p);
     } else {
-      // Criar novo plano para a cidade
-      const startDate = city?.implementationStartDate || new Date().toISOString();
+      // Criar novo plano para a cidade SEM alterar implementationStartDate
+      // Usar a data existente da cidade ou undefined (não forçar data atual)
+      const startDate = city?.implementationStartDate || undefined;
       const newPlan: CityPlan = {
         cityId,
-        startDate,
+        startDate: startDate || '', // string vazia se não tiver data
         phases: [],
         results
       };
       updatedPlans = [...plans, newPlan];
-      console.log(`📝 Criando novo plano para ${cityName}`);
+      console.log(`📝 Criando novo plano para ${cityName} (sem alterar data de implementação)`);
       
       // Criar planejamento no backend também (tabela Planning)
-      try {
-        const planningData = {
-          cityId,
-          title: `Planejamento ${cityName}`,
-          description: `Planejamento de expansão para ${cityName}`,
-          startDate,
-          status: 'active'
-        };
-        const created = await planningApi.createPlanning(planningData);
-        if (created) {
-          console.log(`✅ Planejamento criado no backend para ${cityName}`);
+      // NOTA: Só cria no backend se a cidade tiver data de implementação (campo obrigatório no schema)
+      if (startDate) {
+        try {
+          const planningData = {
+            cityId,
+            title: `Planejamento ${cityName}`,
+            description: `Planejamento de expansão para ${cityName}`,
+            startDate,
+            status: 'active'
+          };
+          const created = await planningApi.createPlanning(planningData);
+          if (created) {
+            console.log(`✅ Planejamento criado no backend para ${cityName}`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Erro ao criar planejamento no backend para ${cityName}:`, error);
         }
-      } catch (error) {
-        console.warn(`⚠️ Erro ao criar planejamento no backend para ${cityName}:`, error);
+      } else {
+        console.log(`ℹ️ Cidade ${cityName} não tem data de implementação - Planning não criado no backend (apenas resultados serão salvos)`);
       }
     }
     
@@ -1030,7 +1015,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
   return (
     <DataContext.Provider value={{ 
-      cities, plans, marketData, isLoading, loadingStatus, isUpdating, warnings, phaseTemplates, tags, responsibles, marketBlocks, saveCounter,
+      cities, plans, marketData, isLoading, loadingStatus, isUpdating, warnings, backendConnected, phaseTemplates, tags, responsibles, marketBlocks, saveCounter, forceRefresh,
       updateCity, addPlanForCity, deletePlan, updatePlanAction, updatePlanPhase, updatePlanResults, updatePlanResultsBatch, updatePlanStartDate, updateCityImplementationDate, updatePlanRealCosts,
       updatePhaseTemplate: (n, u) => {
           const updated = phaseTemplates.map(t => t.name === n ? {...t, ...u} : t);

@@ -1,0 +1,377 @@
+[
+  {
+    "id": 2800100,
+    "nome": "Amparo do São Francisco",
+    "dataAtualizacao": "2026-01-30T23:06:09.050Z"
+  },
+  {
+    "id": 2800209,
+    "nome": "Aquidabã",
+    "dataAtualizacao": "2026-01-30T23:06:09.052Z"
+  },
+  {
+    "id": 2800308,
+    "nome": "Aracaju",
+    "dataAtualizacao": "2026-01-30T23:06:09.054Z"
+  },
+  {
+    "id": 2800407,
+    "nome": "Arauá",
+    "dataAtualizacao": "2026-01-30T23:06:09.056Z"
+  },
+  {
+    "id": 2800506,
+    "nome": "Areia Branca",
+    "dataAtualizacao": "2026-01-30T23:06:09.057Z"
+  },
+  {
+    "id": 2800605,
+    "nome": "Barra dos Coqueiros",
+    "dataAtualizacao": "2026-01-30T23:06:09.059Z"
+  },
+  {
+    "id": 2800670,
+    "nome": "Boquim",
+    "dataAtualizacao": "2026-01-30T23:06:09.061Z"
+  },
+  {
+    "id": 2800704,
+    "nome": "Brejo Grande",
+    "dataAtualizacao": "2026-01-30T23:06:09.062Z"
+  },
+  {
+    "id": 2801009,
+    "nome": "Campo do Brito",
+    "dataAtualizacao": "2026-01-30T23:06:09.064Z"
+  },
+  {
+    "id": 2801108,
+    "nome": "Canhoba",
+    "dataAtualizacao": "2026-01-30T23:06:09.065Z"
+  },
+  {
+    "id": 2801207,
+    "nome": "Canindé de São Francisco",
+    "dataAtualizacao": "2026-01-30T23:06:15.421Z"
+  },
+  {
+    "id": 2801306,
+    "nome": "Capela",
+    "dataAtualizacao": "2026-01-30T23:06:15.423Z"
+  },
+  {
+    "id": 2801405,
+    "nome": "Carira",
+    "dataAtualizacao": "2026-01-30T23:06:15.424Z"
+  },
+  {
+    "id": 2801504,
+    "nome": "Carmópolis",
+    "dataAtualizacao": "2026-01-30T23:06:15.427Z"
+  },
+  {
+    "id": 2801603,
+    "nome": "Cedro de São João",
+    "dataAtualizacao": "2026-01-30T23:06:15.429Z"
+  },
+  {
+    "id": 2801702,
+    "nome": "Cristinápolis",
+    "dataAtualizacao": "2026-01-30T23:06:15.430Z"
+  },
+  {
+    "id": 2801900,
+    "nome": "Cumbe",
+    "dataAtualizacao": "2026-01-30T23:06:15.431Z"
+  },
+  {
+    "id": 2802007,
+    "nome": "Divina Pastora",
+    "dataAtualizacao": "2026-01-30T23:06:15.432Z"
+  },
+  {
+    "id": 2802106,
+    "nome": "Estância",
+    "dataAtualizacao": "2026-01-30T23:06:15.433Z"
+  },
+  {
+    "id": 2802205,
+    "nome": "Feira Nova",
+    "dataAtualizacao": "2026-01-30T23:06:15.434Z"
+  },
+  {
+    "id": 2802304,
+    "nome": "Frei Paulo",
+    "dataAtualizacao": "2026-01-30T23:06:35.245Z"
+  },
+  {
+    "id": 2802403,
+    "nome": "Gararu",
+    "dataAtualizacao": "2026-01-30T23:06:35.246Z"
+  },
+  {
+    "id": 2802502,
+    "nome": "General Maynard",
+    "dataAtualizacao": "2026-01-30T23:06:35.246Z"
+  },
+  {
+    "id": 2802601,
+    "nome": "Graccho Cardoso",
+    "dataAtualizacao": "2026-01-30T23:06:35.247Z"
+  },
+  {
+    "id": 2802700,
+    "nome": "Ilha das Flores",
+    "dataAtualizacao": "2026-01-30T23:06:35.248Z"
+  },
+  {
+    "id": 2802809,
+    "nome": "Indiaroba",
+    "dataAtualizacao": "2026-01-30T23:06:35.248Z"
+  },
+  {
+    "id": 2802908,
+    "nome": "Itabaiana",
+    "dataAtualizacao": "2026-01-30T23:06:35.249Z"
+  },
+  {
+    "id": 2803005,
+    "nome": "Itabaianinha",
+    "dataAtualizacao": "2026-01-30T23:06:35.250Z"
+  },
+  {
+    "id": 2803104,
+    "nome": "Itabi",
+    "dataAtualizacao": "2026-01-30T23:06:35.251Z"
+  },
+  {
+    "id": 2803203,
+    "nome": "Itaporanga d'Ajuda",
+    "dataAtualizacao": "2026-01-30T23:06:35.252Z"
+  },
+  {
+    "id": 2803302,
+    "nome": "Japaratuba",
+    "dataAtualizacao": "2026-01-30T23:06:53.728Z"
+  },
+  {
+    "id": 2803401,
+    "nome": "Japoatã",
+    "dataAtualizacao": "2026-01-30T23:06:53.729Z"
+  },
+  {
+    "id": 2803500,
+    "nome": "Lagarto",
+    "dataAtualizacao": "2026-01-30T23:06:53.730Z"
+  },
+  {
+    "id": 2803609,
+    "nome": "Laranjeiras",
+    "dataAtualizacao": "2026-01-30T23:06:53.731Z"
+  },
+  {
+    "id": 2803708,
+    "nome": "Macambira",
+    "dataAtualizacao": "2026-01-30T23:06:53.732Z"
+  },
+  {
+    "id": 2803807,
+    "nome": "Malhada dos Bois",
+    "dataAtualizacao": "2026-01-30T23:06:53.733Z"
+  },
+  {
+    "id": 2803906,
+    "nome": "Malhador",
+    "dataAtualizacao": "2026-01-30T23:06:53.733Z"
+  },
+  {
+    "id": 2804003,
+    "nome": "Maruim",
+    "dataAtualizacao": "2026-01-30T23:06:53.734Z"
+  },
+  {
+    "id": 2804102,
+    "nome": "Moita Bonita",
+    "dataAtualizacao": "2026-01-30T23:06:53.735Z"
+  },
+  {
+    "id": 2804201,
+    "nome": "Monte Alegre de Sergipe",
+    "dataAtualizacao": "2026-01-30T23:06:53.735Z"
+  },
+  {
+    "id": 2804300,
+    "nome": "Muribeca",
+    "dataAtualizacao": "2026-01-30T23:07:08.601Z"
+  },
+  {
+    "id": 2804409,
+    "nome": "Neópolis",
+    "dataAtualizacao": "2026-01-30T23:07:08.603Z"
+  },
+  {
+    "id": 2804458,
+    "nome": "Nossa Senhora Aparecida",
+    "dataAtualizacao": "2026-01-30T23:07:08.604Z"
+  },
+  {
+    "id": 2804508,
+    "nome": "Nossa Senhora da Glória",
+    "dataAtualizacao": "2026-01-30T23:07:08.605Z"
+  },
+  {
+    "id": 2804607,
+    "nome": "Nossa Senhora das Dores",
+    "dataAtualizacao": "2026-01-30T23:07:08.606Z"
+  },
+  {
+    "id": 2804706,
+    "nome": "Nossa Senhora de Lourdes",
+    "dataAtualizacao": "2026-01-30T23:07:08.606Z"
+  },
+  {
+    "id": 2804805,
+    "nome": "Nossa Senhora do Socorro",
+    "dataAtualizacao": "2026-01-30T23:07:08.609Z"
+  },
+  {
+    "id": 2804904,
+    "nome": "Pacatuba",
+    "dataAtualizacao": "2026-01-30T23:07:08.610Z"
+  },
+  {
+    "id": 2805000,
+    "nome": "Pedra Mole",
+    "dataAtualizacao": "2026-01-30T23:07:08.611Z"
+  },
+  {
+    "id": 2805109,
+    "nome": "Pedrinhas",
+    "dataAtualizacao": "2026-01-30T23:07:08.612Z"
+  },
+  {
+    "id": 2805208,
+    "nome": "Pinhão",
+    "dataAtualizacao": "2026-01-30T23:07:24.801Z"
+  },
+  {
+    "id": 2805307,
+    "nome": "Pirambu",
+    "dataAtualizacao": "2026-01-30T23:07:24.802Z"
+  },
+  {
+    "id": 2805406,
+    "nome": "Poço Redondo",
+    "dataAtualizacao": "2026-01-30T23:07:24.803Z"
+  },
+  {
+    "id": 2805505,
+    "nome": "Poço Verde",
+    "dataAtualizacao": "2026-01-30T23:07:24.803Z"
+  },
+  {
+    "id": 2805604,
+    "nome": "Porto da Folha",
+    "dataAtualizacao": "2026-01-30T23:07:24.803Z"
+  },
+  {
+    "id": 2805703,
+    "nome": "Propriá",
+    "dataAtualizacao": "2026-01-30T23:07:24.804Z"
+  },
+  {
+    "id": 2805802,
+    "nome": "Riachão do Dantas",
+    "dataAtualizacao": "2026-01-30T23:07:24.805Z"
+  },
+  {
+    "id": 2805901,
+    "nome": "Riachuelo",
+    "dataAtualizacao": "2026-01-30T23:07:24.806Z"
+  },
+  {
+    "id": 2806008,
+    "nome": "Ribeirópolis",
+    "dataAtualizacao": "2026-01-30T23:07:24.808Z"
+  },
+  {
+    "id": 2806107,
+    "nome": "Rosário do Catete",
+    "dataAtualizacao": "2026-01-30T23:07:24.809Z"
+  },
+  {
+    "id": 2806206,
+    "nome": "Salgado",
+    "dataAtualizacao": "2026-01-30T23:07:41.580Z"
+  },
+  {
+    "id": 2806305,
+    "nome": "Santa Luzia do Itanhy",
+    "dataAtualizacao": "2026-01-30T23:07:41.581Z"
+  },
+  {
+    "id": 2806404,
+    "nome": "Santana do São Francisco",
+    "dataAtualizacao": "2026-01-30T23:07:41.582Z"
+  },
+  {
+    "id": 2806503,
+    "nome": "Santa Rosa de Lima",
+    "dataAtualizacao": "2026-01-30T23:07:41.583Z"
+  },
+  {
+    "id": 2806602,
+    "nome": "Santo Amaro das Brotas",
+    "dataAtualizacao": "2026-01-30T23:07:41.583Z"
+  },
+  {
+    "id": 2806701,
+    "nome": "São Cristóvão",
+    "dataAtualizacao": "2026-01-30T23:07:41.584Z"
+  },
+  {
+    "id": 2806800,
+    "nome": "São Domingos",
+    "dataAtualizacao": "2026-01-30T23:07:41.585Z"
+  },
+  {
+    "id": 2806909,
+    "nome": "São Francisco",
+    "dataAtualizacao": "2026-01-30T23:07:41.586Z"
+  },
+  {
+    "id": 2807006,
+    "nome": "São Miguel do Aleixo",
+    "dataAtualizacao": "2026-01-30T23:07:41.586Z"
+  },
+  {
+    "id": 2807105,
+    "nome": "Simão Dias",
+    "dataAtualizacao": "2026-01-30T23:07:41.587Z"
+  },
+  {
+    "id": 2807204,
+    "nome": "Siriri",
+    "dataAtualizacao": "2026-01-30T23:07:57.472Z"
+  },
+  {
+    "id": 2807303,
+    "nome": "Telha",
+    "dataAtualizacao": "2026-01-30T23:07:57.473Z"
+  },
+  {
+    "id": 2807402,
+    "nome": "Tobias Barreto",
+    "dataAtualizacao": "2026-01-30T23:07:57.475Z"
+  },
+  {
+    "id": 2807501,
+    "nome": "Tomar do Geru",
+    "dataAtualizacao": "2026-01-30T23:07:57.476Z"
+  },
+  {
+    "id": 2807600,
+    "nome": "Umbaúba",
+    "dataAtualizacao": "2026-01-30T23:07:57.477Z"
+  }
+]

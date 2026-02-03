@@ -1,18 +1,39 @@
 
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DataContext } from '../context/DataContext';
 import Card from '../components/ui/Card';
-import { FiArrowLeft, FiSave, FiTrendingUp, FiUsers, FiTarget, FiShield, FiPlus, FiTrash2, FiEdit2, FiPhone, FiMail, FiUser, FiGlobe, FiDollarSign, FiCalendar } from 'react-icons/fi';
+import { FiArrowLeft, FiSave, FiTrendingUp, FiUsers, FiTarget, FiShield, FiPlus, FiTrash2, FiEdit2, FiPhone, FiMail, FiUser, FiGlobe, FiDollarSign, FiCalendar, FiCheck } from 'react-icons/fi';
 import { CityMarketData, MarketCompetitor, StakeholderContact, MonthResult } from '../types';
 import { getGradualMonthlyGoal } from '../services/calculationService';
 import { PRICE_PER_RIDE } from '../constants';
+import * as planResultsService from '../services/planResultsService';
+
+// Definição das tabs
+type TabId = 'visao-geral' | 'concorrencia' | 'stakeholders' | 'swot' | 'projecoes';
+
+interface Tab {
+    id: TabId;
+    label: string;
+    icon: React.ReactNode;
+    color: string;
+}
+
+const TABS: Tab[] = [
+    { id: 'visao-geral', label: 'Visão Geral', icon: <FiTrendingUp size={16} />, color: '#3b82f6' },
+    { id: 'concorrencia', label: 'Concorrência', icon: <FiTarget size={16} />, color: '#f62718' },
+    { id: 'stakeholders', label: 'Stakeholders', icon: <FiUsers size={16} />, color: '#17a2b8' },
+    { id: 'swot', label: 'SWOT', icon: <FiShield size={16} />, color: '#ffc107' },
+    { id: 'projecoes', label: 'Projeções', icon: <FiDollarSign size={16} />, color: '#10b981' },
+];
 
 const CityMarketAnalysis: React.FC = () => {
     const { cityId } = useParams<{ cityId: string }>();
     const navigate = useNavigate();
     const { cities, plans, getCityMarketData, saveCityMarketData, updatePlanResultsBatch } = useContext(DataContext);
-    const [activeTab, setActiveTab] = useState<'overview' | 'competition' | 'stakeholders' | 'swot' | 'projections'>('overview');
+    
+    // Tab state
+    const [activeTab, setActiveTab] = useState<TabId>('visao-geral');
 
     const city = cities.find(c => c.id === Number(cityId));
     const cityPlan = plans.find(p => p.cityId === Number(cityId));
@@ -20,6 +41,7 @@ const CityMarketAnalysis: React.FC = () => {
     // Form States
     const [formData, setFormData] = useState<CityMarketData | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     
     // Projection States - custos projetados por mês (chave: Mes1, Mes2, etc.)
     const [projectedCosts, setProjectedCosts] = useState<{ [monthKey: string]: { marketingCost: number; operationalCost: number } }>({});
@@ -27,6 +49,9 @@ const CityMarketAnalysis: React.FC = () => {
     // Estados para CPA e OPS - novos campos por mês
     const [cpaValues, setCpaValues] = useState<{ [monthKey: string]: number }>({});
     const [opsValues, setOpsValues] = useState<{ [monthKey: string]: number }>({});
+    
+    // Estado para resultados carregados diretamente do backend (independente do cityPlan)
+    const [backendResults, setBackendResults] = useState<{ [key: string]: MonthResult } | null>(null);
 
     // Initial Load
     useEffect(() => {
@@ -36,15 +61,37 @@ const CityMarketAnalysis: React.FC = () => {
         }
     }, [cityId, getCityMarketData]);
     
-    // Carregar custos projetados do plano quando disponível
+    // Carregar resultados diretamente do backend (independente de ter Planning ou não)
     useEffect(() => {
-        if (cityPlan?.results) {
+        const loadBackendResults = async () => {
+            if (!cityId) return;
+            
+            try {
+                const data = await planResultsService.getPlanResults(Number(cityId));
+                if (data?.results) {
+                    console.log(`✅ Resultados carregados do backend para cidade ${cityId}:`, Object.keys(data.results).length, 'meses');
+                    setBackendResults(data.results);
+                }
+            } catch (error) {
+                console.warn('⚠️ Erro ao carregar resultados do backend:', error);
+            }
+        };
+        
+        loadBackendResults();
+    }, [cityId]);
+    
+    // Usar resultados do backend OU do cityPlan (fallback)
+    const effectiveResults = backendResults || cityPlan?.results || null;
+    
+    // Carregar custos projetados quando os resultados estiverem disponíveis
+    useEffect(() => {
+        if (effectiveResults) {
             const costs: { [key: string]: { marketingCost: number; operationalCost: number } } = {};
             const loadedCPA: { [key: string]: number } = {};
             const loadedOPS: { [key: string]: number } = {};
             let hasSavedCpaOps = false;
             
-            Object.entries(cityPlan.results).forEach(([key, result]) => {
+            Object.entries(effectiveResults).forEach(([key, result]) => {
                 // Os dados são salvos com chave Mes1, Mes2, etc.
                 costs[key] = {
                     marketingCost: result.marketingCost || 0,
@@ -70,12 +117,12 @@ const CityMarketAnalysis: React.FC = () => {
                 setOpsValues(loadedOPS);
             }
         }
-    }, [cityPlan]);
+    }, [effectiveResults]);
 
     // Inicializar dados CPA/OPS para cidades específicas (apenas se não houver dados salvos)
     useEffect(() => {
-        // Verificar se há dados CPA/OPS já salvos no cityPlan
-        const hasSavedCpaOps = cityPlan?.results && Object.values(cityPlan.results).some(
+        // Verificar se há dados CPA/OPS já salvos
+        const hasSavedCpaOps = effectiveResults && Object.values(effectiveResults).some(
             result => result.cpaPerRide !== undefined && result.cpaPerRide !== 0
         );
         
@@ -150,7 +197,7 @@ const CityMarketAnalysis: React.FC = () => {
                 setProjectedCosts(initialCosts);
             }
         }
-    }, [city, cityPlan, cpaValues, opsValues]);
+    }, [city, effectiveResults, cpaValues, opsValues]);
 
     // Função auxiliar para calcular meses de projeção (sem dependência circular)
     const getProjectionMonthsForCalculation = () => {
@@ -170,10 +217,10 @@ const CityMarketAnalysis: React.FC = () => {
         return months;
     };
 
-    // Gerar meses para projeção (12 meses)
+    // Gerar meses para projeção (12 meses) - MEMOIZADO para performance
     // Se houver data de implementação, mostra o mês real (Jan/2025)
     // Se não houver, mostra apenas "Mês 1", "Mês 2", etc.
-    const getProjectionMonths = () => {
+    const projectionMonths = useMemo(() => {
         const months: { key: string; label: string; dateLabel: string | null; expectedRides: number; monthNumber: number }[] = [];
         const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
         
@@ -211,7 +258,10 @@ const CityMarketAnalysis: React.FC = () => {
             });
         }
         return months;
-    };
+    }, [city?.id, city?.implementationStartDate, city?.population15to44]);
+
+    // Alias para manter compatibilidade com código existente
+    const getProjectionMonths = () => projectionMonths;
 
     const handleSaveProjections = async () => {
         if (!city) return;
@@ -242,6 +292,11 @@ const CityMarketAnalysis: React.FC = () => {
         
         await updatePlanResultsBatch(city.id, results);
         
+        // Atualizar resultados locais para refletir o que foi salvo
+        setBackendResults(results);
+        
+        setHasUnsavedChanges(false);
+        
         setTimeout(() => setIsSaving(false), 500);
     };
 
@@ -249,10 +304,14 @@ const CityMarketAnalysis: React.FC = () => {
         if (formData) {
             setIsSaving(true);
             saveCityMarketData(formData);
+            setHasUnsavedChanges(false);
             // Simulate network delay
             setTimeout(() => setIsSaving(false), 500);
         }
     };
+
+    // Helper para marcar alterações
+    const markAsChanged = () => setHasUnsavedChanges(true);
 
     // --- Competitor Handlers ---
     const addCompetitor = () => {
@@ -266,6 +325,7 @@ const CityMarketAnalysis: React.FC = () => {
             marketShareEstimate: 0
         };
         setFormData({ ...formData, competitors: [...formData.competitors, newComp] });
+        markAsChanged();
     };
 
     const updateCompetitor = (id: string, field: keyof MarketCompetitor, value: any) => {
@@ -274,6 +334,7 @@ const CityMarketAnalysis: React.FC = () => {
             ...formData,
             competitors: formData.competitors.map(c => c.id === id ? { ...c, [field]: value } : c)
         });
+        markAsChanged();
     };
 
     const removeCompetitor = (id: string) => {
@@ -282,6 +343,7 @@ const CityMarketAnalysis: React.FC = () => {
             ...formData,
             competitors: formData.competitors.filter(c => c.id !== id)
         });
+        markAsChanged();
     };
 
     // --- Stakeholder Handlers ---
@@ -297,6 +359,7 @@ const CityMarketAnalysis: React.FC = () => {
             status: 'A Contatar'
         };
         setFormData({ ...formData, stakeholders: [...formData.stakeholders, newStake] });
+        markAsChanged();
     };
 
     const addGovernmentContact = () => {
@@ -311,6 +374,7 @@ const CityMarketAnalysis: React.FC = () => {
             status: 'A Contatar'
         };
         setFormData({ ...formData, stakeholders: [...formData.stakeholders, newStake] });
+        markAsChanged();
     }
 
     const updateStakeholder = (id: string, field: keyof StakeholderContact, value: any) => {
@@ -319,6 +383,7 @@ const CityMarketAnalysis: React.FC = () => {
             ...formData,
             stakeholders: formData.stakeholders.map(s => s.id === id ? { ...s, [field]: value } : s)
         });
+        markAsChanged();
     };
 
     const removeStakeholder = (id: string) => {
@@ -327,6 +392,7 @@ const CityMarketAnalysis: React.FC = () => {
             ...formData,
             stakeholders: formData.stakeholders.filter(s => s.id !== id)
         });
+        markAsChanged();
     };
 
     // --- SWOT Handlers ---
@@ -338,6 +404,7 @@ const CityMarketAnalysis: React.FC = () => {
             ...formData,
             swot: { ...formData.swot, [type]: list }
         });
+        markAsChanged();
     };
 
     if (!city || !formData) return <div>Carregando...</div>;
@@ -345,106 +412,58 @@ const CityMarketAnalysis: React.FC = () => {
     const governmentContacts = formData.stakeholders.filter(s => s.category === 'Governo');
 
     return (
-        <div className="space-y-6 pb-20">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex items-center gap-4">
-                    <button 
-                    onClick={() => navigate('/inteligencia')} 
-                    className="p-2 rounded-full transition"
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                        <FiArrowLeft className="w-6 h-6"/>
-                    </button>
-                    <div>
-                        <h2 className="text-2xl font-bold">Inteligência: {city.name}</h2>
-                        <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Dados estratégicos e análise de mercado</p>
+        <div className="flex flex-col h-[calc(100vh-120px)]">
+            {/* Header Fixo */}
+            <div className="flex-shrink-0 pb-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="flex items-center gap-4">
+                        <button 
+                            onClick={() => navigate('/inteligencia')} 
+                            className="p-2 rounded-full transition"
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                            <FiArrowLeft className="w-6 h-6"/>
+                        </button>
+                        <div>
+                            <h2 className="text-2xl font-bold">Inteligência: {city.name}</h2>
+                            <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Dados estratégicos e análise de mercado</p>
+                        </div>
                     </div>
+                    {hasUnsavedChanges && (
+                        <span className="px-3 py-1 text-xs font-medium rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                            Alterações não salvas
+                        </span>
+                    )}
                 </div>
-                <button 
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="flex items-center text-white py-2 px-6 rounded-lg transition disabled:opacity-50"
-                    style={{ backgroundColor: '#3b82f6' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.8)'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
-                >
-                    <FiSave className="mr-2" />
-                    {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-                </button>
+
+                {/* Tabs Navigation */}
+                <div className="mt-4 flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(0, 0, 0, 0.3)' }}>
+                    {TABS.map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200"
+                            style={{
+                                background: activeTab === tab.id ? `${tab.color}20` : 'transparent',
+                                color: activeTab === tab.id ? tab.color : 'rgba(255, 255, 255, 0.6)',
+                                border: activeTab === tab.id ? `1px solid ${tab.color}50` : '1px solid transparent',
+                            }}
+                        >
+                            {tab.icon}
+                            <span className="hidden md:inline">{tab.label}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex overflow-x-auto gap-2 pb-1" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                <button 
-                    onClick={() => setActiveTab('overview')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'overview' ? 'border-b-2' : 'font-bold'}`}
-                    style={activeTab === 'overview' 
-                        ? { background: 'rgba(255, 255, 255, 0.1)', color: '#3b82f6', borderBottomColor: '#3b82f6' } 
-                        : { color: '#ffffff' }
-                    }
-                    onMouseEnter={(e) => { if (activeTab !== 'overview') e.currentTarget.style.color = '#3b82f6'; }}
-                    onMouseLeave={(e) => { if (activeTab !== 'overview') e.currentTarget.style.color = '#ffffff'; }}
-                >
-                    Visão Geral
-                </button>
-                <button 
-                    onClick={() => setActiveTab('competition')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'competition' ? 'border-b-2' : 'font-bold'}`}
-                    style={activeTab === 'competition' 
-                        ? { background: 'rgba(255, 255, 255, 0.1)', color: '#3b82f6', borderBottomColor: '#3b82f6' } 
-                        : { color: '#ffffff' }
-                    }
-                    onMouseEnter={(e) => { if (activeTab !== 'competition') e.currentTarget.style.color = '#3b82f6'; }}
-                    onMouseLeave={(e) => { if (activeTab !== 'competition') e.currentTarget.style.color = '#ffffff'; }}
-                >
-                    Concorrência
-                </button>
-                <button 
-                    onClick={() => setActiveTab('stakeholders')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'stakeholders' ? 'border-b-2' : 'font-bold'}`}
-                    style={activeTab === 'stakeholders' 
-                        ? { background: 'rgba(255, 255, 255, 0.1)', color: '#3b82f6', borderBottomColor: '#3b82f6' } 
-                        : { color: '#ffffff' }
-                    }
-                    onMouseEnter={(e) => { if (activeTab !== 'stakeholders') e.currentTarget.style.color = '#3b82f6'; }}
-                    onMouseLeave={(e) => { if (activeTab !== 'stakeholders') e.currentTarget.style.color = '#ffffff'; }}
-                >
-                    Todos os Stakeholders
-                </button>
-                <button 
-                    onClick={() => setActiveTab('swot')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'swot' ? 'border-b-2' : 'font-bold'}`}
-                    style={activeTab === 'swot' 
-                        ? { background: 'rgba(255, 255, 255, 0.1)', color: '#3b82f6', borderBottomColor: '#3b82f6' } 
-                        : { color: '#ffffff' }
-                    }
-                    onMouseEnter={(e) => { if (activeTab !== 'swot') e.currentTarget.style.color = '#3b82f6'; }}
-                    onMouseLeave={(e) => { if (activeTab !== 'swot') e.currentTarget.style.color = '#ffffff'; }}
-                >
-                    Análise SWOT
-                </button>
-                <button 
-                    onClick={() => setActiveTab('projections')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'projections' ? 'border-b-2' : 'font-bold'}`}
-                    style={activeTab === 'projections' 
-                        ? { background: 'rgba(255, 255, 255, 0.1)', color: '#10b981', borderBottomColor: '#10b981' } 
-                        : { color: '#ffffff' }
-                    }
-                    onMouseEnter={(e) => { if (activeTab !== 'projections') e.currentTarget.style.color = '#10b981'; }}
-                    onMouseLeave={(e) => { if (activeTab !== 'projections') e.currentTarget.style.color = '#ffffff'; }}
-                >
-                    <FiDollarSign className="inline mr-1" />
-                    Projeções Financeiras
-                </button>
-            </div>
-
-            {/* Content */}
-            
-            {/* OVERVIEW TAB (Redesigned) */}
-            {activeTab === 'overview' && (
-                <div className="space-y-6">
+            {/* Conteúdo da Tab Ativa - Scrollável */}
+            <div className="flex-1 overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                {/* ═══════════════════════════════════════════════════════════════ */}
+                {/* TAB: VISÃO GERAL */}
+                {/* ═══════════════════════════════════════════════════════════════ */}
+                {activeTab === 'visao-geral' && (
+                <div className="space-y-6 pb-24">
                     {/* 1. Resumo do Município */}
                     <Card title="Resumo do Município" tooltipText="Descreva os principais motores econômicos da cidade, grandes empresas, safra agrícola, sazonalidade, e características gerais.">
                         <textarea 
@@ -512,13 +531,13 @@ const CityMarketAnalysis: React.FC = () => {
                                         <p style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Concorrentes Cadastrados</p>
                                     </div>
                                 </div>
-                                <button 
-                                    onClick={() => setActiveTab('competition')}
+                                <a 
+                                    href="#concorrencia"
                                     className="text-sm hover:underline"
                                     style={{ color: '#3b82f6' }}
                                 >
-                                    Ver Detalhes
-                                </button>
+                                    Ver Detalhes ↓
+                                </a>
                              </div>
                         </Card>
                     </div>
@@ -631,21 +650,31 @@ const CityMarketAnalysis: React.FC = () => {
                         </button>
                     </Card>
                 </div>
-            )}
+                )}
 
-            {/* COMPETITION TAB */}
-            {activeTab === 'competition' && (
-                <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-bold">Análise da Concorrência</h3>
+                {/* ═══════════════════════════════════════════════════════════════ */}
+                {/* TAB: CONCORRÊNCIA */}
+                {/* ═══════════════════════════════════════════════════════════════ */}
+                {activeTab === 'concorrencia' && (
+                <div className="space-y-6 pb-24">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 rounded-xl" style={{ backgroundColor: 'rgba(246, 39, 24, 0.15)', border: '1px solid rgba(246, 39, 24, 0.3)' }}>
+                                <FiTarget className="w-5 h-5" style={{ color: '#f62718' }} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold" style={{ color: '#ffffff' }}>Análise da Concorrência</h3>
+                                <p className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Mapeamento e análise dos concorrentes</p>
+                            </div>
+                        </div>
                         <button 
                             onClick={addCompetitor} 
                             className="flex items-center text-sm text-white px-3 py-1.5 rounded-lg transition"
-                            style={{ backgroundColor: '#17a2b8' }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(23, 162, 184, 0.8)'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#17a2b8'}
+                            style={{ backgroundColor: '#f62718' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(246, 39, 24, 0.8)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f62718'}
                         >
-                            <FiPlus className="mr-1"/> Adicionar Concorrente
+                            <FiPlus className="mr-1"/> Adicionar
                         </button>
                     </div>
                     
@@ -738,13 +767,23 @@ const CityMarketAnalysis: React.FC = () => {
                         )}
                     </div>
                 </div>
-            )}
+                )}
 
-            {/* STAKEHOLDERS TAB */}
-            {activeTab === 'stakeholders' && (
-                <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-bold">Todos os Stakeholders & Contatos Chave</h3>
+                {/* ═══════════════════════════════════════════════════════════════ */}
+                {/* TAB: STAKEHOLDERS */}
+                {/* ═══════════════════════════════════════════════════════════════ */}
+                {activeTab === 'stakeholders' && (
+                <div className="space-y-6 pb-24">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 rounded-xl" style={{ backgroundColor: 'rgba(23, 162, 184, 0.15)', border: '1px solid rgba(23, 162, 184, 0.3)' }}>
+                                <FiUsers className="w-5 h-5" style={{ color: '#17a2b8' }} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold" style={{ color: '#ffffff' }}>Stakeholders & Contatos Chave</h3>
+                                <p className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Parceiros, influenciadores e contatos importantes</p>
+                            </div>
+                        </div>
                         <button 
                             onClick={addStakeholder} 
                             className="flex items-center text-sm text-white px-3 py-1.5 rounded-lg transition"
@@ -752,7 +791,7 @@ const CityMarketAnalysis: React.FC = () => {
                             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(23, 162, 184, 0.8)'}
                             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#17a2b8'}
                         >
-                            <FiPlus className="mr-1"/> Adicionar Contato
+                            <FiPlus className="mr-1"/> Adicionar
                         </button>
                     </div>
 
@@ -895,13 +934,23 @@ const CityMarketAnalysis: React.FC = () => {
                         </table>
                     </div>
                 </div>
-            )}
+                )}
 
-            {/* SWOT TAB */}
-            {activeTab === 'swot' && (
-                <div>
-                     <h3 className="text-lg font-bold mb-4">Análise SWOT (F.O.F.A.)</h3>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* ═══════════════════════════════════════════════════════════════ */}
+                {/* TAB: SWOT */}
+                {/* ═══════════════════════════════════════════════════════════════ */}
+                {activeTab === 'swot' && (
+                <div className="space-y-6 pb-24">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2.5 rounded-xl" style={{ backgroundColor: 'rgba(255, 193, 7, 0.15)', border: '1px solid rgba(255, 193, 7, 0.3)' }}>
+                            <FiShield className="w-5 h-5" style={{ color: '#ffc107' }} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold" style={{ color: '#ffffff' }}>Análise SWOT (F.O.F.A.)</h3>
+                            <p className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Forças, Oportunidades, Fraquezas e Ameaças</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Strengths */}
                         <Card title="Forças (Strengths)" className="border-t-4" style={{ borderTopColor: '#08a50e' }}>
                              <p className="text-xs mb-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Vantagens internas em relação à cidade.</p>
@@ -969,38 +1018,37 @@ const CityMarketAnalysis: React.FC = () => {
                                 onChange={(e) => updateSwotList('threats', e.target.value)}
                              />
                         </Card>
-                     </div>
+                    </div>
                 </div>
-            )}
+                )}
 
-            {/* PROJECTIONS TAB */}
-            {activeTab === 'projections' && (
-                <div className="space-y-6">
-                    {/* Header da aba */}
-                    <Card>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: '#ffffff' }}>
-                                    <FiDollarSign className="text-green-500" />
-                                    Projeções de Custos - {city.name}
-                                </h3>
-                                <p className="text-sm mt-1" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                                    Defina os valores projetados de marketing e operacional para os próximos 12 meses
-                                </p>
+                {/* ═══════════════════════════════════════════════════════════════ */}
+                {/* TAB: PROJEÇÕES FINANCEIRAS */}
+                {/* ═══════════════════════════════════════════════════════════════ */}
+                {activeTab === 'projecoes' && (
+                <div className="space-y-6 pb-24">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 rounded-xl" style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                                <FiDollarSign className="w-5 h-5" style={{ color: '#10b981' }} />
                             </div>
-                            <button 
-                                onClick={handleSaveProjections}
-                                disabled={isSaving}
-                                className="flex items-center text-white py-2 px-6 rounded-lg transition disabled:opacity-50"
-                                style={{ backgroundColor: '#10b981' }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.8)'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
-                            >
-                                <FiSave className="mr-2" />
-                                {isSaving ? 'Salvando...' : 'Salvar Projeções'}
-                            </button>
+                            <div>
+                                <h3 className="text-xl font-bold" style={{ color: '#ffffff' }}>Projeções Financeiras</h3>
+                                <p className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>Custos, receitas e metas de corridas por mês</p>
+                            </div>
                         </div>
-                    </Card>
+                        <button 
+                            onClick={handleSaveProjections}
+                            disabled={isSaving}
+                            className="flex items-center text-white py-2 px-6 rounded-lg transition disabled:opacity-50"
+                            style={{ backgroundColor: '#10b981' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.8)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
+                        >
+                            <FiSave className="mr-2" />
+                            {isSaving ? 'Salvando...' : 'Salvar Projeções'}
+                        </button>
+                    </div>
 
                     {/* Resumo - Cards Modernos */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1109,10 +1157,158 @@ const CityMarketAnalysis: React.FC = () => {
                         </div>
                     </div>
 
-                            {/* Tabela de Projeções */}
-                            <Card title="Custos Projetados por Mês" tooltipText="Defina os valores esperados de investimento em marketing e custos operacionais para cada mês.">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left">
+                    {/* Aplicar CPA/OPS para todos - Quick Actions */}
+                    <Card title="Ações Rápidas" tooltipText="Aplique valores de CPA e OPS para todos os 12 meses de uma vez.">
+                        <div className="flex flex-wrap items-end gap-4">
+                            <div className="flex-1 min-w-[200px]">
+                                <label className="text-xs font-semibold uppercase text-purple-400 mb-2 block">CPA (R$/Corrida)</label>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="Ex: 1.50"
+                                        id="bulk-cpa"
+                                        className="flex-1 p-2 rounded-lg text-center"
+                                        style={{ 
+                                            background: 'rgba(0, 0, 0, 0.3)',
+                                            border: '1px solid rgba(139, 92, 246, 0.3)',
+                                            color: '#ffffff'
+                                        }}
+                                    />
+                                    <button 
+                                        onClick={() => {
+                                            const input = document.getElementById('bulk-cpa') as HTMLInputElement;
+                                            const value = Number(input?.value) || 0;
+                                            if (value > 0) {
+                                                const newCpa: { [key: string]: number } = {};
+                                                for (let i = 1; i <= 12; i++) {
+                                                    newCpa[`Mes${i}`] = value;
+                                                }
+                                                setCpaValues(newCpa);
+                                                markAsChanged();
+                                            }
+                                        }}
+                                        className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105"
+                                        style={{ background: 'rgba(139, 92, 246, 0.3)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.5)' }}
+                                    >
+                                        Aplicar para todos
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex-1 min-w-[200px]">
+                                <label className="text-xs font-semibold uppercase text-cyan-400 mb-2 block">OPS (R$/Corrida)</label>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="Ex: 0.80"
+                                        id="bulk-ops"
+                                        className="flex-1 p-2 rounded-lg text-center"
+                                        style={{ 
+                                            background: 'rgba(0, 0, 0, 0.3)',
+                                            border: '1px solid rgba(6, 182, 212, 0.3)',
+                                            color: '#ffffff'
+                                        }}
+                                    />
+                                    <button 
+                                        onClick={() => {
+                                            const input = document.getElementById('bulk-ops') as HTMLInputElement;
+                                            const value = Number(input?.value) || 0;
+                                            if (value > 0) {
+                                                const newOps: { [key: string]: number } = {};
+                                                for (let i = 1; i <= 12; i++) {
+                                                    newOps[`Mes${i}`] = value;
+                                                }
+                                                setOpsValues(newOps);
+                                                markAsChanged();
+                                            }
+                                        }}
+                                        className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105"
+                                        style={{ background: 'rgba(6, 182, 212, 0.3)', color: '#06b6d4', border: '1px solid rgba(6, 182, 212, 0.5)' }}
+                                    >
+                                        Aplicar para todos
+                                    </button>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    setCpaValues({});
+                                    setOpsValues({});
+                                    setProjectedCosts({});
+                                    markAsChanged();
+                                }}
+                                className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105"
+                                style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+                            >
+                                Limpar Tudo
+                            </button>
+                        </div>
+                        
+                        {/* Templates de Projeção */}
+                        <div className="mt-4 pt-4" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                            <p className="text-xs font-semibold uppercase text-gray-400 mb-3">Templates Pré-definidos</p>
+                            <div className="flex flex-wrap gap-2">
+                                <button 
+                                    onClick={() => {
+                                        const newCpa: { [key: string]: number } = {};
+                                        const newOps: { [key: string]: number } = {};
+                                        for (let i = 1; i <= 12; i++) {
+                                            newCpa[`Mes${i}`] = 0.80;
+                                            newOps[`Mes${i}`] = 0.40;
+                                        }
+                                        setCpaValues(newCpa);
+                                        setOpsValues(newOps);
+                                        markAsChanged();
+                                    }}
+                                    className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 text-sm"
+                                    style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' }}
+                                >
+                                    🛡️ Conservador (CPA: R$0,80 / OPS: R$0,40)
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        const newCpa: { [key: string]: number } = {};
+                                        const newOps: { [key: string]: number } = {};
+                                        for (let i = 1; i <= 12; i++) {
+                                            newCpa[`Mes${i}`] = 1.50;
+                                            newOps[`Mes${i}`] = 0.60;
+                                        }
+                                        setCpaValues(newCpa);
+                                        setOpsValues(newOps);
+                                        markAsChanged();
+                                    }}
+                                    className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 text-sm"
+                                    style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+                                >
+                                    ⚖️ Moderado (CPA: R$1,50 / OPS: R$0,60)
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        const newCpa: { [key: string]: number } = {};
+                                        const newOps: { [key: string]: number } = {};
+                                        for (let i = 1; i <= 12; i++) {
+                                            newCpa[`Mes${i}`] = 2.50;
+                                            newOps[`Mes${i}`] = 1.00;
+                                        }
+                                        setCpaValues(newCpa);
+                                        setOpsValues(newOps);
+                                        markAsChanged();
+                                    }}
+                                    className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 text-sm"
+                                    style={{ background: 'rgba(249, 115, 22, 0.2)', color: '#f97316', border: '1px solid rgba(249, 115, 22, 0.3)' }}
+                                >
+                                    🚀 Agressivo (CPA: R$2,50 / OPS: R$1,00)
+                                </button>
+                            </div>
+                        </div>
+                    </Card>
+
+                    {/* Tabela de Projeções */}
+                    <Card title="Custos Projetados por Mês" tooltipText="Defina os valores esperados de investimento em marketing e custos operacionais para cada mês.">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
                                         <thead style={{ background: 'rgba(55, 65, 81, 0.9)', borderBottom: '2px solid rgba(16, 185, 129, 0.5)' }}>
                                             <tr>
                                                 <th className="p-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgb(255 255 255 / 80%)' }}>Mês</th>
@@ -1387,13 +1583,38 @@ const CityMarketAnalysis: React.FC = () => {
                                             <li>• O custo por corrida ajuda a entender a eficiência do investimento</li>
                                             <li>• <strong className="text-blue-400">Dica:</strong> Use CPA e OPS para definir metas por corrida, ou edite os valores totais diretamente</li>
                                             <li>• <strong className="text-green-400">Flexível:</strong> A tabela funciona com ou sem data de implementação definida</li>
-
                                         </ul>
                                     </div>
                                 </div>
                             </Card>
                 </div>
-            )}
+                )}
+            </div>
+
+            {/* Floating Save Button */}
+            <div className="fixed bottom-6 right-6 z-50">
+                <button 
+                    onClick={activeTab === 'projecoes' ? handleSaveProjections : handleSave}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 text-white py-3 px-6 rounded-full shadow-lg transition-all duration-200 hover:scale-105 disabled:opacity-50"
+                    style={{ 
+                        backgroundColor: hasUnsavedChanges ? '#f59e0b' : '#10b981',
+                        boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)'
+                    }}
+                >
+                    {isSaving ? (
+                        <>
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Salvando...
+                        </>
+                    ) : (
+                        <>
+                            <FiSave size={20} />
+                            Salvar
+                        </>
+                    )}
+                </button>
+            </div>
         </div>
     );
 };

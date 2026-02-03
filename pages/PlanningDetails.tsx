@@ -5,7 +5,7 @@ import Card from '../components/ui/Card';
 import Modal from '../components/ui/Modal';
 import FinancialProjection from '../components/FinancialProjection';
 import { FiArrowLeft, FiClipboard, FiPlusCircle, FiChevronDown, FiChevronUp, FiEdit, FiTrash2, FiCheckSquare, FiSquare, FiSave, FiCalendar, FiClock, FiX, FiUsers, FiDollarSign, FiRefreshCw, FiLink, FiExternalLink, FiTrendingUp, FiTrendingDown, FiActivity, FiTarget, FiTag, FiUser, FiZap, FiAlertCircle, FiCheck, FiPrinter } from 'react-icons/fi';
-import { getFinancialProjections, calculatePotentialRevenue, getMarketPotential, getGrowthRoadmap } from '../services/calculationService';
+import { getFinancialProjections, calculatePotentialRevenue, getMarketPotential, getGrowthRoadmap, getGrowthRoadmapExtended, getEffectiveImplementationDate } from '../services/calculationService';
 import { PENETRATION_SCENARIOS, PHASE_COLORS, MONTHS } from '../constants';
 import InfoTooltip from '../components/ui/InfoTooltip';
 import { Line, getElementAtEvent } from 'react-chartjs-2';
@@ -425,9 +425,30 @@ const PlanningDetails: React.FC = () => {
     const selectedCity = cities.find(c => c.id === parsedCityId);
     const selectedPlan = plans.find(p => p.cityId === parsedCityId);
     
-    const growthRoadmapMedia = useMemo(() => selectedCity ? getGrowthRoadmap(selectedCity, PENETRATION_SCENARIOS['Média']) : [], [selectedCity, selectedCity?.implementationStartDate]);
-    const growthRoadmapMuitoBaixa = useMemo(() => selectedCity ? getGrowthRoadmap(selectedCity, PENETRATION_SCENARIOS['Muito Baixa']) : [], [selectedCity, selectedCity?.implementationStartDate]);
-    const growthRoadmapMuitoAlta = useMemo(() => selectedCity ? getGrowthRoadmap(selectedCity, PENETRATION_SCENARIOS['Muito Alta']) : [], [selectedCity, selectedCity?.implementationStartDate]);
+    // Verifica se a cidade está consolidada para usar roadmap estendido de 12 meses
+    const isConsolidatedCity = selectedCity?.status === CityStatus.Consolidated;
+    
+    // Para cidades consolidadas, usar roadmap de 12 meses; caso contrário, 6 meses
+    const growthRoadmapMedia = useMemo(() => {
+        if (!selectedCity) return [];
+        return isConsolidatedCity 
+            ? getGrowthRoadmapExtended(selectedCity, PENETRATION_SCENARIOS['Média'])
+            : getGrowthRoadmap(selectedCity, PENETRATION_SCENARIOS['Média']);
+    }, [selectedCity, selectedCity?.implementationStartDate, isConsolidatedCity]);
+    
+    const growthRoadmapMuitoBaixa = useMemo(() => {
+        if (!selectedCity) return [];
+        return isConsolidatedCity 
+            ? getGrowthRoadmapExtended(selectedCity, PENETRATION_SCENARIOS['Muito Baixa'])
+            : getGrowthRoadmap(selectedCity, PENETRATION_SCENARIOS['Muito Baixa']);
+    }, [selectedCity, selectedCity?.implementationStartDate, isConsolidatedCity]);
+    
+    const growthRoadmapMuitoAlta = useMemo(() => {
+        if (!selectedCity) return [];
+        return isConsolidatedCity 
+            ? getGrowthRoadmapExtended(selectedCity, PENETRATION_SCENARIOS['Muito Alta'])
+            : getGrowthRoadmap(selectedCity, PENETRATION_SCENARIOS['Muito Alta']);
+    }, [selectedCity, selectedCity?.implementationStartDate, isConsolidatedCity]);
 
     // Inicializar data de implementação quando a cidade for selecionada ou quando a data mudar
     useEffect(() => {
@@ -784,7 +805,8 @@ const PlanningDetails: React.FC = () => {
     }, [growthRoadmapMedia]);
 
     const { currentRides, currentMonthLabel } = useMemo(() => {
-        const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate;
+        // Usar data efetiva (real ou hipotética)
+        const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate || (selectedCity ? getEffectiveImplementationDate(selectedCity) : null);
         if (!startDate) return { currentRides: 0, currentMonthLabel: 'N/A' };
         
         const start = new Date(startDate.replace(/-/g, '/'));
@@ -801,7 +823,7 @@ const PlanningDetails: React.FC = () => {
         targetDate.setMonth(start.getMonth() + (latestMonthIndex - 1));
         const monthName = MONTHS[targetDate.getMonth()];
         return { currentRides: latestRides, currentMonthLabel: monthName };
-    }, [selectedPlan?.startDate, selectedCity?.implementationStartDate, localResults, latestMonthIndex, latestRides]);
+    }, [selectedCity, selectedPlan?.startDate, localResults, latestMonthIndex, latestRides]);
 
     const overallProgress = mediumMonthlyTarget > 0 ? (currentRides / mediumMonthlyTarget) * 100 : 0;
 
@@ -815,7 +837,9 @@ const PlanningDetails: React.FC = () => {
     };
 
     const handleMonthChange = (monthOffset: number, newDateValue: string) => {
-        if (!selectedPlan?.startDate || !newDateValue) return;
+        // Usar data efetiva se não houver startDate
+        const effectiveStart = selectedPlan?.startDate || (selectedCity ? getEffectiveImplementationDate(selectedCity) : null);
+        if (!effectiveStart || !newDateValue) return;
         
         // Calculate new Plan Start Date based on the edited month row
         // If row is month 1, newStartDate = newDateValue
@@ -1005,7 +1029,8 @@ const PlanningDetails: React.FC = () => {
     const calculatedProjectedRevenue = useMemo(() => {
         const PRICE_PER_RIDE = 2.50;
         const revByDate: { [key: string]: number } = {};
-        const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate;
+        // Usar data efetiva (real ou hipotética) para garantir que sempre haja dados
+        const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate || (selectedCity ? getEffectiveImplementationDate(selectedCity) : null);
         if (startDate && growthRoadmapMedia.length > 0) {
             growthRoadmapMedia.forEach((roadmapItem) => {
                 const [startYear, startMonth] = startDate.split('-').map(Number);
@@ -1018,12 +1043,13 @@ const PlanningDetails: React.FC = () => {
             });
         }
         return revByDate;
-    }, [selectedCity?.implementationStartDate, selectedPlan?.startDate, growthRoadmapMedia]);
+    }, [selectedCity, selectedPlan?.startDate, growthRoadmapMedia]);
 
     // Calcular metas de corridas (para FinancialProjection)
     const calculatedExpectedRides = useMemo(() => {
         const ridesByDate: { [key: string]: number } = {};
-        const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate;
+        // Usar data efetiva (real ou hipotética) para garantir que sempre haja dados
+        const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate || (selectedCity ? getEffectiveImplementationDate(selectedCity) : null);
         if (startDate && growthRoadmapMedia.length > 0) {
             growthRoadmapMedia.forEach((roadmapItem) => {
                 const [startYear, startMonth] = startDate.split('-').map(Number);
@@ -1042,12 +1068,13 @@ const PlanningDetails: React.FC = () => {
             data: ridesByDate
         });
         return ridesByDate;
-    }, [selectedCity?.implementationStartDate, selectedPlan?.startDate, growthRoadmapMedia]);
+    }, [selectedCity, selectedPlan?.startDate, growthRoadmapMedia]);
 
     // Calcular custos mensais (para FinancialProjection)
     const calculatedMonthlyCosts = useMemo(() => {
         const costsByDate: { [key: string]: { marketingCost: number; operationalCost: number } } = {};
-        const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate;
+        // Usar data efetiva (real ou hipotética) para garantir que sempre haja dados
+        const startDate = selectedCity?.implementationStartDate || selectedPlan?.startDate || (selectedCity ? getEffectiveImplementationDate(selectedCity) : null);
         
         if (!startDate) return costsByDate;
         
@@ -1056,8 +1083,9 @@ const PlanningDetails: React.FC = () => {
         const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
         const [startYear, startMonth] = datePart.split('-').map(Number);
         
-        // Sempre gerar 6 meses de estrutura baseado na data de início
-        for (let i = 0; i < 6; i++) {
+        // Para cidades consolidadas, gerar 12 meses; caso contrário, 6 meses
+        const monthsToGenerate = isConsolidatedCity ? 12 : 6;
+        for (let i = 0; i < monthsToGenerate; i++) {
             const totalMonths = (startYear * 12 + startMonth - 1) + i;
             const targetYear = Math.floor(totalMonths / 12);
             const targetMonth = (totalMonths % 12) + 1;
@@ -1075,7 +1103,7 @@ const PlanningDetails: React.FC = () => {
         
         console.log('💸 calculatedMonthlyCosts:', Object.keys(costsByDate).length, 'meses');
         return costsByDate;
-    }, [selectedCity?.implementationStartDate, selectedPlan?.startDate, localResults]);
+    }, [selectedCity?.implementationStartDate, selectedPlan?.startDate, localResults, isConsolidatedCity]);
 
     // ========================================
     // FUNÇÃO DE EXPORTAÇÃO COMPLETA PARA IMPRESSÃO
@@ -1139,8 +1167,9 @@ const PlanningDetails: React.FC = () => {
         const mktVarTotal = totalMarketingProj > 0 ? (((totalMarketingReal - totalMarketingProj) / totalMarketingProj) * 100).toFixed(0) : '-';
         const opsVarTotal = totalOperationalProj > 0 ? (((totalOperationalReal - totalOperationalProj) / totalOperationalProj) * 100).toFixed(0) : '-';
 
-        // Dados de metas
-        const chartRows = growthRoadmapMedia.slice(0, 6).map((item, idx) => {
+        // Dados de metas - para cidades consolidadas, mostrar 12 meses; caso contrário, 6 meses
+        const monthsForPrint = isConsolidatedCity ? 12 : 6;
+        const chartRows = growthRoadmapMedia.slice(0, monthsForPrint).map((item, idx) => {
             const [startYear, startMonth] = (selectedCity?.implementationStartDate || selectedPlan?.startDate || '2025-01').split('-').map(Number);
             const totalMonths = (startYear * 12 + (startMonth - 1)) + idx;
             const targetYear = Math.floor(totalMonths / 12);
@@ -1457,12 +1486,14 @@ const PlanningDetails: React.FC = () => {
                 monthlyCosts={(() => {
                     // Converter localResults para formato de data YYYY-MM
                     const costsByDate: { [key: string]: { marketingCost: number; operationalCost: number } } = {};
-                    if (selectedPlan?.startDate) {
+                    // Usar data efetiva (real ou hipotética)
+                    const effectiveStart = selectedPlan?.startDate || getEffectiveImplementationDate(selectedCity);
+                    if (effectiveStart) {
                         Object.keys(localResults).forEach(key => {
                             if (key.startsWith('Mes')) {
                                 const monthNum = parseInt(key.replace('Mes', ''));
                                 // Parse start date components
-                                const [startYear, startMonth] = selectedPlan.startDate.split('-').map(Number);
+                                const [startYear, startMonth] = effectiveStart.split('-').map(Number);
                                 // Calculate target month (Mes1 = month before start, so startMonth + (monthNum - 2))
                                 // Converter startMonth de 1-indexed para 0-indexed antes de calcular
                                 const totalMonths = (startYear * 12 + (startMonth - 1)) + (monthNum - 2);
@@ -1483,9 +1514,11 @@ const PlanningDetails: React.FC = () => {
                 planResults={(() => {
                     // Usar growthRoadmapMedia (metas oficiais) para preencher os dados esperados
                     const resultsByDate: { [key: string]: { rides: number; marketingCost: number; operationalCost: number } } = {};
-                    if (selectedPlan?.startDate && growthRoadmapMedia.length > 0) {
+                    // Usar data efetiva (real ou hipotética)
+                    const effectiveStart = selectedPlan?.startDate || getEffectiveImplementationDate(selectedCity);
+                    if (effectiveStart && growthRoadmapMedia.length > 0) {
                         growthRoadmapMedia.forEach((roadmapItem) => {
-                            const [startYear, startMonth] = selectedPlan.startDate.split('-').map(Number);
+                            const [startYear, startMonth] = effectiveStart.split('-').map(Number);
                             const totalMonths = (startYear * 12 + (startMonth - 1)) + (roadmapItem.month - 1);
                             const targetYear = Math.floor(totalMonths / 12);
                             const targetMonth = (totalMonths % 12) + 1;
@@ -1522,18 +1555,22 @@ const PlanningDetails: React.FC = () => {
 
             {/* Projeção vs Realidade Financeira */}
             {(() => {
-                const slicedCosts = Object.fromEntries(Object.entries(calculatedMonthlyCosts).slice(0, 6));
-                const slicedRealCosts = Object.fromEntries(Object.entries(realMonthlyCosts).slice(0, 6));
-                const slicedRides = Object.fromEntries(Object.entries(calculatedExpectedRides).slice(0, 6));
-                const slicedActualRides = Object.fromEntries(Object.entries(realRidesData).slice(0, 6));
-                const slicedProjRev = Object.fromEntries(Object.entries(calculatedProjectedRevenue).slice(0, 6));
-                const slicedActualRev = Object.fromEntries(Object.entries(calculatedActualRevenue).slice(0, 6));
+                // Para cidades consolidadas, mostrar 12 meses; caso contrário, 6 meses
+                const monthsToShow = isConsolidatedCity ? 12 : 6;
+                const slicedCosts = Object.fromEntries(Object.entries(calculatedMonthlyCosts).slice(0, monthsToShow));
+                const slicedRealCosts = Object.fromEntries(Object.entries(realMonthlyCosts).slice(0, monthsToShow));
+                const slicedRides = Object.fromEntries(Object.entries(calculatedExpectedRides).slice(0, monthsToShow));
+                const slicedActualRides = Object.fromEntries(Object.entries(realRidesData).slice(0, monthsToShow));
+                const slicedProjRev = Object.fromEntries(Object.entries(calculatedProjectedRevenue).slice(0, monthsToShow));
+                const slicedActualRev = Object.fromEntries(Object.entries(calculatedActualRevenue).slice(0, monthsToShow));
                 
                 console.log('📤 Passando dados para FinancialProjection:', {
                     monthlyCosts: Object.keys(slicedCosts).length,
                     monthlyRealCosts: Object.keys(slicedRealCosts).length,
                     expectedRides: Object.keys(slicedRides).length,
                     actualRides: Object.keys(slicedActualRides).length,
+                    isConsolidated: isConsolidatedCity,
+                    monthsToShow
                 });
                 
                 return (
