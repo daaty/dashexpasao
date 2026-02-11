@@ -17,7 +17,7 @@ const CityDataTable: React.FC<CityDataTableProps> = ({ city, onUpdate }) => {
 
   const potentialRevenue = calculatePotentialRevenue(city);
   const growthRoadmapMedia = getGrowthRoadmap(city, PENETRATION_SCENARIOS['Média']);
-  const firstYearProjection = growthRoadmapMedia[11]?.rides || 0; // 12º mês
+  const firstYearProjection = growthRoadmapMedia[5]?.rides || 0; // 6º mês
 
   const handleEdit = (field: keyof City, value: any) => {
     setEditingField(field);

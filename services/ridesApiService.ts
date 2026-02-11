@@ -174,6 +174,22 @@ export const getMonthlyRidesByCity = async (
 };
 
 /**
+ * Busca receita total mensal de recargas (sem filtro de cidade)
+ * Retorna dados de TODAS as transactions, incluindo as com city=NULL
+ */
+export const getTotalMonthlyRevenue = async (
+  months: number = 6
+): Promise<Array<{ month: string; year: number; monthNumber: number; revenue: number }>> => {
+  try {
+    const response = await api.get(`/rides/monthly-revenue-total?months=${months}`);
+    return response.data.data || [];
+  } catch (error) {
+    console.error('Erro ao buscar receita total mensal:', error);
+    return [];
+  }
+};
+
+/**
  * Busca dados diários de corridas de uma cidade
  */
 export const getDailyRidesByCity = async (

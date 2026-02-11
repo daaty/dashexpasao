@@ -135,18 +135,31 @@ class RidesService {
       const activeDays = parseInt(row.active_days) || 1;
       const activeMonths = parseInt(row.active_months) || 1;
 
-      // Buscar receita de transactions CREDIT com recargas
+      // Buscar receita real do campo price das corridas
       const cityPlaceholders = cityVariations.map((_, i) => `$${i + 1}`).join(', ');
       
+      let revenueWhereClause = `WHERE LOWER(r.city) IN (${cityPlaceholders}) AND r.status = 'Concluída'`;
+      const revenueParams: any[] = [...cityVariations.map(c => c.toLowerCase())];
+      let revenueParamIndex = cityVariations.length + 1;
+
+      if (filters?.startDate) {
+        revenueWhereClause += ` AND r."arrivedTimestamp" >= $${revenueParamIndex}`;
+        revenueParams.push(filters.startDate);
+        revenueParamIndex++;
+      }
+      if (filters?.endDate) {
+        revenueWhereClause += ` AND r."arrivedTimestamp" <= $${revenueParamIndex}`;
+        revenueParams.push(filters.endDate);
+        revenueParamIndex++;
+      }
+      
       const revenueQuery = `
-        SELECT COALESCE(SUM(t.quantity), 0) as total_revenue
-        FROM dashboard.transactions t
-        WHERE t.type = 'CREDIT'
-          AND LOWER(t.description) LIKE '%recarga%'
-          AND LOWER(t.city) IN (${cityPlaceholders})
+        SELECT COALESCE(SUM(r.price), 0) as total_revenue
+        FROM dashboard.rides r
+        ${revenueWhereClause}
       `;
       
-      const revenueResult = await n8nDatabase.query(revenueQuery, cityVariations.map(c => c.toLowerCase()));
+      const revenueResult = await n8nDatabase.query(revenueQuery, revenueParams);
       const totalRevenue = parseFloat(revenueResult.rows[0]?.total_revenue) || 0;
 
       return {
@@ -323,7 +336,7 @@ class RidesService {
         paramIndex++;
       }
 
-      // Estatísticas gerais com receita de recargas
+      // Estat\u00edsticas gerais com receita de recargas
       const summaryQuery = `
         SELECT 
           COUNT(DISTINCT r.id) as total_rides,
@@ -382,6 +395,45 @@ class RidesService {
     } catch (error) {
       logger.error('Erro ao buscar resumo de corridas:', error);
       return null;
+    }
+  }
+
+  /**
+   * Busca receita total mensal de recargas (sem filtro de cidade)
+   * Retorna dados de TODAS as transactions, incluindo as com city=NULL
+   */
+  async getTotalMonthlyRevenue(months: number = 6): Promise<Array<{ month: string; year: number; monthNumber: number; revenue: number }>> {
+    try {
+      const available = await this.isAvailable();
+      if (!available) {
+        return [];
+      }
+
+      const query = `
+        SELECT 
+          TO_CHAR(DATE_TRUNC('month', t.timestamp), 'YYYY-MM') as month,
+          EXTRACT(YEAR FROM DATE_TRUNC('month', t.timestamp)) as year,
+          EXTRACT(MONTH FROM DATE_TRUNC('month', t.timestamp)) as month_number,
+          COALESCE(SUM(t.quantity), 0) as revenue
+        FROM dashboard.transactions t
+        WHERE t.type = 'CREDIT'
+          AND LOWER(t.description) LIKE '%recarga%'
+        GROUP BY DATE_TRUNC('month', t.timestamp)
+        ORDER BY month DESC
+        LIMIT $1
+      `;
+
+      const result = await n8nDatabase.query(query, [months]);
+
+      return result.rows.map((row: any) => ({
+        month: row.month,
+        year: parseInt(row.year),
+        monthNumber: parseInt(row.month_number),
+        revenue: parseFloat(row.revenue) || 0,
+      }));
+    } catch (error) {
+      logger.error('Erro ao buscar receita total mensal:', error);
+      return [];
     }
   }
 

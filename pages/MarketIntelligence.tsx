@@ -2,15 +2,47 @@
 import React, { useContext, useMemo, useState, useEffect } from 'react';
 import { DataContext } from '../context/DataContext';
 import Card from '../components/ui/Card';
-import { FiBriefcase, FiMapPin, FiSearch, FiArrowRight, FiActivity, FiPlus, FiGrid, FiMoreHorizontal, FiTrash2, FiEdit2, FiX, FiCheck, FiMove, FiMinusCircle, FiDownload, FiClipboard, FiChevronDown } from 'react-icons/fi';
+import { FiBriefcase, FiMapPin, FiSearch, FiArrowRight, FiActivity, FiPlus, FiGrid, FiMoreHorizontal, FiTrash2, FiEdit2, FiX, FiCheck, FiMove, FiMinusCircle, FiDownload, FiClipboard, FiChevronDown, FiChevronUp, FiEye, FiEyeOff, FiCopy, FiSave } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { CityStatus, MarketBlock, City, CityPlan } from '../types';
+import { CityStatus, MarketBlock, City, CityPlan, MonthResult } from '../types';
 import Modal from '../components/ui/Modal';
 import { calculatePotentialRevenue, getMarketPotential, getGradualMonthlyGoal, getGradualMonthlyGoalForBlock, getEffectiveImplementationDate } from '../services/calculationService';
-import { getRideStatsByCity, getMonthlyRidesByCity } from '../services/ridesApiService';
+import { getRideStatsByCity, getMonthlyRidesByCity, getTotalMonthlyRevenue } from '../services/ridesApiService';
 import { getMonthlyRevenueData } from '../services/revenueService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+// Interface para Templates de Projeção
+interface ProjectionTemplate {
+    id: string;
+    name: string;
+    emoji: string;
+    color: string;
+    cpaValues: number[];
+    opsValues: number[];
+}
+
+// Funções para carregar templates do localStorage
+const TEMPLATES_STORAGE_KEY = 'projectionCustomTemplates';
+
+const loadCustomTemplates = (): ProjectionTemplate[] => {
+    try {
+        const saved = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+        return saved ? JSON.parse(saved) : [];
+    } catch {
+        return [];
+    }
+};
+
+// Preço por corrida
+const PRICE_PER_RIDE = 2.50;
+
+// Função helper para formatar mês/ano (ex: "FEV/26", "JAN/26")
+const formatMonthLabel = (year: number, month: number): string => {
+    const monthNames = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+    const shortYear = String(year).slice(-2);
+    return `${monthNames[month - 1]}/${shortYear}`;
+};
 
 // --- Subcomponent: Block KPIs ---
 const BlockKPIs: React.FC<{
@@ -878,11 +910,108 @@ const BlockSection: React.FC<{
     navigate: (path: string) => void;
     isUpdating?: boolean;
     lastUpdateTime?: Date;
-}> = ({ block, cities, allBlocks, plans, onRename, onDelete, onMoveCity, onRemoveCity, onPlanCity, navigate, isUpdating = false, lastUpdateTime = new Date() }) => {
+    updatePlanResultsBatch: (cityId: number, results: { [key: string]: MonthResult }) => void;
+}> = ({ block, cities, allBlocks, plans, onRename, onDelete, onMoveCity, onRemoveCity, onPlanCity, navigate, isUpdating = false, lastUpdateTime = new Date(), updatePlanResultsBatch }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(block.name);
     const [isOver, setIsOver] = useState(false);
     const [showPlanningView, setShowPlanningView] = useState(false); // Novo estado para controlar visão do planejamento
+    
+    // Estados para modal de template do bloco
+    const [showBlockTemplateModal, setShowBlockTemplateModal] = useState(false);
+    const [customTemplates, setCustomTemplates] = useState<ProjectionTemplate[]>(() => loadCustomTemplates());
+    const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
+    const [applyProgress, setApplyProgress] = useState({ current: 0, total: 0, cityName: '' });
+    
+    // Estado para mostrar/ocultar visão geral do bloco - persiste no localStorage
+    const [showBlockOverview, setShowBlockOverview] = useState(() => {
+        const saved = localStorage.getItem(`blockOverview_${block.id}`);
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    
+    // Persistir estado no localStorage quando mudar
+    useEffect(() => {
+        localStorage.setItem(`blockOverview_${block.id}`, JSON.stringify(showBlockOverview));
+    }, [showBlockOverview, block.id]);
+    
+    // Recarregar templates quando modal abre
+    useEffect(() => {
+        if (showBlockTemplateModal) {
+            setCustomTemplates(loadCustomTemplates());
+        }
+    }, [showBlockTemplateModal]);
+    
+    // Função para calcular corridas esperadas por mês para uma cidade
+    const getExpectedRidesForCity = (city: City): number[] => {
+        const rides: number[] = [];
+        const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0];
+        const targetPenetration = 0.10;
+        
+        for (let i = 0; i < 6; i++) {
+            if (city.population15to44) {
+                const factor = curveFactors[i];
+                rides.push(Math.round(city.population15to44 * factor * targetPenetration));
+            } else {
+                rides.push(0);
+            }
+        }
+        return rides;
+    };
+    
+    // Função para aplicar template a todas as cidades do bloco
+    // Aplica os MESMOS valores do template (por mês) a TODAS as cidades
+    const applyTemplateToAllCities = async (template: ProjectionTemplate) => {
+        setIsApplyingTemplate(true);
+        setApplyProgress({ current: 0, total: cities.length, cityName: '' });
+        
+        console.log(`📋 Aplicando template "${template.name}" a ${cities.length} cidades`);
+        console.log(`   CPA por mês: ${template.cpaValues.join(', ')}`);
+        console.log(`   OPS por mês: ${template.opsValues.join(', ')}`);
+        
+        try {
+            for (let idx = 0; idx < cities.length; idx++) {
+                const city = cities[idx];
+                setApplyProgress({ current: idx + 1, total: cities.length, cityName: city.name });
+                
+                const expectedRides = getExpectedRidesForCity(city);
+                const results: { [key: string]: MonthResult } = {};
+                
+                for (let i = 0; i < 6; i++) {
+                    const mesKey = `Mes${i + 1}`;
+                    // Usar o valor do template para ESTE mês (i)
+                    // TODAS as cidades recebem o MESMO valor de CPA/OPS para cada mês
+                    const cpaValue = template.cpaValues[i] || 0;
+                    const opsValue = template.opsValues[i] || 0;
+                    const rides = expectedRides[i];
+                    
+                    results[mesKey] = {
+                        rides,
+                        marketingCost: Math.round(rides * cpaValue),
+                        operationalCost: Math.round(rides * opsValue),
+                        projectedMarketing: Math.round(rides * cpaValue),
+                        projectedOperational: Math.round(rides * opsValue),
+                        projectedRevenue: rides * PRICE_PER_RIDE,
+                        cpaPerRide: cpaValue,
+                        opsPerRide: opsValue
+                    };
+                }
+                
+                await updatePlanResultsBatch(city.id, results);
+                
+                // Pequena pausa para não sobrecarregar
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            alert(`✅ Template "${template.name}" aplicado com sucesso a ${cities.length} cidades!`);
+        } catch (error) {
+            console.error('Erro ao aplicar template:', error);
+            alert('❌ Erro ao aplicar template. Verifique o console.');
+        } finally {
+            setIsApplyingTemplate(false);
+            setShowBlockTemplateModal(false);
+        }
+    };
+    
     const [blockStats, setBlockStats] = useState({
         // Meta Global Acumulativa (soma de todas as metas desde início de cada cidade)
         globalAccumulatedGoal: 0,
@@ -1154,16 +1283,14 @@ const BlockSection: React.FC<{
                             }
                         });
 
-                        // Dados do mês atual
+                        // Dados do mês atual (apenas corridas - receita será buscada separadamente)
                         if (monthlyTotals[currentMonthKey]) {
                             currentMonthRides += monthlyTotals[currentMonthKey].rides;
-                            currentMonthRevenue += monthlyTotals[currentMonthKey].revenue;
                         }
                         
-                        // Dados do mês passado
+                        // Dados do mês passado (apenas corridas - receita será buscada separadamente)
                         if (monthlyTotals[lastMonthKey]) {
                             lastMonthRides += monthlyTotals[lastMonthKey].rides;
-                            lastMonthRevenue += monthlyTotals[lastMonthKey].revenue;
                         }
                     }
 
@@ -1236,6 +1363,38 @@ const BlockSection: React.FC<{
                 }
             }
             
+            // ===== BUSCAR RECEITA TOTAL DE RECARGAS (sem filtro de cidade) =====
+            // As transactions podem ter city=NULL, então buscamos o total global
+            try {
+                const totalRevData = await getTotalMonthlyRevenue(13);
+                const revenueByMonth: { [key: string]: number } = {};
+                totalRevData.forEach(item => {
+                    revenueByMonth[item.month] = item.revenue;
+                });
+                
+                // Receita do mês atual
+                currentMonthRevenue = revenueByMonth[currentMonthKey] || 0;
+                
+                // Receita do mês passado
+                lastMonthRevenue = revenueByMonth[lastMonthKey] || 0;
+                
+                // Recalcular receita acumulada global com dados totais
+                globalAccumulatedRevenue = 0;
+                totalRevData.forEach(item => {
+                    globalAccumulatedRevenue += item.revenue;
+                });
+                
+                console.log('[BlockStats] Receita total de recargas:', {
+                    currentMonthKey,
+                    currentMonthRevenue,
+                    lastMonthKey,
+                    lastMonthRevenue,
+                    globalAccumulatedRevenue
+                });
+            } catch (error) {
+                console.error('Erro ao buscar receita total de recargas:', error);
+            }
+
             // Log final dos custos calculados
             console.log('[BlockStats] Custos Finais:', {
                 projectedMarketingCost,
@@ -1458,6 +1617,14 @@ const BlockSection: React.FC<{
     // Função para gerar dados de planejamento de 6 meses para todas as cidades do bloco
     // Usa os dados salvos em PlanningResults de cada cidade quando disponíveis
     const getBlockPlanningData = () => {
+        // DEBUG: Verificar o estado do array plans
+        console.log('🔍 DEBUG getBlockPlanningData - Início:');
+        console.log('   plans array length:', plans.length);
+        console.log('   plans cityIds:', plans.map(p => p.cityId));
+        console.log('   cities array length:', cities.length);
+        console.log('   cities ids:');
+        cities.forEach(c => console.log(`      ${c.name}: ${c.id}`));
+        
         const planningData: {
             month: string;
             totalGoal: number;
@@ -1499,6 +1666,14 @@ const BlockSection: React.FC<{
                 const mesKey = `Mes${monthIndex + 1}`;
                 const savedResult = cityPlan?.results?.[mesKey];
                 
+                // DEBUG: Log temporário para entender o problema
+                if (city.id === 5107958 && monthIndex === 0) {
+                    console.log('🔍 DEBUG Tangará da Serra - Mês 1:');
+                    console.log('   cityPlan encontrado:', !!cityPlan);
+                    console.log('   cityPlan.results:', cityPlan?.results ? Object.keys(cityPlan.results).join(', ') : 'N/A');
+                    console.log('   savedResult:', savedResult);
+                }
+                
                 let goal = 0;
                 let marketingCost = 0;
                 let operationalCost = 0;
@@ -1510,9 +1685,23 @@ const BlockSection: React.FC<{
                     goal = savedResult.rides || 0;
                     marketingCost = savedResult.projectedMarketing || savedResult.marketingCost || 0;
                     operationalCost = savedResult.projectedOperational || savedResult.operationalCost || 0;
-                    revenue = savedResult.projectedRevenue || (goal * 2.5);
+                    // CORREÇÃO: Usar sempre rides * 2.5 para garantir consistência
+                    revenue = goal * 2.5;
                     fromSavedPlan = true;
+                    
+                    // DEBUG
+                    if (city.id === 5107958 && monthIndex === 0) {
+                        console.log('   ✅ USANDO DADOS SALVOS:');
+                        console.log('      goal:', goal);
+                        console.log('      marketingCost:', marketingCost);
+                        console.log('      operationalCost:', operationalCost);
+                    }
                 } else {
+                    // DEBUG
+                    if (city.id === 5107958 && monthIndex === 0) {
+                        console.log('   ⚠️ USANDO FALLBACK - savedResult:', savedResult);
+                    }
+                    
                     // Fallback: calcular automaticamente se não há plano salvo
                     // VALORES BASEADOS EM ANÁLISE DE PROJEÇÕES REAIS SALVAS (analyze-fallback-values.js)
                     const targetPenetration = 0.10; // 10% da população 15-44
@@ -2715,6 +2904,18 @@ const BlockSection: React.FC<{
                                 </div>
                                 {/* Action Buttons */}
                                 <div className="flex items-center gap-2 flex-shrink-0">
+                                    {/* Toggle para abrir/fechar visão geral do bloco */}
+                                    <button 
+                                        onClick={() => setShowBlockOverview(!showBlockOverview)}
+                                        className={`p-2 border rounded-lg transition-all duration-200 ${
+                                            showBlockOverview 
+                                                ? 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10' 
+                                                : 'text-gray-400 hover:text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10'
+                                        }`}
+                                        title={showBlockOverview ? "Ocultar visão geral" : "Mostrar visão geral"}
+                                    >
+                                        {showBlockOverview ? <FiEyeOff size={18}/> : <FiEye size={18}/>}
+                                    </button>
                                     <button 
                                         onClick={() => setShowPlanningView(!showPlanningView)}
                                         disabled={cities.length === 0}
@@ -2755,24 +2956,41 @@ const BlockSection: React.FC<{
                     </div>
                 </div>
 
-                {!isEditing && (
+                {!isEditing && showBlockOverview && (
                     <div className="mt-5">
                         {showPlanningView ? (
                             /* Visualização de Planejamento de 6 Meses */
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between mb-6">
-                                    <h4 className="text-xl font-bold text-white">Projeções de 6 Meses - {block.name}</h4>
-                                    <span className="text-xs text-purple-400 bg-purple-500/20 px-3 py-1 rounded-full">
-                                        {cities.length} cidades • Planejamento Estratégico
-                                    </span>
+                                    <h4 className="text-xl font-bold text-white">Projeções de 12 Meses - {block.name}</h4>
+                                    <div className="flex items-center gap-3">
+                                        {/* Botão para aplicar template a todas as cidades */}
+                                        <button
+                                            onClick={() => setShowBlockTemplateModal(true)}
+                                            disabled={cities.length === 0}
+                                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105"
+                                            style={{ 
+                                                background: 'rgba(139, 92, 246, 0.2)', 
+                                                color: '#a78bfa', 
+                                                border: '1px solid rgba(139, 92, 246, 0.4)' 
+                                            }}
+                                            title="Aplicar template de custos a todas as cidades do bloco"
+                                        >
+                                            <FiCopy size={14} />
+                                            Aplicar Template
+                                        </button>
+                                        <span className="text-xs text-purple-400 bg-purple-500/20 px-3 py-1 rounded-full">
+                                            {cities.length} cidades • Planejamento Estratégico
+                                        </span>
+                                    </div>
                                 </div>
                                 
                                 {(() => {
                                     const planningData = getBlockPlanningData();
-                                    const totalGoal6M = planningData.reduce((sum, m) => sum + m.totalGoal, 0);
-                                    const totalRevenue6M = planningData.reduce((sum, m) => sum + m.totalRevenue, 0);
-                                    const totalCosts6M = planningData.reduce((sum, m) => sum + m.totalMarketingCost + m.totalOperationalCost, 0);
-                                    const margin6M = totalRevenue6M - totalCosts6M;
+                                    const totalGoal12M = planningData.reduce((sum, m) => sum + m.totalGoal, 0);
+                                    const totalRevenue12M = planningData.reduce((sum, m) => sum + m.totalRevenue, 0);
+                                    const totalCosts12M = planningData.reduce((sum, m) => sum + m.totalMarketingCost + m.totalOperationalCost, 0);
+                                    const margin12M = totalRevenue12M - totalCosts12M;
                                     const targetPop = cities.reduce((sum, c) => sum + c.population15to44, 0);
                                     const monthlyRevenue10Percent = Math.round(targetPop * 0.10) * 2.5; // 10% penetração x R$2.50/corrida
                                     
@@ -2780,37 +2998,37 @@ const BlockSection: React.FC<{
                                         <>
                                         {/* Cards de Resumo no Topo */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                                            {/* Card 1: Meta Total 6M */}
+                                            {/* Card 1: Meta Total 12M */}
                                             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
                                                 <div className="flex items-center gap-3 mb-2">
                                                     <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
                                                         <span className="text-lg">📈</span>
                                                     </div>
-                                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Meta Total 6M</span>
+                                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Meta Total 12M</span>
                                                 </div>
-                                                <div className="text-2xl font-bold text-slate-800">{totalGoal6M.toLocaleString('pt-BR')}</div>
+                                                <div className="text-2xl font-bold text-slate-800">{totalGoal12M.toLocaleString('pt-BR')}</div>
                                             </div>
                                             
-                                            {/* Card 2: Receita Proj. 6M */}
+                                            {/* Card 2: Receita Proj. 12M */}
                                             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
                                                 <div className="flex items-center gap-3 mb-2">
                                                     <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
                                                         <span className="text-lg">💰</span>
                                                     </div>
-                                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Receita Proj. 6M</span>
+                                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Receita Proj. 12M</span>
                                                 </div>
-                                                <div className="text-2xl font-bold text-slate-800">{formatCurrency(totalRevenue6M)}</div>
+                                                <div className="text-2xl font-bold text-slate-800">{formatCurrency(totalRevenue12M)}</div>
                                             </div>
                                             
-                                            {/* Card 3: Margem 6M */}
+                                            {/* Card 3: Margem 12M */}
                                             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
                                                 <div className="flex items-center gap-3 mb-2">
                                                     <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
                                                         <span className="text-lg">📊</span>
                                                     </div>
-                                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Margem 6M</span>
+                                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Margem 12M</span>
                                                 </div>
-                                                <div className={`text-2xl font-bold ${margin6M >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(margin6M)}</div>
+                                                <div className={`text-2xl font-bold ${margin12M >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(margin12M)}</div>
                                             </div>
                                             
                                             {/* Card 4: Receita Mensal (10%) */}
@@ -2944,7 +3162,18 @@ const BlockSection: React.FC<{
                                     );
                                 })()}
                             </div>
-                        ) : (
+                        ) : (() => {
+                            // Calcular labels dinâmicos de mês
+                            const today = new Date();
+                            const currentYear = today.getFullYear();
+                            const currentMonth = today.getMonth() + 1;
+                            const currentMonthLabel = formatMonthLabel(currentYear, currentMonth);
+                            
+                            const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+                            const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+                            const lastMonthLabel = formatMonthLabel(lastMonthYear, lastMonth);
+                            
+                            return (
                             /* KPIs Grid - Layout Limpo */
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                             {/* Card 1: Meta Global Acumulativa */}
@@ -3077,7 +3306,7 @@ const BlockSection: React.FC<{
                                 <div className="relative z-10">
                                     <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-xs font-bold text-purple-400 bg-purple-500/20 px-2 py-0.5 rounded">JAN/26</span>
+                                            <span className="text-xs font-bold text-purple-400 bg-purple-500/20 px-2 py-0.5 rounded">{currentMonthLabel}</span>
                                             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mês Atual</span>
                                             <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400">
                                                 🔄 Atualiza a cada 1 min
@@ -3193,7 +3422,7 @@ const BlockSection: React.FC<{
                             <div className="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50">
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-orange-400 bg-orange-500/20 px-2 py-0.5 rounded">DEZ/25</span>
+                                        <span className="text-xs font-bold text-orange-400 bg-orange-500/20 px-2 py-0.5 rounded">{lastMonthLabel}</span>
                                         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mês Passado</span>
                                     </div>
                                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
@@ -3292,7 +3521,9 @@ const BlockSection: React.FC<{
                                 </div>
                             </div>
                         </div>
-                        )}
+                            ); // Fim do return da função
+                        })() // Fim da IIFE
+                        }
                     </div>
                 )}
             </div>
@@ -3326,13 +3557,113 @@ const BlockSection: React.FC<{
                     </>
                 )}
             </div>
+            
+            {/* Modal para Aplicar Template a Todas as Cidades do Bloco */}
+            {showBlockTemplateModal && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => !isApplyingTemplate && setShowBlockTemplateModal(false)}>
+                    <div 
+                        className="bg-gray-800 rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl border border-gray-700"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                            <FiCopy className="text-purple-400" />
+                            Aplicar Template ao Bloco
+                        </h3>
+                        <p className="text-gray-400 text-sm mb-4">
+                            Selecione um template para aplicar a todas as <strong className="text-purple-400">{cities.length} cidades</strong> do bloco "{block.name}".
+                        </p>
+                        
+                        {isApplyingTemplate ? (
+                            <div className="py-8">
+                                <div className="flex flex-col items-center gap-4">
+                                    <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+                                    <p className="text-white font-medium">Aplicando template...</p>
+                                    <p className="text-gray-400 text-sm">
+                                        {applyProgress.current}/{applyProgress.total} - {applyProgress.cityName}
+                                    </p>
+                                    <div className="w-full bg-gray-700 rounded-full h-2">
+                                        <div 
+                                            className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                                            style={{ width: `${(applyProgress.current / applyProgress.total) * 100}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : customTemplates.length === 0 ? (
+                            <div className="py-8 text-center">
+                                <p className="text-gray-400 mb-4">Nenhum template personalizado encontrado.</p>
+                                <p className="text-gray-500 text-sm">
+                                    Crie templates na página de Inteligência de uma cidade específica.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2 max-h-80 overflow-y-auto">
+                                {customTemplates.map(template => {
+                                    // Mostrar valores do template (variáveis por mês)
+                                    const avgCpa = template.cpaValues.reduce((a, b) => a + b, 0) / template.cpaValues.length;
+                                    const avgOps = template.opsValues.reduce((a, b) => a + b, 0) / template.opsValues.length;
+                                    const isUniform = template.cpaValues.every(v => v === template.cpaValues[0]) && 
+                                                      template.opsValues.every(v => v === template.opsValues[0]);
+                                    
+                                    return (
+                                        <button
+                                            key={template.id}
+                                            onClick={() => applyTemplateToAllCities(template)}
+                                            className="w-full p-4 rounded-lg text-left transition-all duration-200 hover:scale-[1.02] group"
+                                            style={{ 
+                                                background: 'rgba(139, 92, 246, 0.1)', 
+                                                border: '1px solid rgba(139, 92, 246, 0.3)' 
+                                            }}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-2xl">{template.emoji}</span>
+                                                    <div>
+                                                        <p className="font-semibold text-white group-hover:text-purple-300 transition-colors">
+                                                            {template.name}
+                                                        </p>
+                                                        <p className="text-xs text-gray-400">
+                                                            {isUniform 
+                                                                ? `CPA: R$${template.cpaValues[0].toFixed(2).replace('.', ',')} / OPS: R$${template.opsValues[0].toFixed(2).replace('.', ',')} (igual todos meses)`
+                                                                : `Variável - Média CPA: R$${avgCpa.toFixed(2).replace('.', ',')} / OPS: R$${avgOps.toFixed(2).replace('.', ',')}`
+                                                            }
+                                                        </p>
+                                                        {!isUniform && (
+                                                            <p className="text-[10px] text-purple-400 mt-1">
+                                                                Mês 1→6: CPA [{template.cpaValues.map(v => v.toFixed(1)).join(', ')}]
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <FiArrowRight className="text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        
+                        {!isApplyingTemplate && (
+                            <div className="flex justify-end mt-6">
+                                <button
+                                    onClick={() => setShowBlockTemplateModal(false)}
+                                    className="px-4 py-2 rounded-lg font-medium transition-all"
+                                    style={{ background: 'rgba(255, 255, 255, 0.1)', color: '#9ca3af' }}
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
 
 const MarketIntelligence: React.FC = () => {
-    const { cities, plans, marketData, marketBlocks, addMarketBlock, updateMarketBlock, deleteMarketBlock, moveCityToBlock, removeCityFromIntelligence, addPlanForCity } = useContext(DataContext);
+    const { cities, plans, marketData, marketBlocks, addMarketBlock, updateMarketBlock, deleteMarketBlock, moveCityToBlock, removeCityFromIntelligence, addPlanForCity, updatePlanResultsBatch } = useContext(DataContext);
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -3515,6 +3846,7 @@ const MarketIntelligence: React.FC = () => {
                         navigate={navigate}
                         isUpdating={isUpdating}
                         lastUpdateTime={lastUpdateTime}
+                        updatePlanResultsBatch={updatePlanResultsBatch}
                     />
                 ))}
             </div>

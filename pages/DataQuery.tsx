@@ -277,8 +277,8 @@ const DataQuery: React.FC = () => {
         const tableRows = exportSource.map(city => [
             city.name,
             city.status,
-            city.population.toLocaleString('pt-BR'),
-            city.population15to44.toLocaleString('pt-BR'),
+            (city.population ?? 0).toLocaleString('pt-BR'),
+            (city.population15to44 ?? 0).toLocaleString('pt-BR'),
             formatCurrency(calculatePotentialRevenue(city, 'Baixa')),
             formatCurrency(calculatePotentialRevenue(city, 'Média')),
             formatCurrency(calculatePotentialRevenue(city, 'Alta'))
@@ -286,8 +286,8 @@ const DataQuery: React.FC = () => {
 
         // Calculate totals
         const totals = exportSource.reduce((acc, city) => {
-            acc.population += city.population;
-            acc.population15to44 += city.population15to44;
+            acc.population += city.population ?? 0;
+            acc.population15to44 += city.population15to44 ?? 0;
             acc.revenueBaixa += calculatePotentialRevenue(city, 'Baixa');
             acc.revenueMedia += calculatePotentialRevenue(city, 'Média');
             acc.revenueAlta += calculatePotentialRevenue(city, 'Alta');
@@ -711,8 +711,8 @@ const DataQuery: React.FC = () => {
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="p-3" style={{ color: 'rgb(255 255 255 / 80%)' }}>{city.population.toLocaleString('pt-BR')}</td>
-                                        <td className="p-3" style={{ color: 'rgb(255 255 255 / 80%)' }}>{city.population15to44.toLocaleString('pt-BR')}</td>
+                                        <td className="p-3" style={{ color: 'rgb(255 255 255 / 80%)' }}>{city.population?.toLocaleString('pt-BR') ?? '-'}</td>
+                                        <td className="p-3" style={{ color: 'rgb(255 255 255 / 80%)' }}>{city.population15to44?.toLocaleString('pt-BR') ?? '-'}</td>
                                         <td className="p-3">
                                             <div className="flex flex-col text-sm">
                                                 <span className="font-semibold" style={{ color: '#ffffff' }}>{formatCurrency(calculatePotentialRevenue(city, 'Média'))}</span>

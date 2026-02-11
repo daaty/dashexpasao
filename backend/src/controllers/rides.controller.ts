@@ -203,6 +203,29 @@ export class RidesController {
       });
     }
   }
+
+  /**
+   * GET /api/rides/monthly-revenue-total
+   * Busca receita total mensal de recargas (sem filtro de cidade)
+   */
+  async getTotalMonthlyRevenue(req: Request, res: Response): Promise<void> {
+    try {
+      const months = parseInt(req.query.months as string) || 6;
+
+      const data = await ridesService.getTotalMonthlyRevenue(months);
+
+      res.json({
+        data,
+        count: data.length
+      });
+    } catch (error) {
+      logger.error('Erro ao buscar receita total mensal:', error);
+      res.status(500).json({
+        error: 'Erro ao buscar receita total mensal',
+        data: []
+      });
+    }
+  }
 }
 
 export const ridesController = new RidesController();

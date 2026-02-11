@@ -3,11 +3,47 @@ import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DataContext } from '../context/DataContext';
 import Card from '../components/ui/Card';
-import { FiArrowLeft, FiSave, FiTrendingUp, FiUsers, FiTarget, FiShield, FiPlus, FiTrash2, FiEdit2, FiPhone, FiMail, FiUser, FiGlobe, FiDollarSign, FiCalendar, FiCheck } from 'react-icons/fi';
+import { FiArrowLeft, FiSave, FiTrendingUp, FiUsers, FiTarget, FiShield, FiPlus, FiTrash2, FiEdit2, FiPhone, FiMail, FiUser, FiGlobe, FiDollarSign, FiCalendar, FiCheck, FiX, FiCopy } from 'react-icons/fi';
 import { CityMarketData, MarketCompetitor, StakeholderContact, MonthResult } from '../types';
 import { getGradualMonthlyGoal } from '../services/calculationService';
 import { PRICE_PER_RIDE } from '../constants';
 import * as planResultsService from '../services/planResultsService';
+
+// ========================================
+// TEMPLATES DE PROJEÇÃO
+// ========================================
+
+interface ProjectionTemplate {
+    id: string;
+    name: string;
+    emoji: string;
+    color: string;
+    // Valores por mês (array de 6 elementos) ou valor único para todos
+    cpaValues: number[]; // 6 valores, um por mês
+    opsValues: number[]; // 6 valores, um por mês
+}
+
+// Helper para criar array de 6 valores iguais
+const createMonthlyArray = (value: number): number[] => Array(6).fill(value);
+
+// Templates padrão (vazio - apenas templates customizados serão usados)
+const DEFAULT_TEMPLATES: ProjectionTemplate[] = [];
+
+// Funções para persistência de templates no localStorage
+const TEMPLATES_STORAGE_KEY = 'projectionCustomTemplates';
+
+const loadCustomTemplates = (): ProjectionTemplate[] => {
+    try {
+        const saved = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+        return saved ? JSON.parse(saved) : [];
+    } catch {
+        return [];
+    }
+};
+
+const saveCustomTemplates = (templates: ProjectionTemplate[]) => {
+    localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+};
 
 // Definição das tabs
 type TabId = 'visao-geral' | 'concorrencia' | 'stakeholders' | 'swot' | 'projecoes';
@@ -52,6 +88,23 @@ const CityMarketAnalysis: React.FC = () => {
     
     // Estado para resultados carregados diretamente do backend (independente do cityPlan)
     const [backendResults, setBackendResults] = useState<{ [key: string]: MonthResult } | null>(null);
+
+    // ========================================
+    // TEMPLATES PERSONALIZADOS
+    // ========================================
+    const [customTemplates, setCustomTemplates] = useState<ProjectionTemplate[]>(() => loadCustomTemplates());
+    const [showTemplateModal, setShowTemplateModal] = useState(false);
+    const [editingTemplate, setEditingTemplate] = useState<ProjectionTemplate | null>(null);
+    const [templateForm, setTemplateForm] = useState({ 
+        name: '', 
+        emoji: '📊', 
+        cpaValues: createMonthlyArray(1.0), 
+        opsValues: createMonthlyArray(0.5) 
+    });
+    const [showApplyConfirm, setShowApplyConfirm] = useState<string | null>(null); // ID do template a aplicar
+    const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
+    const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
+    const [saveAsTemplateEmoji, setSaveAsTemplateEmoji] = useState('📊');
 
     // Initial Load
     useEffect(() => {
@@ -132,38 +185,38 @@ const CityMarketAnalysis: React.FC = () => {
             const cityProjectionData = {
                 // Cuiabá (população: 650,912, alta renda)
                 5103403: {
-                    cpa: [12, 10, 8, 7, 6, 5.5, 5, 5, 5, 5, 5, 5], // Reduz CPA conforme cidade amadurece
-                    ops: [4.5, 4.2, 4.0, 3.8, 3.5, 3.2, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0] // OPS também reduz
+                    cpa: [12, 10, 8, 7, 6, 5.5], // Reduz CPA conforme cidade amadurece
+                    ops: [4.5, 4.2, 4.0, 3.8, 3.5, 3.2] // OPS também reduz
                 },
                 // Cáceres (população: 95,448, renda média)
                 5102504: {
-                    cpa: [8, 7, 6, 5.5, 5, 4.5, 4, 4, 4, 4, 4, 4],
-                    ops: [3.8, 3.5, 3.2, 3.0, 2.8, 2.5, 2.3, 2.3, 2.3, 2.3, 2.3, 2.3]
+                    cpa: [8, 7, 6, 5.5, 5, 4.5],
+                    ops: [3.8, 3.5, 3.2, 3.0, 2.8, 2.5]
                 },
                 // Chapada dos Guimarães (população: 18,806, turística)
                 5103007: {
-                    cpa: [15, 12, 10, 8, 7, 6, 5.5, 5, 5, 5, 5, 5], // CPA maior por ser mercado turístico
-                    ops: [5.0, 4.5, 4.0, 3.5, 3.2, 3.0, 2.8, 2.8, 2.8, 2.8, 2.8, 2.8]
+                    cpa: [15, 12, 10, 8, 7, 6], // CPA maior por ser mercado turístico
+                    ops: [5.0, 4.5, 4.0, 3.5, 3.2, 3.0]
                 },
                 // Poconé (população: 31,247, renda baixa)
                 5106505: {
-                    cpa: [6, 5.5, 5, 4.5, 4, 3.5, 3.2, 3, 3, 3, 3, 3],
-                    ops: [3.2, 3.0, 2.8, 2.5, 2.3, 2.0, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8]
+                    cpa: [6, 5.5, 5, 4.5, 4, 3.5],
+                    ops: [3.2, 3.0, 2.8, 2.5, 2.3, 2.0]
                 },
                 // Rosário Oeste (população: 15,638, renda baixa)
                 5107701: {
-                    cpa: [7, 6, 5.5, 5, 4.5, 4, 3.5, 3.2, 3.2, 3.2, 3.2, 3.2],
-                    ops: [3.5, 3.2, 3.0, 2.8, 2.5, 2.2, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+                    cpa: [7, 6, 5.5, 5, 4.5, 4],
+                    ops: [3.5, 3.2, 3.0, 2.8, 2.5, 2.2]
                 },
                 // Nossa Senhora do Livramento (população: 12,940, renda baixa)
                 5106109: {
-                    cpa: [6.5, 5.8, 5.2, 4.8, 4.2, 3.8, 3.5, 3.2, 3.2, 3.2, 3.2, 3.2],
-                    ops: [3.3, 3.0, 2.8, 2.5, 2.2, 2.0, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8]
+                    cpa: [6.5, 5.8, 5.2, 4.8, 4.2, 3.8],
+                    ops: [3.3, 3.0, 2.8, 2.5, 2.2, 2.0]
                 },
                 // Santo Antônio de Leverger (população: 15,472, renda baixa)
                 5107800: {
-                    cpa: [7.2, 6.5, 5.8, 5.2, 4.8, 4.2, 3.8, 3.5, 3.5, 3.5, 3.5, 3.5],
-                    ops: [3.6, 3.3, 3.0, 2.8, 2.5, 2.2, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+                    cpa: [7.2, 6.5, 5.8, 5.2, 4.8, 4.2],
+                    ops: [3.6, 3.3, 3.0, 2.8, 2.5, 2.2]
                 }
             };
 
@@ -172,8 +225,8 @@ const CityMarketAnalysis: React.FC = () => {
                 const initialCPA: { [monthKey: string]: number } = {};
                 const initialOPS: { [monthKey: string]: number } = {};
 
-                // Preencher 12 meses com dados
-                for (let i = 0; i < 12; i++) {
+                // Preencher 6 meses com dados
+                for (let i = 0; i < 6; i++) {
                     const monthKey = `Mes${i + 1}`;
                     initialCPA[monthKey] = cityData.cpa[i];
                     initialOPS[monthKey] = cityData.ops[i];
@@ -186,7 +239,7 @@ const CityMarketAnalysis: React.FC = () => {
                 const projectedMonths = getProjectionMonthsForCalculation();
                 const initialCosts: { [monthKey: string]: { marketingCost: number; operationalCost: number } } = {};
                 
-                for (let i = 0; i < 12; i++) {
+                for (let i = 0; i < 6; i++) {
                     const monthKey = `Mes${i + 1}`;
                     const expectedRides = projectedMonths[i]?.expectedRides || 0;
                     initialCosts[monthKey] = {
@@ -204,12 +257,12 @@ const CityMarketAnalysis: React.FC = () => {
         if (!city) return [];
         
         const months: { expectedRides: number }[] = [];
-        for (let i = 0; i < 12; i++) {
+        for (let i = 0; i < 6; i++) {
             let expectedRides = 0;
             if (city.population15to44) {
                 const curveFactors = [0.045, 0.09, 0.18, 0.36, 0.63, 1.0];
                 const targetPenetration = 0.10;
-                const factor = i < 6 ? curveFactors[i] : 1.0;
+                const factor = curveFactors[i];
                 expectedRides = Math.round(city.population15to44 * factor * targetPenetration);
             }
             months.push({ expectedRides });
@@ -217,7 +270,7 @@ const CityMarketAnalysis: React.FC = () => {
         return months;
     };
 
-    // Gerar meses para projeção (12 meses) - MEMOIZADO para performance
+    // Gerar meses para projeção (6 meses) - MEMOIZADO para performance
     // Se houver data de implementação, mostra o mês real (Jan/2025)
     // Se não houver, mostra apenas "Mês 1", "Mês 2", etc.
     const projectionMonths = useMemo(() => {
@@ -226,7 +279,7 @@ const CityMarketAnalysis: React.FC = () => {
         
         const hasImplementationDate = !!city?.implementationStartDate;
         
-        for (let i = 0; i < 12; i++) {
+        for (let i = 0; i < 6; i++) {
             const mesKey = `Mes${i + 1}`; // Chave sempre será Mes1, Mes2, etc.
             let dateLabel: string | null = null;
             let expectedRides = 0;
@@ -312,6 +365,138 @@ const CityMarketAnalysis: React.FC = () => {
 
     // Helper para marcar alterações
     const markAsChanged = () => setHasUnsavedChanges(true);
+
+    // ========================================
+    // TEMPLATE HANDLERS
+    // ========================================
+    
+    // Todos os templates (padrão + customizados)
+    const allTemplates = [...DEFAULT_TEMPLATES, ...customTemplates];
+    
+    // Helper para calcular média de um array
+    const getArrayAverage = (arr: number[]): number => {
+        const validValues = arr.filter(v => v > 0);
+        return validValues.length > 0 ? validValues.reduce((a, b) => a + b, 0) / validValues.length : 0;
+    };
+    
+    // Aplicar template à tabela
+    const applyTemplate = (template: ProjectionTemplate) => {
+        const newCpa: { [key: string]: number } = {};
+        const newOps: { [key: string]: number } = {};
+        const newCosts: { [key: string]: { marketingCost: number; operationalCost: number } } = {};
+        
+        // Obter as corridas esperadas para cada mês
+        const projectedMonthsCalc = getProjectionMonthsForCalculation();
+        
+        for (let i = 1; i <= 12; i++) {
+            const cpaValue = template.cpaValues[i - 1] || 0;
+            const opsValue = template.opsValues[i - 1] || 0;
+            const expectedRides = projectedMonthsCalc[i - 1]?.expectedRides || 0;
+            
+            newCpa[`Mes${i}`] = cpaValue;
+            newOps[`Mes${i}`] = opsValue;
+            
+            // Calcular custos de marketing e operacional baseados nas corridas x CPA/OPS
+            newCosts[`Mes${i}`] = {
+                marketingCost: Math.round(expectedRides * cpaValue),
+                operationalCost: Math.round(expectedRides * opsValue)
+            };
+        }
+        
+        setCpaValues(newCpa);
+        setOpsValues(newOps);
+        setProjectedCosts(newCosts);
+        markAsChanged();
+        setShowApplyConfirm(null);
+    };
+    
+    // Salvar template customizado
+    const saveCustomTemplate = (template: ProjectionTemplate) => {
+        let newTemplates: ProjectionTemplate[];
+        
+        if (editingTemplate) {
+            // Editando template existente
+            newTemplates = customTemplates.map(t => 
+                t.id === editingTemplate.id ? template : t
+            );
+        } else {
+            // Novo template - verificar limite de 5
+            if (customTemplates.length >= 5) {
+                alert('Limite de 5 templates personalizados atingido. Remova um template para adicionar outro.');
+                return;
+            }
+            newTemplates = [...customTemplates, { ...template, id: `custom_${Date.now()}` }];
+        }
+        
+        setCustomTemplates(newTemplates);
+        saveCustomTemplates(newTemplates);
+        setShowTemplateModal(false);
+        setEditingTemplate(null);
+        setTemplateForm({ name: '', emoji: '📊', cpaValues: createMonthlyArray(1.0), opsValues: createMonthlyArray(0.5) });
+    };
+    
+    // Remover template customizado
+    const removeCustomTemplate = (id: string) => {
+        const newTemplates = customTemplates.filter(t => t.id !== id);
+        setCustomTemplates(newTemplates);
+        saveCustomTemplates(newTemplates);
+    };
+    
+    // Abrir modal para editar template
+    const openEditTemplate = (template: ProjectionTemplate) => {
+        setEditingTemplate(template);
+        setTemplateForm({
+            name: template.name,
+            emoji: template.emoji,
+            cpaValues: [...template.cpaValues],
+            opsValues: [...template.opsValues]
+        });
+        setShowTemplateModal(true);
+    };
+    
+    // Abrir modal para novo template
+    const openNewTemplate = () => {
+        setEditingTemplate(null);
+        setTemplateForm({ name: '', emoji: '📊', cpaValues: createMonthlyArray(1.0), opsValues: createMonthlyArray(0.5) });
+        setShowTemplateModal(true);
+    };
+    
+    // Salvar tabela atual como template
+    const saveCurrentAsTemplate = () => {
+        if (!saveAsTemplateName.trim()) {
+            alert('Digite um nome para o template.');
+            return;
+        }
+        
+        if (customTemplates.length >= 5) {
+            alert('Limite de 5 templates personalizados atingido. Remova um template para adicionar outro.');
+            return;
+        }
+        
+        // Capturar os valores CPA/OPS de cada mês
+        const cpaArr: number[] = [];
+        const opsArr: number[] = [];
+        for (let i = 1; i <= 12; i++) {
+            cpaArr.push(cpaValues[`Mes${i}`] || 0);
+            opsArr.push(opsValues[`Mes${i}`] || 0);
+        }
+        
+        const newTemplate: ProjectionTemplate = {
+            id: `custom_${Date.now()}`,
+            name: saveAsTemplateName.trim(),
+            emoji: saveAsTemplateEmoji,
+            color: '#8b5cf6', // Roxo para templates salvos da tabela
+            cpaValues: cpaArr,
+            opsValues: opsArr
+        };
+        
+        const newTemplates = [...customTemplates, newTemplate];
+        setCustomTemplates(newTemplates);
+        saveCustomTemplates(newTemplates);
+        setShowSaveAsTemplate(false);
+        setSaveAsTemplateName('');
+        setSaveAsTemplateEmoji('📊');
+    };
 
     // --- Competitor Handlers ---
     const addCompetitor = () => {
@@ -1246,61 +1431,110 @@ const CityMarketAnalysis: React.FC = () => {
                             </button>
                         </div>
                         
-                        {/* Templates de Projeção */}
+                        {/* Templates de Projeção - Sistema Editável */}
                         <div className="mt-4 pt-4" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                            <p className="text-xs font-semibold uppercase text-gray-400 mb-3">Templates Pré-definidos</p>
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-xs font-semibold uppercase text-gray-400">
+                                    Templates {customTemplates.length > 0 && <span className="text-purple-400">({customTemplates.length}/5 personalizados)</span>}
+                                </p>
+                                <div className="flex gap-2">
+                                    {/* Botão para salvar tabela atual como template */}
+                                    <button
+                                        onClick={() => setShowSaveAsTemplate(true)}
+                                        className="px-3 py-1.5 rounded-lg font-medium transition-all hover:scale-105 text-xs flex items-center gap-1"
+                                        style={{ background: 'rgba(139, 92, 246, 0.2)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.3)' }}
+                                        title="Salvar valores atuais como novo template"
+                                    >
+                                        <FiCopy size={14} />
+                                        Salvar como Template
+                                    </button>
+                                    {/* Botão para adicionar novo template */}
+                                    {customTemplates.length < 5 && (
+                                        <button
+                                            onClick={openNewTemplate}
+                                            className="px-3 py-1.5 rounded-lg font-medium transition-all hover:scale-105 text-xs flex items-center gap-1"
+                                            style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
+                                            title="Criar novo template personalizado"
+                                        >
+                                            <FiPlus size={14} />
+                                            Novo Template
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            {/* Lista de Templates */}
                             <div className="flex flex-wrap gap-2">
-                                <button 
-                                    onClick={() => {
-                                        const newCpa: { [key: string]: number } = {};
-                                        const newOps: { [key: string]: number } = {};
-                                        for (let i = 1; i <= 12; i++) {
-                                            newCpa[`Mes${i}`] = 0.80;
-                                            newOps[`Mes${i}`] = 0.40;
-                                        }
-                                        setCpaValues(newCpa);
-                                        setOpsValues(newOps);
-                                        markAsChanged();
-                                    }}
-                                    className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 text-sm"
-                                    style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' }}
-                                >
-                                    🛡️ Conservador (CPA: R$0,80 / OPS: R$0,40)
-                                </button>
-                                <button 
-                                    onClick={() => {
-                                        const newCpa: { [key: string]: number } = {};
-                                        const newOps: { [key: string]: number } = {};
-                                        for (let i = 1; i <= 12; i++) {
-                                            newCpa[`Mes${i}`] = 1.50;
-                                            newOps[`Mes${i}`] = 0.60;
-                                        }
-                                        setCpaValues(newCpa);
-                                        setOpsValues(newOps);
-                                        markAsChanged();
-                                    }}
-                                    className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 text-sm"
-                                    style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}
-                                >
-                                    ⚖️ Moderado (CPA: R$1,50 / OPS: R$0,60)
-                                </button>
-                                <button 
-                                    onClick={() => {
-                                        const newCpa: { [key: string]: number } = {};
-                                        const newOps: { [key: string]: number } = {};
-                                        for (let i = 1; i <= 12; i++) {
-                                            newCpa[`Mes${i}`] = 2.50;
-                                            newOps[`Mes${i}`] = 1.00;
-                                        }
-                                        setCpaValues(newCpa);
-                                        setOpsValues(newOps);
-                                        markAsChanged();
-                                    }}
-                                    className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 text-sm"
-                                    style={{ background: 'rgba(249, 115, 22, 0.2)', color: '#f97316', border: '1px solid rgba(249, 115, 22, 0.3)' }}
-                                >
-                                    🚀 Agressivo (CPA: R$2,50 / OPS: R$1,00)
-                                </button>
+                                {/* Templates Padrão */}
+                                {DEFAULT_TEMPLATES.map(template => {
+                                    const avgCpa = getArrayAverage(template.cpaValues);
+                                    const avgOps = getArrayAverage(template.opsValues);
+                                    const isUniform = template.cpaValues.every(v => v === template.cpaValues[0]) && 
+                                                      template.opsValues.every(v => v === template.opsValues[0]);
+                                    return (
+                                        <div key={template.id} className="relative group">
+                                            <button 
+                                                onClick={() => setShowApplyConfirm(template.id)}
+                                                className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 text-sm"
+                                                style={{ 
+                                                    background: `rgba(${parseInt(template.color.slice(1,3), 16)}, ${parseInt(template.color.slice(3,5), 16)}, ${parseInt(template.color.slice(5,7), 16)}, 0.2)`, 
+                                                    color: template.color, 
+                                                    border: `1px solid rgba(${parseInt(template.color.slice(1,3), 16)}, ${parseInt(template.color.slice(3,5), 16)}, ${parseInt(template.color.slice(5,7), 16)}, 0.3)` 
+                                                }}
+                                                title={isUniform ? undefined : `Valores variáveis por mês - Média CPA: R$${avgCpa.toFixed(2)} / OPS: R$${avgOps.toFixed(2)}`}
+                                            >
+                                                {template.emoji} {template.name} {isUniform 
+                                                    ? `(CPA: R$${avgCpa.toFixed(2).replace('.', ',')} / OPS: R$${avgOps.toFixed(2).replace('.', ',')})`
+                                                    : `(Variável)`
+                                                }
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                                
+                                {/* Templates Personalizados */}
+                                {customTemplates.map(template => {
+                                    const avgCpa = getArrayAverage(template.cpaValues);
+                                    const avgOps = getArrayAverage(template.opsValues);
+                                    const isUniform = template.cpaValues.every(v => v === template.cpaValues[0]) && 
+                                                      template.opsValues.every(v => v === template.opsValues[0]);
+                                    return (
+                                        <div key={template.id} className="relative group">
+                                            <button 
+                                                onClick={() => setShowApplyConfirm(template.id)}
+                                                className="px-4 py-2 rounded-lg font-medium transition-all hover:scale-105 text-sm pr-16"
+                                                style={{ 
+                                                    background: `rgba(${parseInt(template.color.slice(1,3), 16)}, ${parseInt(template.color.slice(3,5), 16)}, ${parseInt(template.color.slice(5,7), 16)}, 0.2)`, 
+                                                    color: template.color, 
+                                                    border: `1px solid rgba(${parseInt(template.color.slice(1,3), 16)}, ${parseInt(template.color.slice(3,5), 16)}, ${parseInt(template.color.slice(5,7), 16)}, 0.3)` 
+                                                }}
+                                                title={isUniform ? undefined : `Valores variáveis por mês - Média CPA: R$${avgCpa.toFixed(2)} / OPS: R$${avgOps.toFixed(2)}`}
+                                            >
+                                                {template.emoji} {template.name} {isUniform 
+                                                    ? `(CPA: R$${avgCpa.toFixed(2).replace('.', ',')} / OPS: R$${avgOps.toFixed(2).replace('.', ',')})`
+                                                    : `(Variável)`
+                                                }
+                                            </button>
+                                            {/* Botões de editar/remover para templates customizados */}
+                                            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); openEditTemplate(template); }}
+                                                    className="p-1 rounded hover:bg-white/10 transition-colors"
+                                                    title="Editar template"
+                                                >
+                                                    <FiEdit2 size={12} className="text-blue-400" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); removeCustomTemplate(template.id); }}
+                                                    className="p-1 rounded hover:bg-white/10 transition-colors"
+                                                    title="Remover template"
+                                                >
+                                                    <FiTrash2 size={12} className="text-red-400" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     </Card>
@@ -1590,6 +1824,340 @@ const CityMarketAnalysis: React.FC = () => {
                 </div>
                 )}
             </div>
+
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {/* MODAIS DE TEMPLATES (Fora dos Cards para funcionar corretamente) */}
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            
+            {/* Modal de Confirmação para Aplicar Template */}
+            {showApplyConfirm && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowApplyConfirm(null)}>
+                    <div 
+                        className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl border border-gray-700"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                            <FiCheck className="text-green-400" />
+                            Aplicar Template?
+                        </h3>
+                        <p className="text-gray-300 mb-6">
+                            Deseja aplicar o template <strong className="text-purple-400">
+                                {allTemplates.find(t => t.id === showApplyConfirm)?.name}
+                            </strong> a todos os meses? Os valores atuais de CPA e OPS serão substituídos.
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setShowApplyConfirm(null)}
+                                className="px-4 py-2 rounded-lg font-medium transition-all"
+                                style={{ background: 'rgba(255, 255, 255, 0.1)', color: '#9ca3af' }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const template = allTemplates.find(t => t.id === showApplyConfirm);
+                                    if (template) applyTemplate(template);
+                                }}
+                                className="px-4 py-2 rounded-lg font-medium transition-all"
+                                style={{ background: 'rgba(16, 185, 129, 0.3)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.5)' }}
+                            >
+                                Aplicar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Modal para Criar/Editar Template */}
+            {showTemplateModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowTemplateModal(false)}>
+                    <div 
+                        className="bg-gray-800 rounded-xl p-6 max-w-4xl w-full mx-4 shadow-2xl border border-gray-700 max-h-[90vh] overflow-y-auto"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <h3 className="text-lg font-bold text-white mb-4">
+                            {editingTemplate ? 'Editar Template' : 'Novo Template'}
+                        </h3>
+                        
+                        <div className="space-y-4">
+                            {/* Nome e Emoji */}
+                            <div className="flex gap-3">
+                                <div className="w-32">
+                                    <label className="text-xs font-semibold uppercase text-gray-400 mb-1 block">Emoji</label>
+                                    <input
+                                        type="text"
+                                        maxLength={2}
+                                        value={templateForm.emoji}
+                                        onChange={e => setTemplateForm({ ...templateForm, emoji: e.target.value })}
+                                        className="w-full p-2 rounded-lg text-center text-xl mb-2"
+                                        style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#ffffff' }}
+                                    />
+                                    <div className="flex flex-wrap gap-1">
+                                        {['📊', '💰', '🎯', '⚡', '🔥', '💎', '🌟', '📈'].map(emoji => (
+                                            <button
+                                                key={emoji}
+                                                onClick={() => setTemplateForm({ ...templateForm, emoji })}
+                                                className="p-1 rounded hover:bg-white/10 transition-colors text-sm"
+                                                type="button"
+                                            >
+                                                {emoji}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-xs font-semibold uppercase text-gray-400 mb-1 block">Nome</label>
+                                    <input
+                                        type="text"
+                                        maxLength={20}
+                                        value={templateForm.name}
+                                        onChange={e => setTemplateForm({ ...templateForm, name: e.target.value })}
+                                        placeholder="Ex: Meu Template"
+                                        className="w-full p-2 rounded-lg"
+                                        style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#ffffff' }}
+                                    />
+                                </div>
+                            </div>
+                            
+                            {/* Ações rápidas para preencher todos os meses */}
+                            <div className="p-3 rounded-lg" style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                <p className="text-xs font-semibold uppercase text-blue-400 mb-2">Preenchimento Rápido</p>
+                                <div className="flex flex-wrap gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            placeholder="CPA"
+                                            id="quick-cpa"
+                                            className="w-20 p-1.5 rounded text-center text-sm"
+                                            style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(139, 92, 246, 0.3)', color: '#a78bfa' }}
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const val = Number((document.getElementById('quick-cpa') as HTMLInputElement)?.value) || 0;
+                                                if (val > 0) setTemplateForm({ ...templateForm, cpaValues: createMonthlyArray(val) });
+                                            }}
+                                            className="px-2 py-1 rounded text-xs font-medium"
+                                            style={{ background: 'rgba(139, 92, 246, 0.2)', color: '#a78bfa' }}
+                                            type="button"
+                                        >
+                                            Aplicar CPA
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            placeholder="OPS"
+                                            id="quick-ops"
+                                            className="w-20 p-1.5 rounded text-center text-sm"
+                                            style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(6, 182, 212, 0.3)', color: '#22d3ee' }}
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const val = Number((document.getElementById('quick-ops') as HTMLInputElement)?.value) || 0;
+                                                if (val > 0) setTemplateForm({ ...templateForm, opsValues: createMonthlyArray(val) });
+                                            }}
+                                            className="px-2 py-1 rounded text-xs font-medium"
+                                            style={{ background: 'rgba(6, 182, 212, 0.2)', color: '#22d3ee' }}
+                                            type="button"
+                                        >
+                                            Aplicar OPS
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Tabela de valores por mês */}
+                            <div>
+                                <p className="text-xs font-semibold uppercase text-gray-400 mb-2">Valores por Mês</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                    {[...Array(6)].map((_, i) => (
+                                        <div key={i} className="p-2 rounded-lg" style={{ background: 'rgba(0, 0, 0, 0.2)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                                            <p className="text-xs font-medium text-gray-300 mb-1">Mês {i + 1}</p>
+                                            <div className="flex gap-1">
+                                                <div className="flex-1">
+                                                    <label className="text-[10px] text-purple-400">CPA</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={templateForm.cpaValues[i] || ''}
+                                                        onChange={e => {
+                                                            const newCpa = [...templateForm.cpaValues];
+                                                            newCpa[i] = Number(e.target.value) || 0;
+                                                            setTemplateForm({ ...templateForm, cpaValues: newCpa });
+                                                        }}
+                                                        className="w-full p-1 rounded text-center text-xs"
+                                                        style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(139, 92, 246, 0.3)', color: '#a78bfa' }}
+                                                    />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <label className="text-[10px] text-cyan-400">OPS</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={templateForm.opsValues[i] || ''}
+                                                        onChange={e => {
+                                                            const newOps = [...templateForm.opsValues];
+                                                            newOps[i] = Number(e.target.value) || 0;
+                                                            setTemplateForm({ ...templateForm, opsValues: newOps });
+                                                        }}
+                                                        className="w-full p-1 rounded text-center text-xs"
+                                                        style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(6, 182, 212, 0.3)', color: '#22d3ee' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            {/* Preview */}
+                            <div className="p-3 rounded-lg" style={{ background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                                <p className="text-xs text-gray-400 mb-2">Preview:</p>
+                                <span className="px-3 py-1.5 rounded-lg text-sm inline-block" style={{ background: 'rgba(139, 92, 246, 0.2)', color: '#a78bfa', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                                    {templateForm.emoji} {templateForm.name || 'Nome'} {
+                                        templateForm.cpaValues.every(v => v === templateForm.cpaValues[0]) && 
+                                        templateForm.opsValues.every(v => v === templateForm.opsValues[0])
+                                            ? `(CPA: R$${(templateForm.cpaValues[0] || 0).toFixed(2).replace('.', ',')} / OPS: R$${(templateForm.opsValues[0] || 0).toFixed(2).replace('.', ',')})`
+                                            : `(Variável - Média CPA: R$${getArrayAverage(templateForm.cpaValues).toFixed(2).replace('.', ',')} / OPS: R$${getArrayAverage(templateForm.opsValues).toFixed(2).replace('.', ',')})`
+                                    }
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-3 justify-end mt-6">
+                            <button
+                                onClick={() => { setShowTemplateModal(false); setEditingTemplate(null); }}
+                                className="px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2"
+                                style={{ background: 'rgba(255, 255, 255, 0.1)', color: '#9ca3af' }}
+                            >
+                                <FiX size={16} />
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (!templateForm.name.trim()) {
+                                        alert('Digite um nome para o template.');
+                                        return;
+                                    }
+                                    saveCustomTemplate({
+                                        id: editingTemplate?.id || '',
+                                        name: templateForm.name.trim(),
+                                        emoji: templateForm.emoji || '📊',
+                                        color: '#a78bfa',
+                                        cpaValues: templateForm.cpaValues,
+                                        opsValues: templateForm.opsValues
+                                    });
+                                }}
+                                className="px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2"
+                                style={{ background: 'rgba(16, 185, 129, 0.3)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.5)' }}
+                            >
+                                <FiCheck size={16} />
+                                {editingTemplate ? 'Salvar' : 'Criar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Modal para Salvar Tabela como Template */}
+            {showSaveAsTemplate && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowSaveAsTemplate(false)}>
+                    <div 
+                        className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl border border-gray-700"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                            <FiCopy className="text-purple-400" />
+                            Salvar como Template
+                        </h3>
+                        <p className="text-gray-400 text-sm mb-4">
+                            Serão salvos os valores de CPA e OPS de cada mês da tabela atual.
+                        </p>
+                        
+                        <div className="space-y-4">
+                            <div className="flex gap-3">
+                                <div className="w-32">
+                                    <label className="text-xs font-semibold uppercase text-gray-400 mb-1 block">Emoji</label>
+                                    <input
+                                        type="text"
+                                        maxLength={2}
+                                        value={saveAsTemplateEmoji}
+                                        onChange={e => setSaveAsTemplateEmoji(e.target.value)}
+                                        className="w-full p-2 rounded-lg text-center text-xl mb-2"
+                                        style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#ffffff' }}
+                                    />
+                                    <div className="flex flex-wrap gap-1">
+                                        {['📊', '💰', '🎯', '⚡', '🔥', '💎', '🌟', '📈'].map(emoji => (
+                                            <button
+                                                key={emoji}
+                                                onClick={() => setSaveAsTemplateEmoji(emoji)}
+                                                className="p-1 rounded hover:bg-white/10 transition-colors text-sm"
+                                                type="button"
+                                            >
+                                                {emoji}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-xs font-semibold uppercase text-gray-400 mb-1 block">Nome do Template</label>
+                                    <input
+                                        type="text"
+                                        maxLength={20}
+                                        value={saveAsTemplateName}
+                                        onChange={e => setSaveAsTemplateName(e.target.value)}
+                                        placeholder="Ex: Config. Atual"
+                                        className="w-full p-2 rounded-lg"
+                                        style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#ffffff' }}
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+                            
+                            {/* Resumo dos valores atuais */}
+                            <div className="p-3 rounded-lg" style={{ background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                                <p className="text-xs text-gray-400 mb-2">Valores médios atuais:</p>
+                                <div className="flex gap-4">
+                                    <span className="text-purple-400">
+                                        CPA: R$ {(Object.values(cpaValues).filter(v => v > 0).length > 0 
+                                            ? (Object.values(cpaValues).filter(v => v > 0).reduce((a, b) => a + b, 0) / Object.values(cpaValues).filter(v => v > 0).length).toFixed(2)
+                                            : '0.00').replace('.', ',')}
+                                    </span>
+                                    <span className="text-cyan-400">
+                                        OPS: R$ {(Object.values(opsValues).filter(v => v > 0).length > 0 
+                                            ? (Object.values(opsValues).filter(v => v > 0).reduce((a, b) => a + b, 0) / Object.values(opsValues).filter(v => v > 0).length).toFixed(2)
+                                            : '0.00').replace('.', ',')}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-3 justify-end mt-6">
+                            <button
+                                onClick={() => { setShowSaveAsTemplate(false); setSaveAsTemplateName(''); }}
+                                className="px-4 py-2 rounded-lg font-medium transition-all"
+                                style={{ background: 'rgba(255, 255, 255, 0.1)', color: '#9ca3af' }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={saveCurrentAsTemplate}
+                                className="px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2"
+                                style={{ background: 'rgba(139, 92, 246, 0.3)', color: '#a78bfa', border: '1px solid rgba(139, 92, 246, 0.5)' }}
+                            >
+                                <FiSave size={16} />
+                                Salvar Template
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Floating Save Button */}
             <div className="fixed bottom-6 right-6 z-50">

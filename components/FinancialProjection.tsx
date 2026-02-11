@@ -187,7 +187,7 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
                 <div class="kpi"><div class="kpi-label">Custo Total</div><div class="kpi-value">R$${((totalMarketingProj + totalOperationalProj)/1000).toFixed(1)}k</div><div class="kpi-sub">Real: R$${((totalMarketingReal + totalOperationalReal)/1000).toFixed(1)}k</div></div>
                 <div class="kpi"><div class="kpi-label">Receita</div><div class="kpi-value">R$${(totalProjRevenue/1000).toFixed(1)}k</div><div class="kpi-sub">Real: R$${(totalActualRevenue/1000).toFixed(1)}k</div></div>
                 <div class="kpi"><div class="kpi-label">Custo/Corrida</div><div class="kpi-value">R$${avgCostProj.toFixed(2)}</div><div class="kpi-sub">Real: R$${avgCostReal.toFixed(2)}</div></div>
-                <div class="kpi"><div class="kpi-label">CPA Mkt</div><div class="kpi-value">R$${totalExpectedRides > 0 ? (totalMarketingProj / totalExpectedRides).toFixed(2) : '0'}</div><div class="kpi-sub">por pax</div></div>
+                <div class="kpi"><div class="kpi-label">CPA Mkt</div><div class="kpi-value">R$${totalExpectedRides > 0 ? (totalMarketingProj / totalExpectedRides).toFixed(2) : '0'}</div><div class="kpi-sub">por corrida</div></div>
                 <div class="kpi"><div class="kpi-label">CAC</div><div class="kpi-value">R$${totalExpectedRides > 0 ? ((totalMarketingProj + totalOperationalProj) / totalExpectedRides).toFixed(2) : '0'}</div><div class="kpi-sub">total</div></div>
             </div>
             <table>
@@ -567,7 +567,7 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
                         Object.values(monthlyCosts).forEach(costs => {
                             totalMarketing += costs.marketingCost || 0;
                         });
-                        const cpaMarketing = totalRides > 0 ? totalMarketing / totalRides : 0;
+                        const cpaPerRide = totalRides > 0 ? totalMarketing / totalRides : 0;
                         if (totalMarketing === 0) return null;
                         return (
                             <Card gradient>
@@ -580,15 +580,15 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
                                             <FiZap className="w-5 h-5" style={{ color: '#93c5fd' }} />
                                         </div>
                                         <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'rgb(255 255 255 / 50%)' }}>CPA Marketing</p>
+                                            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'rgb(255 255 255 / 50%)' }}>CPA Mkt</p>
                                             <p className="text-2xl font-black" style={{ color: '#93c5fd' }}>
-                                                {cpaMarketing.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                {cpaPerRide.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </p>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="pt-2 text-xs" style={{ borderTop: '1px solid rgb(255 255 255 / 15%)', color: 'rgb(255 255 255 / 50%)' }}>
-                                    por passageiro
+                                    por corrida
                                 </div>
                             </Card>
                         );
@@ -601,7 +601,7 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
                         Object.values(monthlyCosts).forEach(costs => {
                             totalOperational += costs.operationalCost || 0;
                         });
-                        const opsPerPassenger = totalRides > 0 ? totalOperational / totalRides : 0;
+                        const opsPerRide = totalRides > 0 ? totalOperational / totalRides : 0;
                         if (totalOperational === 0) return null;
                         return (
                             <Card gradient>
@@ -614,15 +614,15 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
                                             <FiTrendingUp className="w-5 h-5" style={{ color: '#c084fc' }} />
                                         </div>
                                         <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'rgb(255 255 255 / 50%)' }}>Ops / Passageiro</p>
+                                            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'rgb(255 255 255 / 50%)' }}>Ops / Corrida</p>
                                             <p className="text-2xl font-black" style={{ color: '#c084fc' }}>
-                                                {opsPerPassenger.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                {opsPerRide.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </p>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="pt-2 text-xs" style={{ borderTop: '1px solid rgb(255 255 255 / 15%)', color: 'rgb(255 255 255 / 50%)' }}>
-                                    eficiência local
+                                    custo operacional
                                 </div>
                             </Card>
                         );
@@ -637,7 +637,7 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
                             totalMarketing += costs.marketingCost || 0;
                             totalOperational += costs.operationalCost || 0;
                         });
-                        const cacTotal = totalRides > 0 ? (totalMarketing + totalOperational) / totalRides : 0;
+                        const costPerRideTotal = totalRides > 0 ? (totalMarketing + totalOperational) / totalRides : 0;
                         if (totalMarketing === 0 && totalOperational === 0) return null;
                         return (
                             <Card gradient>
@@ -652,13 +652,13 @@ const FinancialProjection: React.FC<FinancialProjectionProps> = ({
                                         <div>
                                             <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'rgb(255 255 255 / 50%)' }}>Custo Total</p>
                                             <p className="text-2xl font-black" style={{ color: '#67e8f9' }}>
-                                                {cacTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                {costPerRideTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </p>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="pt-2 text-xs" style={{ borderTop: '1px solid rgb(255 255 255 / 15%)', color: 'rgb(255 255 255 / 50%)' }}>
-                                    métrica combinada
+                                    por corrida
                                 </div>
                             </Card>
                         );

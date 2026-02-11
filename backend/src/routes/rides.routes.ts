@@ -27,6 +27,14 @@ router.get('/cities', ridesController.getCitiesWithRides.bind(ridesController));
 router.get('/summary', ridesController.getSummary.bind(ridesController));
 
 /**
+ * @route   GET /api/rides/monthly-revenue-total
+ * @desc    Receita total mensal de recargas (sem filtro de cidade)
+ * @access  Public
+ * @query   months - Número de meses (default: 6)
+ */
+router.get('/monthly-revenue-total', ridesController.getTotalMonthlyRevenue.bind(ridesController));
+
+/**
  * @route   GET /api/rides/city/:cityName/stats
  * @desc    Estatísticas de corridas de uma cidade
  * @access  Public
